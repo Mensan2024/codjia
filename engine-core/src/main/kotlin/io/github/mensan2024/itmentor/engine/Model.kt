@@ -94,6 +94,8 @@ data class Scene(
     val items: List<String> = emptyList(),
     val compare: Compare? = null,
     val statValue: String? = null,
+    /** Phrase lue par la voix off (texte oral, distinct du texte affiché). `null` = scène muette. */
+    val narration: String? = null,
     val enter: AnimSpec = AnimSpec(AnimType.SLIDE_UP),
     val exit: AnimSpec = AnimSpec(AnimType.FADE_OUT, durationMs = 350, easing = Easing.EASE_IN),
     /** Transition vers la scène suivante (ignorée pour la dernière scène). */

@@ -19,7 +19,7 @@ object DemoStoryboard {
         hashtag = "#securiteinformatiquepourtous",
         scenes = listOf(
             Scene(
-                id = "s1-couverture", layout = Layout.HERO, durationMs = 5500,
+                id = "s1-couverture", narration = "Astuce cybersécurité : repère un e-mail piégé en cinq secondes.", layout = Layout.HERO, durationMs = 5500,
                 kicker = "ASTUCE CYBERSÉCURITÉ",
                 title = "Repère un e-mail piégé en 5${NB}secondes",
                 subtitle = "L’hameçonnage vise tout le monde, du stagiaire au directeur.",
@@ -28,7 +28,7 @@ object DemoStoryboard {
                 transitionOut = Transition(TransitionType.FADE, 500),
             ),
             Scene(
-                id = "s2-definition", layout = Layout.DEFINITION, durationMs = 6000,
+                id = "s2-definition", narration = "L’hameçonnage, c’est un faux message qui imite ta banque ou un collègue, pour voler ton argent ou ton mot de passe.", layout = Layout.DEFINITION, durationMs = 6000,
                 background = bg(0x0D1526),
                 kicker = "DÉFINITION", icon = IconId.WARNING, shape = ShapeKind.HEXAGON,
                 title = "L’hameçonnage, c’est quoi${NB}?",
@@ -38,7 +38,7 @@ object DemoStoryboard {
                 transitionOut = Transition(TransitionType.SLIDE, 600),
             ),
             Scene(
-                id = "s3-signaux", layout = Layout.STEPS, durationMs = 6500,
+                id = "s3-signaux", narration = "Quatre signaux d’alerte : un expéditeur bizarre, l’urgence, un lien douteux, une demande inhabituelle.", layout = Layout.STEPS, durationMs = 6500,
                 background = bg(0x0A1424),
                 icon = IconId.SEARCH,
                 title = "Les 4 signaux d’alerte",
@@ -52,7 +52,7 @@ object DemoStoryboard {
                 transitionOut = Transition(TransitionType.ZOOM, 600),
             ),
             Scene(
-                id = "s4-comparaison", layout = Layout.COMPARE, durationMs = 6000,
+                id = "s4-comparaison", narration = "Vrai ou faux ? Appuie longuement sur un lien pour voir sa vraie adresse.", layout = Layout.COMPARE, durationMs = 6000,
                 background = bg(0x0C1322),
                 kicker = "EXERCICE",
                 title = "Vrai ou faux${NB}?",
@@ -67,7 +67,7 @@ object DemoStoryboard {
                 transitionOut = Transition(TransitionType.SLIDE, 500),
             ),
             Scene(
-                id = "s5-reflexe", layout = Layout.STAT, durationMs = 5000,
+                id = "s5-reflexe", narration = "Le bon réflexe : une pause de trois secondes avant chaque clic.", layout = Layout.STAT, durationMs = 5000,
                 background = bg(0x0B1220),
                 statValue = "3${NB}s",
                 title = "Le bon réflexe${NB}: une pause",
@@ -76,7 +76,7 @@ object DemoStoryboard {
                 transitionOut = Transition(TransitionType.FADE, 500),
             ),
             Scene(
-                id = "s6-a-retenir", layout = Layout.CHECKLIST, durationMs = 5500,
+                id = "s6-a-retenir", narration = "À retenir : vérifie l’expéditeur, ne clique jamais dans l’urgence, et partage cette astuce.", layout = Layout.CHECKLIST, durationMs = 5500,
                 background = bg(0x0E1A2B),
                 illustration = IllustrationId.SHIELD_CHECK,
                 title = "À retenir",

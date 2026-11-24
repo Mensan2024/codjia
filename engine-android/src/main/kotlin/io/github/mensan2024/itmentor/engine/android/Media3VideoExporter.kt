@@ -23,6 +23,7 @@ import androidx.media3.effect.TextureOverlay
 import androidx.media3.transformer.Composition
 import androidx.media3.transformer.DefaultEncoderFactory
 import androidx.media3.transformer.EditedMediaItem
+import androidx.media3.transformer.EditedMediaItemSequence
 import androidx.media3.transformer.Effects
 import androidx.media3.transformer.ExportException
 import androidx.media3.transformer.ExportResult
@@ -122,7 +123,10 @@ class Media3VideoExporter(private val context: Context) {
      */
     @MainThread
     suspend fun export(
-        storyboard: Storyboard, format: VideoFormat, output: File, onProgress: (Int) -> Unit = {},
+        storyboard: Storyboard, format: VideoFormat, output: File,
+        /** Piste de voix off (WAV) de la durée de la vidéo, ou `null` pour une vidéo muette. */
+        audio: File? = null,
+        onProgress: (Int) -> Unit = {},
     ): ExportStats = coroutineScope {
         val renderer = FrameRenderer(storyboard, format) // lève StoryboardException si > 40 s
         val fonts = withContext(Dispatchers.IO) { AndroidFonts(context.assets) }
@@ -144,6 +148,13 @@ class Media3VideoExporter(private val context: Context) {
             .setFrameRate(format.fps)
             .setEffects(effects)
             .build()
+        // Deux séquences en parallèle : l'image animée et la voix off. Media3 encode la voix en AAC.
+        val composition = Composition.Builder(
+            EditedMediaItemSequence.withVideoFrom(listOf(edited)),
+            *listOfNotNull(audio?.let { wav ->
+                EditedMediaItemSequence.withAudioFrom(listOf(EditedMediaItem.Builder(MediaItem.fromUri(Uri.fromFile(wav))).build()))
+            }).toTypedArray(),
+        ).build()
 
         // Débit visé : ~0,12 bit par pixel et par image (≈ 7,5 Mb/s en 1080p30), confortable pour du texte net.
         val bitrate = (format.width * format.height * format.fps * 0.12).toInt()
@@ -160,6 +171,7 @@ class Media3VideoExporter(private val context: Context) {
         val result: ExportResult = suspendCancellableCoroutine { cont: CancellableContinuation<ExportResult> ->
             val transformer = Transformer.Builder(context)
                 .setVideoMimeType(MimeTypes.VIDEO_H264)
+                .setAudioMimeType(MimeTypes.AUDIO_AAC)
                 .setEncoderFactory(encoderFactory)
                 .addListener(object : Transformer.Listener {
                     override fun onCompleted(composition: Composition, exportResult: ExportResult) {
@@ -171,7 +183,7 @@ class Media3VideoExporter(private val context: Context) {
                 })
                 .build()
             cont.invokeOnCancellation { transformer.cancel() }
-            transformer.start(edited, tmp.absolutePath)
+            transformer.start(composition, tmp.absolutePath)
 
             // Progression : interrogée sur le fil principal, comme l'exige Transformer.
             launch {

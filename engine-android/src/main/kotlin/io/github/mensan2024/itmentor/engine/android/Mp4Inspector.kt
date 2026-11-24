@@ -17,6 +17,10 @@ data class Mp4Report(
     /** Rotation inscrite dans le fichier : certains encodeurs n'acceptent que le paysage, Media3 encode alors
      *  en 1920 × 1080 et demande au lecteur de pivoter de 90°. */
     val rotationDegrees: Int = 0,
+    /** Piste audio : type, fréquence d'échantillonnage, durée. `null` = vidéo muette. */
+    val audioMime: String? = null,
+    val audioSampleRate: Int = 0,
+    val audioDurationMs: Long = 0,
 ) {
     val isH264 get() = mime == MediaFormat.MIMETYPE_VIDEO_AVC
     val displayWidth get() = if (rotationDegrees % 180 != 0) height else width
@@ -28,6 +32,18 @@ object Mp4Inspector {
         val ex = MediaExtractor()
         try {
             ex.setDataSource(file.absolutePath)
+            var aMime: String? = null
+            var aRate = 0
+            var aDur = 0L
+            for (i in 0 until ex.trackCount) {
+                val f = ex.getTrackFormat(i)
+                val m = f.getString(MediaFormat.KEY_MIME) ?: continue
+                if (m.startsWith("audio/")) {
+                    aMime = m
+                    aRate = if (f.containsKey(MediaFormat.KEY_SAMPLE_RATE)) f.getInteger(MediaFormat.KEY_SAMPLE_RATE) else 0
+                    aDur = if (f.containsKey(MediaFormat.KEY_DURATION)) f.getLong(MediaFormat.KEY_DURATION) / 1000 else 0
+                }
+            }
             for (i in 0 until ex.trackCount) {
                 val f = ex.getTrackFormat(i)
                 val mime = f.getString(MediaFormat.KEY_MIME) ?: continue
@@ -39,7 +55,7 @@ object Mp4Inspector {
                 val rotation = if (f.containsKey(MediaFormat.KEY_ROTATION)) f.getInteger(MediaFormat.KEY_ROTATION) else 0
                 return Mp4Report(
                     mime, f.getInteger(MediaFormat.KEY_WIDTH), f.getInteger(MediaFormat.KEY_HEIGHT),
-                    durUs / 1000, n, if (durUs > 0) n / (durUs / 1e6) else 0.0, rotation,
+                    durUs / 1000, n, if (durUs > 0) n / (durUs / 1e6) else 0.0, rotation, aMime, aRate, aDur,
                 )
             }
             error("Aucune piste vidéo dans ${file.name}")

@@ -21,6 +21,8 @@ import io.github.mensan2024.itmentor.engine.android.DeviceProfile
 import io.github.mensan2024.itmentor.engine.android.GalleryExport
 import io.github.mensan2024.itmentor.engine.android.Media3VideoExporter
 import io.github.mensan2024.itmentor.engine.android.Mp4Inspector
+import io.github.mensan2024.itmentor.engine.android.Narrator
+import io.github.mensan2024.itmentor.engine.android.OfflineVoice
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -37,6 +39,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var bar: ProgressBar
     private lateinit var run: Button
     private lateinit var open: Button
+    private lateinit var installVoice: Button
     private var lastUri: Uri? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -47,12 +50,14 @@ class MainActivity : ComponentActivity() {
         run = Button(this).apply { text = "Générer la vidéo de démonstration" }
         bar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply { max = 100 }
         open = Button(this).apply { text = "Ouvrir la vidéo"; isEnabled = false }
+        installVoice = Button(this).apply { text = "Installer une voix française"; visibility = android.view.View.GONE }
         log = TextView(this).apply { typeface = Typeface.MONOSPACE; textSize = 12f; setTextIsSelectable(true) }
-        root.addView(run); root.addView(bar); root.addView(open)
+        root.addView(run); root.addView(bar); root.addView(open); root.addView(installVoice)
         root.addView(ScrollView(this).apply { addView(log) })
         setContentView(root)
 
         run.setOnClickListener { generate() }
+        installVoice.setOnClickListener { runCatching { startActivity(OfflineVoice.installIntent()) } }
         open.setOnClickListener {
             lastUri?.let { startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(it, "video/mp4").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)) }
         }
@@ -73,7 +78,28 @@ class MainActivity : ComponentActivity() {
                 say("Format choisi : ${format.width}×${format.height} à ${format.fps} i/s")
                 say("Thermique     : ${thermal()} au départ")
                 val out = File(getExternalFilesDir(null) ?: filesDir, "IT_MENTOR_demo_${format.height}p.mp4")
-                val stats = Media3VideoExporter(this@MainActivity).export(DemoStoryboard.phishing(), format, out) { bar.progress = it }
+
+                // Voix off hors ligne : si aucune voix française n'est installée, la vidéo reste muette.
+                var storyboard = DemoStoryboard.phishing()
+                var audio: File? = null
+                val voice = OfflineVoice.open(this@MainActivity)
+                if (voice == null) {
+                    say("Voix off      : aucune voix française hors ligne → vidéo muette")
+                    installVoice.visibility = android.view.View.VISIBLE
+                } else {
+                    try {
+                        val t0 = android.os.SystemClock.elapsedRealtime()
+                        val narrated = Narrator.prepare(voice, storyboard, File(cacheDir, "voix"))
+                        storyboard = narrated.storyboard
+                        audio = narrated.audio
+                        say("Voix off      : ${narrated.voiceName} (${voice.engine})")
+                        say("Débit parole  : ×%.2f · %.1f s de voix · synthèse %.1f s".format(
+                            narrated.speechRate, narrated.voiceMs / 1000.0, (android.os.SystemClock.elapsedRealtime() - t0) / 1000.0))
+                    } finally {
+                        voice.shutdown()
+                    }
+                }
+                val stats = Media3VideoExporter(this@MainActivity).export(storyboard, format, out, audio) { bar.progress = it }
                 bar.progress = 100
                 val probe = withContext(Dispatchers.IO) { Mp4Inspector.inspect(out) }
                 lastUri = withContext(Dispatchers.IO) { GalleryExport.publish(this@MainActivity, out) }
@@ -83,6 +109,7 @@ class MainActivity : ComponentActivity() {
                 say("Affichage     : ${probe.displayWidth}×${probe.displayHeight}" +
                     if (probe.rotationDegrees != 0) " (encodée ${probe.width}×${probe.height}, rotation ${probe.rotationDegrees}°)" else "")
                 say("Durée         : ${probe.durationMs} ms · ${probe.sampleCount} images · %.2f i/s".format(probe.measuredFps))
+                say("Audio         : " + (probe.audioMime?.let { "$it · ${probe.audioSampleRate} Hz · ${probe.audioDurationMs} ms" } ?: "aucune piste"))
                 say("Taille        : %.1f Mo".format(stats.fileBytes / 1048576.0))
                 say("Encodeur      : ${stats.encoderName}")
                 say("")
