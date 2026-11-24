@@ -17,7 +17,13 @@ enum class Look(val label: String, val tagline: String, val transitions: List<Tr
     MASCOTTE("Personnage animé", "Codi, le petit robot, explique en bulles",
         listOf(TransitionType.CIRCLE, TransitionType.SLIDE, TransitionType.ZOOM)),
     EDITORIAL("Éditorial chic", "Mise en page magazine, sobre et élégante",
-        listOf(TransitionType.DIP, TransitionType.FADE, TransitionType.WIPE));
+        listOf(TransitionType.DIP, TransitionType.FADE, TransitionType.WIPE)),
+    NEON("Explicatif néon", "Titres condensés, fenêtres et terminal, sous-titres mot à mot",
+        listOf(TransitionType.CUT, TransitionType.ZOOM, TransitionType.CUT)),
+    COLLAGE("Collage", "Cartes en papier épinglées, étiquettes et lettres découpées",
+        listOf(TransitionType.SLIDE, TransitionType.CUT, TransitionType.ZOOM)),
+    CINEMA("Cinéma", "Ambiance nocturne, serif italique, téléphone réaliste",
+        listOf(TransitionType.FADE, TransitionType.DIP, TransitionType.FADE));
 
     companion object {
         fun byName(name: String?): Look = entries.firstOrNull { it.name == name } ?: MOTION
@@ -54,7 +60,7 @@ object Looks {
                 val type = look.transitions[k % look.transitions.size]; k++
                 val maxMs = (minOf(s.durationMs, sb.scenes[i + 1].durationMs) * 0.4f).toInt()
                 val want = if (type == TransitionType.SLIDE) 650 else 550
-                s.copy(transitionOut = Transition(type, minOf(want, maxMs)))
+                s.copy(transitionOut = if (type == TransitionType.CUT) Transition.CUT else Transition(type, minOf(want, maxMs)))
             }
         }
         return sb.copy(scenes = scenes, look = look)
@@ -66,6 +72,9 @@ object Looks {
         Look.DEMO -> DemoLook(storyboard, template)
         Look.MASCOTTE -> MascotLook(storyboard, template)
         Look.EDITORIAL -> EditorialLook(storyboard)
+        Look.NEON -> ReelLook(storyboard, template, ReelStyle.NEON)
+        Look.COLLAGE -> ReelLook(storyboard, template, ReelStyle.COLLAGE)
+        Look.CINEMA -> ReelLook(storyboard, template, ReelStyle.CINEMA)
     }
 }
 

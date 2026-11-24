@@ -2,6 +2,11 @@
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [1.2.0] — 2026-11-24
+- 3 nouveaux formats au rythme des vidéos explicatives des réseaux sociaux : **Explicatif néon** (titres condensés, fenêtres, terminal), **Collage** (fond bleu, cartes en papier épinglées, étiquettes, lettres découpées), **Cinéma** (ambiance nocturne, serif italique, téléphone réaliste).
+- Grammaire commune : temps forts de 2 à 4 s, titre court et percutant, visuel concret (téléphone avec écran de réglages, de verrouillage ou de code, fenêtre, terminal, chiffre, verdict), sous-titres mot à mot avec mot clé coloré, icônes choisies selon le sens.
+- 8 formats au total, différents à chaque génération.
+
 ## [1.1.0] — 2026-11-24
 - 5 formats de vidéo qui changent à chaque génération : motion design, tableau blanc (main qui écrit), démo à l'écran, personnage animé (Codi), éditorial chic.
 - Démonstrations pas à pas sur Windows, macOS, Ubuntu et console Cisco : Bureau à distance, pare-feu, mises à jour, VLAN.

@@ -117,6 +117,19 @@ Le même storyboard peut être mis en scène de cinq façons très différentes.
 
 Toutes les mises en page de tous les formats sont vérifiées par `RenderTest` (15 textes × 3 graines × 5 formats) : aucun texte hors de la zone sûre, aucun chevauchement.
 
+### Formats « vidéo explicative » (`ReelLook.kt`)
+
+Ces trois formats suivent la grammaire des vidéos courtes des réseaux sociaux. Chaque scène est découpée en **temps forts** de 2 à 4 s :
+- un titre de 2 à 6 mots, révélé mot à mot, avec un mot clé en couleur ;
+- un visuel concret : téléphone (réglages avec interrupteur et ligne entourée en rouge, écran verrouillé avec notification, clavier de code), fenêtre, terminal, chiffre animé, verdict barré ou validé, liste cochée, bouton d'appel à l'action ;
+- des **sous-titres mot à mot**, par groupes de 3 à 5 mots, avec le mot clé coloré, comme une voix off écrite.
+
+| Format | Habillage |
+| --- | --- |
+| Explicatif néon | Fond très sombre, titres condensés en capitales, fenêtres, sous-titres en capitales |
+| Collage | Fond bleu texturé, bandeaux et cartes en papier tenus par des pinces, étiquettes inclinées, accroche en lettres découpées |
+| Cinéma | Dégradé nocturne avec halos, sans-serif mêlé de serif italique, téléphone réaliste |
+
 ## 6 ter. Démonstrations sur écran simulé (`Simulator.kt`, `Procedures.kt`)
 
 Quand le texte parle d'un sujet de la bibliothèque, la vidéo contient une **vraie démonstration pas à pas**. Les sujets actuels sont le Bureau à distance (RDP), le pare-feu, les mises à jour et les VLAN.
