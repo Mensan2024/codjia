@@ -1,0 +1,9 @@
+Astuce réseau 031 — Sépare ton réseau avec des VLAN
+Un VLAN (Virtual LAN) découpe un même switch en plusieurs réseaux logiques isolés : le trafic d'un VLAN ne voit pas celui des autres sans passer par un routeur.
+Sur un switch Cisco :
+- Crée le VLAN : vlan 10 puis name COMPTA
+- Affecte le port : interface fa0/1, switchport mode access, switchport access vlan 10
+- Configure le lien vers l'autre switch en trunk : switchport mode trunk
+- Vérifie avec show vlan brief
+À retenir : un VLAN par service, un trunk entre les switches, et un routeur ou un switch de niveau 3 pour faire communiquer les VLAN.
+#CCNA #reseau

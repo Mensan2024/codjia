@@ -155,6 +155,7 @@ object Samples {
         Templates.CYBER_NEON.id, Templates.BOLD_TYPOGRAPHY.id -> CYBER
         Templates.MEDICAL_CLEAN.id, Templates.MODERN_EDUCATION.id -> SANTE
         Templates.GREEN_NATURE.id, Templates.CINEMATIC_STORY.id -> AGRO
+        Templates.CODE_STUDIO.id, Templates.NETWORK_BLUEPRINT.id -> CYBER
         else -> MARKETING
     }
 }

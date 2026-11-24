@@ -1,0 +1,10 @@
+Astuce 027 — Protège tes dossiers sensibles avec une archive chiffrée
+Compresser un dossier ne le protège pas : un ZIP classique s'ouvre sans mot de passe. Seule une **archive chiffrée (AES-256)** protège vraiment tes données.
+
+Comment faire :
+🪟 Windows : avec 7-Zip, clic droit → 7-Zip → Ajouter à l'archive, format 7z, mot de passe, AES-256 et « Chiffrer les noms de fichiers ».
+🐧 Linux : `7z a -p -mhe=on Documents.7z Documents/`
+🍎 macOS : Utilitaire de disque → Fichier → Nouvelle image → Image à partir d'un dossier, chiffrement AES 256 bits.
+
+À retenir : un mot de passe robuste, partagé par un autre canal, et une sauvegarde.
+#securiteinformatiquepourtous #codjia

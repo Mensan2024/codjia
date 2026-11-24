@@ -1,0 +1,21 @@
+🔐 **Astuce 025 — Vérifie les certificats numériques des sites web !**
+
+Lorsque tu visites un site HTTPS, ton navigateur utilise un certificat numérique pour vérifier son identité et établir une connexion chiffrée.
+
+Mais attention : **le cadenas HTTPS ne signifie pas forcément que le site est fiable ou honnête !**
+
+💡 **Les bonnes pratiques :**
+- Ouvre un site HTTPS.
+- Clique sur l'icône située à gauche de son adresse.
+- Consulte les informations de connexion et le certificat numérique.
+- Vérifie que le nom de domaine correspond bien au site visité.
+- Ne contourne jamais un avertissement de certificat sans en comprendre la cause.
+
+🎯 **À retenir :** le certificat numérique contribue à protéger tes échanges et à vérifier l'identité du site. Reste vigilant face aux sites suspects et aux alertes de sécurité.
+
+🛡️ **La cybersécurité commence par les bons réflexes !**
+
+#securiteinformatiquepourtous
+#BonnesPratiques
+#Iamnotperfect
+#codjia

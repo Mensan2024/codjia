@@ -1,0 +1,14 @@
+🔐Astuce cybersécurité 022 — Sécurise le Bureau à distance (RDP) !
+Saviez-vous que votre ordinateur peut devenir une cible simplement parce que le Bureau à distance est mal configuré ?
+
+Le protocole RDP (Remote Desktop Protocol) permet de prendre le contrôle d'un ordinateur à distance. 
+⚠️ Les bonnes pratiques à adopter :
+- Désactivez le RDP lorsqu'il n'est pas nécessaire.
+- Limitez les utilisateurs autorisés à se connecter.
+- Utilisez des mots de passe robustes.
+- Activez l'authentification multifacteur (MFA).
+- Évitez d'exposer directement le port RDP (3389) sur Internet.
+#securiteinformatiquepourtous
+#BonnesPratiques
+#codjia
+#Iamnotperfect

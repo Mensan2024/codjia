@@ -68,6 +68,36 @@ object Icons {
             Part(PathData().moveTo(9.5f, 20.5f).lineTo(14.5f, 20.5f)))
         IconId.CHART -> listOf(Part(PathData().moveTo(4f, 20f).lineTo(20f, 20f)),
             Part(PathData().moveTo(7f, 17f).lineTo(7f, 13f).moveTo(12f, 17f).lineTo(12f, 9f).moveTo(17f, 17f).lineTo(17f, 5f)))
+        IconId.ROUTER -> listOf(Part(roundRect(3f, 13f, 21f, 19.5f, 2f)), Part(PathData().circle(7f, 16.25f, 0.9f), filled = true),
+            Part(PathData().circle(10.5f, 16.25f, 0.9f), filled = true),
+            Part(PathData().moveTo(17f, 13f).lineTo(17f, 9f).moveTo(14f, 7.5f).cubicTo(15.6f, 5.9f, 18.4f, 5.9f, 20f, 7.5f)
+                .moveTo(12f, 5.2f).cubicTo(14.9f, 2.4f, 19.1f, 2.4f, 22f, 5.2f)))
+        IconId.WIFI -> listOf(Part(PathData().moveTo(2.5f, 9f).cubicTo(7.8f, 4.3f, 16.2f, 4.3f, 21.5f, 9f)
+            .moveTo(5.8f, 12.6f).cubicTo(9.3f, 9.6f, 14.7f, 9.6f, 18.2f, 12.6f).moveTo(9f, 16f).cubicTo(10.8f, 14.6f, 13.2f, 14.6f, 15f, 16f)),
+            Part(PathData().circle(12f, 19.2f, 1.3f), filled = true))
+        IconId.TERMINAL -> listOf(Part(roundRect(2.5f, 4f, 21.5f, 20f, 2.2f)), Part(PathData().moveTo(6.5f, 9f).lineTo(10f, 12f).lineTo(6.5f, 15f)),
+            Part(PathData().moveTo(12f, 15.5f).lineTo(17.5f, 15.5f)))
+        IconId.CODE -> listOf(Part(PathData().moveTo(8f, 7f).lineTo(3f, 12f).lineTo(8f, 17f).moveTo(16f, 7f).lineTo(21f, 12f).lineTo(16f, 17f)),
+            Part(PathData().moveTo(13.5f, 4.5f).lineTo(10.5f, 19.5f)))
+        IconId.GLOBE -> listOf(Part(PathData().circle(12f, 12f, 9f)), Part(PathData().moveTo(3f, 12f).lineTo(21f, 12f)),
+            Part(PathData().moveTo(12f, 3f).cubicTo(15f, 6f, 15f, 18f, 12f, 21f).cubicTo(9f, 18f, 9f, 6f, 12f, 3f)))
+        IconId.CHAT -> listOf(Part(PathData().moveTo(4f, 5f).lineTo(20f, 5f).cubicTo(21f, 5f, 21.5f, 5.6f, 21.5f, 6.5f).lineTo(21.5f, 15f)
+            .cubicTo(21.5f, 16f, 21f, 16.5f, 20f, 16.5f).lineTo(10f, 16.5f).lineTo(5.5f, 20.5f).lineTo(5.5f, 16.5f).lineTo(4f, 16.5f)
+            .cubicTo(3f, 16.5f, 2.5f, 16f, 2.5f, 15f).lineTo(2.5f, 6.5f).cubicTo(2.5f, 5.6f, 3f, 5f, 4f, 5f).close()),
+            Part(PathData().moveTo(7f, 9.5f).lineTo(17f, 9.5f).moveTo(7f, 12.5f).lineTo(14f, 12.5f)))
+        IconId.BRAIN -> listOf(Part(PathData().moveTo(12f, 5f).cubicTo(10.5f, 3.2f, 7f, 3.6f, 6.6f, 6.4f).cubicTo(4f, 6.8f, 3.2f, 9.8f, 4.6f, 11.6f)
+            .cubicTo(3.2f, 13.5f, 4.2f, 16.6f, 6.8f, 16.8f).cubicTo(7.2f, 19.6f, 10.6f, 20.6f, 12f, 18.6f).lineTo(12f, 5f)
+            .moveTo(12f, 5f).cubicTo(13.5f, 3.2f, 17f, 3.6f, 17.4f, 6.4f).cubicTo(20f, 6.8f, 20.8f, 9.8f, 19.4f, 11.6f)
+            .cubicTo(20.8f, 13.5f, 19.8f, 16.6f, 17.2f, 16.8f).cubicTo(16.8f, 19.6f, 13.4f, 20.6f, 12f, 18.6f)),
+            Part(PathData().moveTo(8.5f, 9.5f).lineTo(10f, 11f).moveTo(15.5f, 9.5f).lineTo(14f, 11f)))
+        IconId.CPU -> listOf(Part(roundRect(6f, 6f, 18f, 18f, 2f)), Part(roundRect(9.5f, 9.5f, 14.5f, 14.5f, 1f)),
+            Part(PathData().moveTo(9f, 3f).lineTo(9f, 6f).moveTo(15f, 3f).lineTo(15f, 6f).moveTo(9f, 18f).lineTo(9f, 21f).moveTo(15f, 18f).lineTo(15f, 21f)
+                .moveTo(3f, 9f).lineTo(6f, 9f).moveTo(3f, 15f).lineTo(6f, 15f).moveTo(18f, 9f).lineTo(21f, 9f).moveTo(18f, 15f).lineTo(21f, 15f)))
+        IconId.MOON -> listOf(Part(PathData().moveTo(20f, 14.5f).cubicTo(15.5f, 16f, 9.5f, 12.5f, 10f, 6f).cubicTo(10.2f, 5f, 10.5f, 4.2f, 11f, 3.5f)
+            .cubicTo(6.2f, 4.2f, 3f, 8.2f, 3.5f, 13f).cubicTo(4f, 17.5f, 8f, 21f, 12.8f, 20.6f).cubicTo(16f, 20.3f, 18.8f, 17.8f, 20f, 14.5f).close()))
+        IconId.BOOK -> listOf(Part(PathData().moveTo(12f, 6.5f).cubicTo(9.5f, 4.8f, 6f, 4.6f, 3f, 5.5f).lineTo(3f, 18.5f).cubicTo(6f, 17.6f, 9.5f, 17.8f, 12f, 19.5f)
+            .cubicTo(14.5f, 17.8f, 18f, 17.6f, 21f, 18.5f).lineTo(21f, 5.5f).cubicTo(18f, 4.6f, 14.5f, 4.8f, 12f, 6.5f).close()),
+            Part(PathData().moveTo(12f, 6.5f).lineTo(12f, 19.5f)))
     }
 
     fun roundRect(l: Float, t: Float, r: Float, b: Float, rad: Float): PathData {

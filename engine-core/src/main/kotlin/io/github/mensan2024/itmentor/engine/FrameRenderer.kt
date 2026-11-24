@@ -9,9 +9,11 @@ package io.github.mensan2024.itmentor.engine
  * Le storyboard doit déjà être habillé (`Templates.apply`) et, s'il y a une musique, calé sur son tempo
  * (`Rhythm.align`) : voir [Composer].
  */
-class FrameRenderer(val storyboard: Storyboard, val format: VideoFormat, val template: Template = Templates.byId(storyboard.templateId)) {
+class FrameRenderer(val storyboard: Storyboard, val format: VideoFormat, baseTemplate: Template = Templates.byId(storyboard.templateId)) {
 
     val timeline: Timeline = Timeline.build(storyboard)
+    /** Template effectivement utilisé : le template choisi, décliné selon la graine de la génération. */
+    val template: Template = Templates.vary(baseTemplate, storyboard.seed)
     private val style = template.style
     private val scenes = SceneRenderer(template)
 

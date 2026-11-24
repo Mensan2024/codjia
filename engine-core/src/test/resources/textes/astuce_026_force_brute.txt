@@ -1,0 +1,10 @@
+Astuce 026 — Apprends à reconnaître une attaque par force brute
+Apprentissage technique :
+Une attaque par **force brute** consiste à essayer de nombreuses combinaisons de mots de passe jusqu'à trouver la bonne.
+Elle peut cibler les comptes utilisateurs, les serveurs SSH ou les interfaces d'administration.
+Action :
+Utilise des mots de passe robustes et uniques.
+Active la MFA lorsque disponible.
+Mets en place des mécanismes de limitation des tentatives (ex. `sudo apt install fail2ban`).
+Surveille les échecs d'authentification : `grep "Failed password" /var/log/auth.log`
+#securiteinformatiquepourtous #codjia

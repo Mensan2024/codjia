@@ -32,12 +32,13 @@ class SceneRenderer(private val tp: Template) {
     fun draw(g: Gfx, sc: Scene, t: Float, tGlobal: Float) {
         val dur = sc.durationMs.toFloat()
         val exit = Animator.exit(sc.exit, t, dur)
+        val alt = sc.variant % 2 == 1
         when (sc.layout) {
-            Layout.HERO -> hero(g, sc, t, exit, tGlobal)
-            Layout.DEFINITION -> definition(g, sc, t, dur, exit, tGlobal)
-            Layout.STEPS -> steps(g, sc, t, exit, tGlobal)
+            Layout.HERO -> if (alt) heroSplit(g, sc, t, exit, tGlobal) else hero(g, sc, t, exit, tGlobal)
+            Layout.DEFINITION -> if (alt) definitionQuote(g, sc, t, dur, exit, tGlobal) else definition(g, sc, t, dur, exit, tGlobal)
+            Layout.STEPS -> if (alt) stepsCards(g, sc, t, exit, tGlobal) else steps(g, sc, t, exit, tGlobal)
             Layout.COMPARE -> compare(g, sc, t, exit)
-            Layout.STAT -> stat(g, sc, t, exit, tGlobal)
+            Layout.STAT -> if (alt) statBar(g, sc, t, exit, tGlobal) else stat(g, sc, t, exit, tGlobal)
             Layout.CHECKLIST -> checklist(g, sc, t, exit, tGlobal)
         }
     }
@@ -152,6 +153,120 @@ class SceneRenderer(private val tp: Template) {
         }
     }
 
+    /** Couverture, variante « titre d'abord » : grand titre en haut, illustration en bas. */
+    private fun heroSplit(g: Gfx, sc: Scene, t: Float, exit: Pose, tg: Float) {
+        val x = Safe.LEFT
+        var y = 250f
+        sc.kicker?.let { k -> g.withPose(p(sc, t, exit, 0, AnimType.SLIDE_LEFT), x, y) { kicker(g, k, x, y, Align.LEFT) }; y += 70f }
+        y += title(g, sc, "titleB", 104f, Safe.WIDTH, 3, x, y, Align.LEFT, t, exit, 200f) + 26f
+        val bar = Easing.EXPO_OUT.ease(window(t, 800f, 700f))
+        if (bar > 0f) g.withPose(exit, x, y) { g.fillRoundRect(x, y, x + 240f * bar, y + 12f, 6f, style.accent) }
+        y += 44f
+        sc.subtitle?.let { s ->
+            val sub = block(g, "${sc.id}/subB", Marked.strip(s), fSub.withSize(42f), Safe.WIDTH, 2, 1.35f)
+            g.withPose(p(sc, t, exit, 900, AnimType.FADE_IN, 700), x, y) { g.drawBlock(sub, x, y, style.textMuted) }
+        }
+        g.withPose(p(sc, t, exit, 300, AnimType.ZOOM_IN, 1000), Safe.CENTER_X, 1250f) {
+            g.save(); g.scale(0.78f, Safe.CENTER_X, 1250f)
+            illustration(g, sc.illustration, Safe.CENTER_X, 1250f, t, tg)
+            g.restore()
+        }
+    }
+
+    /** Définition, variante « citation » : pas de carte, grand guillemet, texte large. */
+    private fun definitionQuote(g: Gfx, sc: Scene, t: Float, dur: Float, exit: Pose, tg: Float) {
+        val x = Safe.LEFT
+        var y = 240f
+        sc.kicker?.let { k -> g.withPose(p(sc, t, exit, 0, AnimType.SLIDE_LEFT), x, y) { kicker(g, k, x, y, Align.LEFT) }; y += 74f }
+        y += title(g, sc, "titleQ", 76f, Safe.WIDTH, 2, x, y, Align.LEFT, t, exit, 150f) + 70f
+        val qf = FontSpec(FontFamily.CINEMA, 400, 260f)
+        g.withPose(p(sc, t, exit, 300, AnimType.ZOOM_IN, 800, Easing.BACK_OUT), x + 60f, y + 60f) {
+            g.drawText("«", x - 10f, y + 150f, qf, style.accent.withAlpha(0.9f))
+        }
+        val body = block(g, "${sc.id}/bodyQ", Marked.strip(sc.body), FontSpec(FontFamily.TEXT, 600, 58f), Safe.WIDTH - 40f, 8, 1.36f)
+        val top = y + 190f
+        g.withPose(p(sc, t, exit, 500, AnimType.FADE_IN, 400), x, top) {
+            g.fillRoundRect(x, top, x + 8f, top + body.height, 4f, style.accent2)
+        }
+        val typeMs = (body.charCount * 22f).coerceIn(1200f, max(1200f, dur - 2400f))
+        val typing = Animator.enter(AnimSpec(AnimType.TYPEWRITER, typeMs.toInt(), 800, Easing.LINEAR), t)
+        g.withPose(exit, x, top) {
+            g.drawBlock(body, x + 40f, top, style.text, reveal = typing.reveal, caretColor = style.accent, caretVisible = caretOn(t, typing.reveal))
+        }
+        sc.subtitle?.let { s ->
+            val sy = top + body.height + 50f
+            val sub = block(g, "${sc.id}/subQ", Marked.strip(s), fSub.withSize(40f), Safe.WIDTH - 40f, 2, 1.35f)
+            if (sy + sub.height < 1560f) g.withPose(p(sc, t, exit, (800 + typeMs).toInt(), AnimType.FADE_IN, 600), x, sy) {
+                g.drawBlock(sub, x + 40f, sy, style.textMuted)
+            }
+        }
+        sc.icon?.let { id -> g.withPose(p(sc, t, exit, 200, AnimType.ZOOM_IN, 700, Easing.BACK_OUT), Safe.RIGHT - 70f, 250f) {
+            iconBadge(g, id, Safe.RIGHT - 70f, 250f, 52f, tg, style.accent2)
+        } }
+    }
+
+    /** Étapes, variante « cartes » : chaque étape dans une carte avec un grand numéro. */
+    private fun stepsCards(g: Gfx, sc: Scene, t: Float, exit: Pose, tg: Float) {
+        val x = Safe.LEFT
+        var y = 250f
+        y += title(g, sc, "titleC", 86f, Safe.WIDTH, 2, x, y, Align.LEFT, t, exit, 0f) + 60f
+        val numW = 110f
+        val textX = x + numW + 40f
+        val textW = Safe.RIGHT - 36f - textX
+        val n = sc.items.size.coerceAtLeast(1)
+        val maxH = ((1560f - y) / n - 24f).coerceAtMost(210f)
+        for ((i, item) in sc.items.withIndex()) {
+            val parts = Marked.strip(item).split(LABEL_SEP, limit = 2)
+            val label = block(g, "${sc.id}/ci$i", parts[0], fStepLabel.withSize(44f), textW, 2, 1.2f)
+            val detail = parts.getOrNull(1)?.let { block(g, "${sc.id}/cd$i", it, fItemDetail.withSize(36f), textW, 2, 1.28f) }
+            val h = (label.height + (detail?.height?.plus(8f) ?: 0f) + 56f).coerceAtMost(maxH).coerceAtLeast(120f)
+            val top = y
+            val delay = 450 + i * 480
+            g.withPose(p(sc, t, exit, delay, dur = 650), x, top) {
+                card(g, x, top, Safe.RIGHT, top + h, if (i % 2 == 0) style.accent.withAlpha(0.6f) else style.accent2.withAlpha(0.6f))
+                val nf = tp.titleFont.withSize(if (tp.titleFont.family == FontFamily.HEAVY) 56f else 78f)
+                val num = (i + 1).toString().padStart(2, '0')
+                g.drawText(num, x + 28f, top + h / 2 + g.metrics(nf).ascent / 2, nf, if (i % 2 == 0) style.accent else style.accent2)
+                val contentH = label.height + (detail?.height?.plus(8f) ?: 0f)
+                val ty = top + (h - contentH) / 2
+                g.drawBlock(label, textX, ty, style.text)
+                detail?.let { d -> g.drawBlock(d, textX, ty + label.height + 8f, style.textMuted) }
+            }
+            y += h + 24f
+        }
+    }
+
+    /** Chiffre clé, variante « barre » : grand nombre à gauche et jauge qui se remplit. */
+    private fun statBar(g: Gfx, sc: Scene, t: Float, exit: Pose, tg: Float) {
+        val x = Safe.LEFT
+        val v = sc.statValue ?: return stat(g, sc, t, exit, tg)
+        val (num, unit) = splitStat(v)
+        val f = fitFont(g, num, tp.titleFont.withSize(if (tp.titleFont.family == FontFamily.HEAVY) 170f else 250f), Safe.WIDTH * 0.7f)
+        val uf = FontSpec(FontFamily.TEXT, 700, 52f)
+        val base = 640f
+        g.withPose(p(sc, t, exit, 100, AnimType.SLIDE_UP, 900), x, base) {
+            g.fillRadialGlow(x + 200f, base - 100f, 420f, style.accent.withAlpha(if (style.dark) 0.18f else 0.10f))
+            g.drawText(num, x, base, f, style.text)
+            if (unit.isNotEmpty()) {
+                val uf2 = fitFont(g, unit, uf, Safe.RIGHT - (x + g.measureText(num, f) + 24f))
+                g.drawText(unit, x + g.measureText(num, f) + 24f, base, uf2, style.accent)
+            }
+        }
+        val barTop = base + 70f
+        val k = Easing.EXPO_OUT.ease(window(t, 500f, 2200f))
+        g.withPose(exit, x, barTop) {
+            g.fillRoundRect(x, barTop, Safe.RIGHT, barTop + 26f, 13f, style.text.withAlpha(0.12f))
+            g.fillRoundRect(x, barTop, x + Safe.WIDTH * k, barTop + 26f, 13f, style.accent)
+            for (i in 1 until 10) g.fillRect(x + Safe.WIDTH * i / 10f - 1f, barTop + 40f, x + Safe.WIDTH * i / 10f + 1f, barTop + 56f, style.text.withAlpha(0.2f))
+        }
+        var y = barTop + 120f
+        y += title(g, sc, "titleS", 84f, Safe.WIDTH, 3, x, y, Align.LEFT, t, exit, 600f) + 40f
+        if (sc.body.isNotEmpty()) {
+            val body = block(g, "${sc.id}/bodyS", Marked.strip(sc.body), fSub.withSize(44f), Safe.WIDTH, 4, 1.38f)
+            g.withPose(p(sc, t, exit, 1000, AnimType.FADE_IN), x, y) { g.drawBlock(body, x, y, style.textMuted) }
+        }
+    }
+
     // ───────────────────────────── 2. Définition ─────────────────────────────
 
     private fun definition(g: Gfx, sc: Scene, t: Float, dur: Float, exit: Pose, tg: Float) {
@@ -208,7 +323,7 @@ class SceneRenderer(private val tp: Template) {
         data class Row(val top: Float, val label: TextBlock, val detail: TextBlock?, val h: Float)
         val rows = ArrayList<Row>()
         for ((i, item) in sc.items.withIndex()) {
-            val parts = Marked.strip(item).split(" : ", limit = 2)
+            val parts = Marked.strip(item).split(LABEL_SEP, limit = 2)
             val label = block(g, "${sc.id}/i$i", parts[0], fStepLabel, textW, 2, 1.22f)
             val detail = parts.getOrNull(1)?.let { block(g, "${sc.id}/d$i", it, fItemDetail, textW, 2, 1.3f) }
             val h = max(bubbleR * 2, label.height + (detail?.height?.plus(6f) ?: 0f))
@@ -294,6 +409,13 @@ class SceneRenderer(private val tp: Template) {
             val full = value.joinToString("") { it.text }
             // Une adresse (avec « / » ou « . » sans espace) en police mono ; une phrase dans la police du texte.
             val isCode = !full.contains(' ') && (full.contains('/') || full.contains('.'))
+            if (!isCode && g.measureText(full, FontSpec(FontFamily.TEXT, 600, 36f)) > avail) {
+                // Phrase longue : deux lignes plutôt qu'une police minuscule.
+                val b = block(g, "${sc.id}/cmp/$label", full, FontSpec(FontFamily.TEXT, 600, 36f), avail, 2, 1.18f)
+                val color0 = if (value.all { it.highlight }) color else style.text
+                g.drawBlock(b, l + 64f, top + 195f - b.height / 2, color0)
+                return@withPose
+            }
             var font = if (isCode) fMono else FontSpec(FontFamily.TEXT, 600, 38f)
             while (g.measureText(full, font) > avail && font.size > 22f) font = font.withSize(font.size - 1f)
             val base = top + 195f + g.metrics(font).ascent / 2
@@ -327,9 +449,14 @@ class SceneRenderer(private val tp: Template) {
         val prog = window(t, 600f, 3000f)
         if (prog > 0f) g.withPose(exit, cx, cy) { g.strokeArc(cx, cy, r, -90f, 360f * prog, 26f, style.accent2) }
         sc.statValue?.let { v ->
-            val f = tp.titleFont.withSize(if (tp.titleFont.family == FontFamily.HEAVY) 130f else 190f)
+            // « 30 minutes » : le nombre en grand, l'unité en dessous, le tout dans l'anneau.
+            val (num, unit) = splitStat(v)
+            val f = fitFont(g, num, tp.titleFont.withSize(if (tp.titleFont.family == FontFamily.HEAVY) 130f else 190f), 380f)
+            val uf = fitFont(g, unit, FontSpec(FontFamily.TEXT, 700, 44f), 340f)
             g.withPose(p(sc, t, exit, 150, AnimType.ZOOM_IN, 900, Easing.BACK_OUT), cx, cy) {
-                g.drawText(v, cx - g.measureText(v, f) / 2, cy + g.metrics(f).ascent / 2 - 6f, f, style.text)
+                val base = cy + g.metrics(f).ascent / 2 - (if (unit.isEmpty()) 6f else 48f)
+                g.drawText(num, cx - g.measureText(num, f) / 2, base, f, style.text)
+                if (unit.isNotEmpty()) g.drawText(unit, cx - g.measureText(unit, uf) / 2, base + 100f, uf, style.textMuted)
             }
         }
         var y = cy + 400f
@@ -338,6 +465,19 @@ class SceneRenderer(private val tp: Template) {
             val body = block(g, "${sc.id}/body", Marked.strip(sc.body), fSub.withSize(44f), Safe.WIDTH - 40f, 4, 1.38f)
             g.withPose(p(sc, t, exit, 900, AnimType.FADE_IN), cx, y) { g.drawBlock(body, cx, y, style.textMuted, Align.CENTER) }
         }
+    }
+
+    /** « 30 minutes » → (« 30 », « minutes ») ; « 3389 » → (« 3389 », « »). */
+    private fun splitStat(v: String): Pair<String, String> {
+        val i = v.indexOfFirst { it == ' ' || it == '\u00A0' }
+        return if (i <= 0) v to "" else v.substring(0, i) to v.substring(i + 1).trim()
+    }
+
+    /** Réduit la police jusqu'à ce que le texte tienne dans `maxW`. */
+    private fun fitFont(g: Gfx, text: String, font: FontSpec, maxW: Float): FontSpec {
+        var f = font
+        while (text.isNotEmpty() && g.measureText(text, f) > maxW && f.size > 20f) f = f.withSize(f.size * 0.92f)
+        return f
     }
 
     // ───────────────────────────── 6. À retenir ─────────────────────────────
@@ -400,6 +540,12 @@ class SceneRenderer(private val tp: Template) {
             IllustrationId.PLANT_GROWTH -> plantGrowth(g, cx, cy, t, tg)
             IllustrationId.CHART_GROWTH -> chartGrowth(g, cx, cy, t, tg)
             IllustrationId.CHECK_CIRCLE -> checkCircle(g, cx, cy, t, tg)
+            IllustrationId.NETWORK_TOPOLOGY -> networkTopology(g, cx, cy, t, tg)
+            IllustrationId.CODE_WINDOW -> codeWindow(g, cx, cy, t, tg)
+            IllustrationId.OS_TERMINAL -> osTerminal(g, cx, cy, t, tg)
+            IllustrationId.NEURAL_NET -> neuralNet(g, cx, cy, t, tg)
+            IllustrationId.HEART_BEAT -> heartBeat(g, cx, cy, t, tg)
+            IllustrationId.SPEECH_BUBBLES -> speechBubbles(g, cx, cy, t, tg)
         }
     }
 
@@ -535,4 +681,153 @@ class SceneRenderer(private val tp: Template) {
             g.fillPath(head, style.text)
         }
     }
+
+    private fun tile(g: Gfx, cx: Float, cy: Float, half: Float, icon: IconId, color: Int, k: Float) {
+        if (k <= 0f) return
+        g.save(); g.scale(k, cx, cy)
+        g.fillRoundRect(cx - half, cy - half + 10f, cx + half, cy + half + 10f, half * 0.35f, style.shadow)
+        g.fillRoundRect(cx - half, cy - half, cx + half, cy + half, half * 0.35f, style.surface)
+        g.strokeRoundRect(cx - half, cy - half, cx + half, cy + half, half * 0.35f, 3f, color)
+        Icons.draw(g, icon, cx, cy, half * 1.15f, color, 2.2f)
+        g.restore()
+    }
+
+    private fun networkTopology(g: Gfx, cx: Float, cy: Float, t: Float, tg: Float) {
+        g.fillRadialGlow(cx, cy, 440f, style.accent.withAlpha(0.20f))
+        val pts = listOf(cx - 270f to cy - 170f, cx + 270f to cy - 170f, cx - 270f to cy + 190f, cx + 270f to cy + 190f, cx to cy - 300f)
+        val icons = listOf(IconId.CPU, IconId.TERMINAL, IconId.WIFI, IconId.GLOBE, IconId.CPU)
+        for ((i, p) in pts.withIndex()) {
+            val k = Easing.EASE_IN_OUT.ease(window(t, 500f + i * 140f, 500f))
+            if (k > 0f) g.line(cx, cy, lerp(cx, p.first, k), lerp(cy, p.second, k), 4f, style.accent.withAlpha(0.6f))
+            if (k >= 1f) {
+                val ph = ((tg + i * 430f) % 1800f) / 1800f
+                g.fillCircle(lerp(cx, p.first, ph), lerp(cy, p.second, ph), 9f, style.accent2)
+            }
+        }
+        for ((i, p) in pts.withIndex()) tile(g, p.first, p.second, 62f, icons[i], if (i % 2 == 0) style.accent else style.accent2,
+            Easing.BACK_OUT.ease(window(t, 700f + i * 140f, 600f)))
+        tile(g, cx, cy, 92f, IconId.ROUTER, style.accent, Easing.BACK_OUT.ease(window(t, 200f, 700f)))
+    }
+
+    private fun windowFrame(g: Gfx, l: Float, top: Float, r: Float, b: Float) {
+        g.fillRoundRect(l, top + 18f, r, b + 18f, 26f, style.shadow)
+        g.fillRoundRect(l, top, r, b, 26f, style.surface)
+        g.strokeRoundRect(l, top, r, b, 26f, 2f, style.surfaceStroke)
+        g.fillRoundRect(l, top, r, top + 56f, 26f, style.surfaceStroke.withAlpha(0.6f))
+        g.fillRect(l, top + 30f, r, top + 56f, style.surfaceStroke.withAlpha(0.6f))
+        for ((k, c) in listOf(rgb(0xFF5F57), rgb(0xFEBC2E), rgb(0x28C840)).withIndex()) g.fillCircle(l + 34f + k * 30f, top + 28f, 9f, c)
+    }
+
+    private fun codeWindow(g: Gfx, cx: Float, cy: Float, t: Float, tg: Float) {
+        g.fillRadialGlow(cx, cy, 440f, style.accent2.withAlpha(0.18f))
+        val l = cx - 300f; val r = cx + 300f; val top = cy - 230f; val b = cy + 250f
+        windowFrame(g, l, top, r, b)
+        val widths = floatArrayOf(0.55f, 0.75f, 0.42f, 0.68f, 0.3f, 0.6f, 0.5f)
+        val indents = intArrayOf(0, 1, 2, 2, 1, 1, 0)
+        val colors = intArrayOf(style.accent2, style.emphasis, style.accent, style.highlight, style.accent2, style.accent, style.emphasis)
+        val typed = window(t, 400f, 2200f) * widths.size
+        for (i in widths.indices) {
+            val y = top + 96f + i * 52f
+            g.fillRoundRect(l + 26f, y - 8f, l + 46f, y + 8f, 4f, style.textMuted.withAlpha(0.3f))
+            val frac = clamp01(typed - i)
+            if (frac <= 0f) continue
+            val x0 = l + 70f + indents[i] * 40f
+            val w = (r - 40f - x0) * widths[i] * frac
+            g.fillRoundRect(x0, y - 11f, x0 + w * 0.4f, y + 11f, 8f, colors[i])
+            if (w > 60f) g.fillRoundRect(x0 + w * 0.4f + 14f, y - 11f, x0 + w, y + 11f, 8f, style.text.withAlpha(0.55f))
+            if (frac < 1f || (i == widths.lastIndex && ((tg / 500f).toInt() % 2 == 0))) g.fillRect(x0 + w + 10f, y - 16f, x0 + w + 16f, y + 16f, style.accent)
+        }
+        tile(g, r - 10f, b - 10f, 70f, IconId.CODE, style.accent, Easing.BACK_OUT.ease(window(t, 1500f, 600f)))
+    }
+
+    private fun osTerminal(g: Gfx, cx: Float, cy: Float, t: Float, tg: Float) {
+        g.fillRadialGlow(cx, cy, 440f, style.accent.withAlpha(0.18f))
+        // Deux fenêtres décalées : une application et un terminal.
+        val back = Easing.EXPO_OUT.ease(window(t, 200f, 800f))
+        g.save(); g.translate(-60f * back, -50f * back)
+        windowFrame(g, cx - 280f, cy - 250f, cx + 220f, cy + 150f)
+        for (i in 0 until 3) g.fillRoundRect(cx - 250f, cy - 160f + i * 70f, cx - 250f + 330f - i * 60f, cy - 130f + i * 70f, 10f, style.surfaceStroke)
+        g.restore()
+        val l = cx - 200f; val top = cy - 120f; val r = cx + 320f; val b = cy + 270f
+        windowFrame(g, l, top, r, b)
+        g.fillRoundRect(l + 2f, top + 56f, r - 2f, b - 2f, 24f, if (style.dark) rgb(0x05080F) else rgb(0x1E2430))
+        val mono = FontSpec(FontFamily.MONO, 700, 34f)
+        for (i in 0 until 4) {
+            val y = top + 120f + i * 52f
+            val k = window(t, 600f + i * 450f, 400f)
+            if (k <= 0f) continue
+            g.drawText(">", l + 30f, y + 12f, mono, style.accent)
+            g.fillRoundRect(l + 70f, y - 8f, l + 70f + (r - l - 140f) * (0.35f + 0.15f * (i % 3)) * k, y + 8f, 8f, rgb(0xE6EDF3).withAlpha(0.75f))
+        }
+        if (((tg / 500f).toInt() % 2) == 0) g.fillRect(l + 30f, b - 60f, l + 50f, b - 30f, style.accent)
+    }
+
+    private fun neuralNet(g: Gfx, cx: Float, cy: Float, t: Float, tg: Float) {
+        g.fillRadialGlow(cx, cy, 460f, style.accent2.withAlpha(0.20f))
+        val layers = listOf(3, 4, 4, 2)
+        val xs = listOf(cx - 300f, cx - 100f, cx + 100f, cx + 300f)
+        fun ys(n: Int) = List(n) { cy + (it - (n - 1) / 2f) * 130f }
+        for (li in 0 until layers.size - 1) {
+            val a = ys(layers[li]); val b = ys(layers[li + 1])
+            val k = Easing.EASE_IN_OUT.ease(window(t, 300f + li * 300f, 500f))
+            for (y0 in a) for (y1 in b) if (k > 0f) g.line(xs[li], y0, lerp(xs[li], xs[li + 1], k), lerp(y0, y1, k), 2f, style.text.withAlpha(0.18f))
+        }
+        // Signal qui traverse le réseau en boucle.
+        val ph = (tg % 2400f) / 2400f * (layers.size - 1)
+        val li = ph.toInt().coerceAtMost(layers.size - 2)
+        val f = ph - li
+        if (t > 1400f) for (y0 in ys(layers[li])) for (y1 in ys(layers[li + 1]).take(2)) {
+            g.fillCircle(lerp(xs[li], xs[li + 1], f), lerp(y0, y1, f), 6f, style.accent2.withAlpha(0.8f))
+        }
+        for ((i, n) in layers.withIndex()) for ((j, y) in ys(n).withIndex()) {
+            val k = Easing.BACK_OUT.ease(window(t, 200f + i * 250f + j * 60f, 500f))
+            if (k <= 0f) continue
+            val lit = li == i && t > 1400f
+            g.fillCircle(xs[i], y, 34f * k, if (lit) style.accent2 else style.surface)
+            g.strokeCircle(xs[i], y, 34f * k, 4f, style.accent)
+        }
+    }
+
+    private fun heartBeat(g: Gfx, cx: Float, cy: Float, t: Float, tg: Float) {
+        g.fillRadialGlow(cx, cy - 20f, 440f, style.accent.withAlpha(0.20f))
+        orbit(g, cx, cy, 320f, tg)
+        val beat = (tg % 1000f) / 1000f
+        val pulse = 1f + 0.08f * (if (beat < 0.15f) sin(beat / 0.15f * PI.toFloat()) else 0f) +
+            0.05f * (if (beat in 0.2f..0.35f) sin((beat - 0.2f) / 0.15f * PI.toFloat()) else 0f)
+        val size = 320f * Easing.BACK_OUT.ease(window(t, 100f, 800f)) * pulse
+        if (size > 1f) {
+            val heart = Icons.parts(IconId.HEART)[0].path.transformed(size / 24f, cx - size / 2, cy - size / 2 - 40f)
+            g.fillPath(heart, style.accent)
+        }
+        val ecg = PathData().moveTo(cx - 300f, cy + 210f).lineTo(cx - 120f, cy + 210f).lineTo(cx - 80f, cy + 170f).lineTo(cx - 40f, cy + 260f)
+            .lineTo(cx, cy + 120f).lineTo(cx + 40f, cy + 240f).lineTo(cx + 80f, cy + 210f).lineTo(cx + 300f, cy + 210f)
+        val k = window(t, 700f, 1200f)
+        if (k > 0f) g.strokePath(ecg.trimmed(k), 9f, style.accent2)
+    }
+
+    private fun bubble(g: Gfx, l: Float, top: Float, r: Float, b: Float, tailLeft: Boolean, fill: Int, text: String, color: Int, k: Float) {
+        if (k <= 0f) return
+        val px = if (tailLeft) l + 40f else r - 40f
+        g.save(); g.scale(k, px, b)
+        g.fillRoundRect(l, top + 14f, r, b + 14f, 44f, style.shadow)
+        g.fillRoundRect(l, top, r, b, 44f, fill)
+        val tail = if (tailLeft) PathData().moveTo(l + 40f, b - 10f).lineTo(l + 20f, b + 50f).lineTo(l + 100f, b - 10f).close()
+        else PathData().moveTo(r - 40f, b - 10f).lineTo(r - 20f, b + 50f).lineTo(r - 100f, b - 10f).close()
+        g.fillPath(tail, fill)
+        val f = FontSpec(FontFamily.DISPLAY, 800, 64f)
+        g.drawText(text, (l + r) / 2 - g.measureText(text, f) / 2, (top + b) / 2 + g.metrics(f).ascent / 2, f, color)
+        g.restore()
+    }
+
+    private fun speechBubbles(g: Gfx, cx: Float, cy: Float, t: Float, tg: Float) {
+        g.fillRadialGlow(cx, cy, 440f, style.accent.withAlpha(0.18f))
+        val bob = 8f * sin(tg * 0.002f)
+        bubble(g, cx - 320f, cy - 260f + bob, cx + 120f, cy - 80f + bob, true, style.accent, "Hello!", style.accentInk,
+            Easing.BACK_OUT.ease(window(t, 200f, 600f)))
+        bubble(g, cx - 120f, cy + 40f - bob, cx + 320f, cy + 220f - bob, false, style.accent2, "Bonjour\u00A0!", style.highlightInk,
+            Easing.BACK_OUT.ease(window(t, 900f, 600f)))
+    }
 }
+
+/** Séparateur « libellé : détail » (espace normale ou insécable avant les deux-points). */
+internal val LABEL_SEP = Regex("[  ]:\\s")

@@ -1,0 +1,9 @@
+Astuce dev 012 — Le bon réflexe Git avant chaque modification
+Travailler directement sur la branche main est la façon la plus rapide de casser un projet.
+Le workflow simple :
+- git pull pour récupérer la dernière version
+- git switch -c ma-fonctionnalite pour créer une branche
+- git add puis git commit -m avec un message clair
+- git push et ouvre une pull request pour faire relire ton code
+À retenir : une branche par fonctionnalité, des commits courts, une relecture avant de fusionner.
+#dev #fullstack

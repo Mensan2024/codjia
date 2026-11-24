@@ -29,9 +29,11 @@ data class VideoFormat(val width: Int = 1080, val height: Int = 1920, val fps: I
 /** Les compositions graphiques disponibles. Chacune est une mise en page différente. */
 enum class Layout { HERO, DEFINITION, STEPS, COMPARE, STAT, CHECKLIST }
 
-enum class IconId { SHIELD, LOCK, MAIL, WARNING, CHECK, CROSS, KEY, EYE, USER, HOOK, SEARCH, CLOCK, DROP, HEART, LEAF, SUN, MEGAPHONE, TARGET, BULB, CHART }
+enum class IconId { SHIELD, LOCK, MAIL, WARNING, CHECK, CROSS, KEY, EYE, USER, HOOK, SEARCH, CLOCK, DROP, HEART, LEAF, SUN, MEGAPHONE, TARGET, BULB, CHART,
+    ROUTER, WIFI, TERMINAL, CODE, GLOBE, CHAT, BRAIN, CPU, MOON, BOOK }
 
-enum class IllustrationId { NONE, PHISHING_MAIL, SHIELD_CHECK, WATER_DROP, PLANT_GROWTH, CHART_GROWTH, CHECK_CIRCLE }
+enum class IllustrationId { NONE, PHISHING_MAIL, SHIELD_CHECK, WATER_DROP, PLANT_GROWTH, CHART_GROWTH, CHECK_CIRCLE,
+    NETWORK_TOPOLOGY, CODE_WINDOW, OS_TERMINAL, NEURAL_NET, HEART_BEAT, SPEECH_BUBBLES }
 
 enum class ShapeKind { RING, HEXAGON, DIAMOND }
 
@@ -95,6 +97,8 @@ data class Scene(
     val items: List<String> = emptyList(),
     val compare: Compare? = null,
     val statValue: String? = null,
+    /** Variante de mise en page (0 ou 1) : la même composition peut être dessinée de deux façons. */
+    val variant: Int = 0,
     val enter: AnimSpec = AnimSpec(AnimType.SLIDE_UP),
     val exit: AnimSpec = AnimSpec(AnimType.FADE_OUT, durationMs = 350, easing = Easing.EASE_IN),
     /** Transition vers la scène suivante (ignorée pour la dernière scène). */
@@ -113,6 +117,8 @@ data class Storyboard(
     val scenes: List<Scene>,
     val footer: String = "CODJIA",
     val hashtag: String? = null,
+    /** Graine de variation : chaque génération en tire une nouvelle ; même graine = même vidéo. */
+    val seed: Long = 0,
 ) {
     init {
         require(scenes.isNotEmpty()) { "Le storyboard est vide" }

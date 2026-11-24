@@ -45,6 +45,8 @@ internal object Backgrounds {
             Decor.MARKETING_BLOCKS -> marketing(g, s, t)
             Decor.GIANT_TYPE -> giantType(g, s, t)
             Decor.CINEMA_LIGHT -> cinema(g, s, t)
+            Decor.CODE_EDITOR -> codeEditor(g, s, t)
+            Decor.BLUEPRINT -> blueprint(g, s, t)
         }
     }
 
@@ -200,6 +202,65 @@ internal object Backgrounds {
         g.fillRadialGlow(W - lx * 0.6f, 1480f, 680f, s.accent2.withAlpha(0.14f))
         g.fillVerticalGradient(0f, 0f, W, 520f, 0x8C000000.toInt(), 0x00000000)
         g.fillVerticalGradient(0f, H - 620f, W, H, 0x00000000, 0xA6000000.toInt())
+    }
+
+    // Code Studio : gouttière de numéros de ligne, lignes de code stylisées qui défilent, curseur.
+    private fun codeEditor(g: Gfx, s: Style, t: Float) {
+        g.fillRadialGlow(900f, 300f, 600f, s.accent2.withAlpha(0.10f))
+        g.fillRadialGlow(150f, 1600f, 560f, s.accent.withAlpha(0.08f))
+        g.fillRect(0f, 0f, 58f, H, s.surface.withAlpha(0.55f))
+        val lineH = 46f
+        val scroll = (t * 0.012f) % lineH
+        val mono = FontSpec(FontFamily.MONO, 400, 20f)
+        val r = Rand(31)
+        val widths = FloatArray(48) { r.range(120f, 560f) }
+        val indents = IntArray(48) { (r.nextInt() ushr 1) % 4 }
+        val colors = intArrayOf(s.accent, s.accent2, s.emphasis, s.highlight, s.textMuted)
+        var i = 0
+        var y = 40f - scroll
+        while (y < H) {
+            val n = ((t * 0.012f) / lineH).toInt() + i
+            g.drawText((n % 99 + 1).toString().padStart(2, ' '), 14f, y + 7f, mono, s.textMuted.withAlpha(0.35f))
+            val k = n % widths.size
+            var x = 84f + indents[k] * 32f
+            val w = widths[k]
+            // Chaque ligne = 2 à 3 « jetons » colorés, très discrets.
+            val c1 = colors[k % colors.size].withAlpha(0.10f)
+            val c2 = colors[(k + 2) % colors.size].withAlpha(0.08f)
+            g.fillRoundRect(x, y - 8f, x + w * 0.35f, y + 6f, 7f, c1); x += w * 0.35f + 14f
+            g.fillRoundRect(x, y - 8f, x + w * 0.45f, y + 6f, 7f, c2); x += w * 0.45f + 14f
+            if (k % 3 == 0) g.fillRoundRect(x, y - 8f, x + w * 0.2f, y + 6f, 7f, c1)
+            y += lineH; i++
+        }
+        if (((t / 530f).toInt() % 2) == 0) g.fillRect(84f, 1772f, 98f, 1802f, s.accent.withAlpha(0.6f))
+    }
+
+    // Network Blueprint : grille de plan, topologie de nœuds reliés, paquets qui circulent.
+    // Nœuds placés hors des zones de texte : bande du bas (sous le pied de page) et coins du haut.
+    private val nodes = listOf(110f to 1700f, 330f to 1810f, 560f to 1700f, 800f to 1815f, 990f to 1700f, 1030f to 175f, 50f to 175f)
+    private val links = listOf(0 to 1, 1 to 2, 2 to 3, 3 to 4, 2 to 4, 0 to 2, 4 to 5, 6 to 0)
+
+    private fun blueprint(g: Gfx, s: Style, t: Float) {
+        val minor = 40f
+        var x = 0f
+        while (x <= W) { g.line(x, 0f, x, H, if ((x / minor).toInt() % 5 == 0) 1.4f else 0.8f, s.text.withAlpha(if ((x / minor).toInt() % 5 == 0) 0.07f else 0.035f)); x += minor }
+        var y = 0f
+        while (y <= H) { g.line(0f, y, W, y, if ((y / minor).toInt() % 5 == 0) 1.4f else 0.8f, s.text.withAlpha(if ((y / minor).toInt() % 5 == 0) 0.07f else 0.035f)); y += minor }
+        g.fillRadialGlow(540f, 700f, 760f, s.accent.withAlpha(0.10f))
+        for ((k, l) in links.withIndex()) {
+            val (a, b) = l
+            val (x0, y0) = nodes[a]; val (x1, y1) = nodes[b]
+            g.line(x0, y0, x1, y1, 2f, s.accent.withAlpha(0.22f))
+            val ph = ((t + k * 700f) % 2600f) / 2600f
+            g.fillCircle(lerp(x0, x1, ph), lerp(y0, y1, ph), 5f, s.accent2.withAlpha(0.8f))
+        }
+        for ((i, n) in nodes.withIndex()) {
+            val (nx, ny) = n
+            val pulse = 0.5f + 0.5f * sin(t * 0.003f + i)
+            g.fillRoundRect(nx - 18f, ny - 18f, nx + 18f, ny + 18f, 6f, s.bgTop)
+            g.strokeRoundRect(nx - 18f, ny - 18f, nx + 18f, ny + 18f, 6f, 2f, s.accent.withAlpha(0.5f + 0.3f * pulse))
+            g.fillCircle(nx, ny, 4f, s.accent2.withAlpha(0.7f))
+        }
     }
 
     /** Effets posés au-dessus de tout (grain de pellicule, bandes cinéma). */

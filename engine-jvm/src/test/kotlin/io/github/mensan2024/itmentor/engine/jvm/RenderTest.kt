@@ -103,6 +103,33 @@ class RenderTest {
         }
     }
 
+    @Test fun lesVideosGenereesDepuisDuTexteLibreRestentPropres() {
+        val dir = listOf(File("engine-core/src/test/resources/textes"), File("../engine-core/src/test/resources/textes")).first { it.isDirectory }
+        var checked = 0
+        for (f in dir.listFiles()!!.filter { it.extension == "txt" }) for (seed in listOf(3L, 4L, 17L)) {
+            val p = io.github.mensan2024.itmentor.engine.CreativeDirector.propose(f.readText(), seed)
+            val r = FrameRenderer(Composer.prepare(p.storyboard, p.template, null), VideoFormat.FULL_HD, p.template)
+            for (slot in r.timeline.slots) {
+                val rec = ArrayList<Pair<String, Rectangle2D>>()
+                render(r, slot.endMs - 900f, rec)
+                val boxes = rec.filter { it.second.height in 1.0..300.0 }
+                for ((text, b) in boxes) {
+                    val ok = b.minX >= Safe.LEFT - 2 && b.maxX <= Safe.RIGHT + 2 && b.minY >= 90.0 && b.maxY <= Safe.BOTTOM
+                    assertTrue("« $text » sort de la zone sûre (${f.name}, graine $seed, ${p.template.id}, ${slot.scene.id} v${slot.scene.variant}) : $b", ok)
+                    checked++
+                }
+                for (i in boxes.indices) for (j in i + 1 until boxes.size) {
+                    val a = boxes[i].second; val b = boxes[j].second
+                    val ix = minOf(a.maxX, b.maxX) - maxOf(a.minX, b.minX)
+                    val iy = minOf(a.maxY, b.maxY) - maxOf(a.minY, b.minY)
+                    assertTrue("${f.name}/$seed ${p.template.id} ${slot.scene.id} v${slot.scene.variant} : « ${boxes[i].first} » chevauche « ${boxes[j].first} »",
+                        !(ix > 6 && iy > minOf(a.height, b.height) * 0.45))
+                }
+            }
+        }
+        println("Textes libres : $checked textes vérifiés")
+    }
+
     @Test fun le720pEstLaMemeCompositionQueLe1080p() {
         val hd = renderer(Templates.MODERN_EDUCATION, VideoFormat.HD)
         val fhd = renderer(Templates.MODERN_EDUCATION, VideoFormat.FULL_HD)

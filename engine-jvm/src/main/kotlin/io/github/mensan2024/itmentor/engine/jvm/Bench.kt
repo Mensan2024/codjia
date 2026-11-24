@@ -54,7 +54,52 @@ fun main(args: Array<String>) {
                 }
             }
         }
-        else -> System.err.println("Usage : render|templates …")
+        "plan" -> {
+            val text = File(args[1]).readText()
+            val seed = args.getOrNull(2)?.toLong() ?: 0L
+            val p = io.github.mensan2024.itmentor.engine.CreativeDirector.propose(text, seed)
+            println("Domaine : ${p.domain} · template : ${p.template.id} · musique : ${p.musicId}")
+            val tl = io.github.mensan2024.itmentor.engine.Timeline.build(Composer.prepare(p.storyboard, p.template, null))
+            println("Durée : ${tl.totalMs} ms")
+            for (sc in p.storyboard.scenes) {
+                println("— ${sc.layout} v${sc.variant} ${sc.durationMs} ms | ${sc.kicker ?: ""} | ${sc.title}")
+                if (sc.subtitle != null) println("    sous-titre : ${sc.subtitle}")
+                if (sc.body.isNotEmpty()) println("    texte : ${sc.body}")
+                sc.items.forEach { println("    • $it") }
+                sc.statValue?.let { println("    chiffre : $it") }
+                sc.compare?.let { println("    ✗ ${it.badValue.joinToString("") { s -> s.text }}  ✓ ${it.goodValue.joinToString("") { s -> s.text }}") }
+            }
+        }
+        "sheet" -> {
+            // Planche : une image au cœur de chaque scène, pour un texte et une graine.
+            val text = File(args[1]).readText()
+            val seed = args[2].toLong()
+            val out = File(args[3])
+            val p = io.github.mensan2024.itmentor.engine.CreativeDirector.propose(text, seed)
+            val r = FrameRenderer(Composer.prepare(p.storyboard, p.template, null), VideoFormat(540, 960, 30), p.template)
+            val slots = r.timeline.slots
+            val sheet = BufferedImage(540 * slots.size, 960, BufferedImage.TYPE_INT_RGB)
+            val g2 = sheet.createGraphics()
+            for ((i, sl) in slots.withIndex()) {
+                val img = BufferedImage(540, 960, BufferedImage.TYPE_INT_RGB)
+                r.render(Java2DGfx(img, fonts), sl.endMs - 900f)
+                g2.drawImage(img, i * 540, 0, null)
+            }
+            ImageIO.write(sheet, "png", out)
+            println("${p.domain} · ${p.template.id} · ${p.musicId} · ${r.timeline.totalMs} ms")
+        }
+        "video" -> {
+            val text = File(args[1]).readText()
+            val seed = args[2].toLong()
+            val out = File(args[3])
+            val p = io.github.mensan2024.itmentor.engine.CreativeDirector.propose(text, seed)
+            val music = p.musicId?.let { id -> readCatalog(musicDir).first { it.id == id } }
+            val sb = Composer.prepare(p.storyboard, p.template, music)
+            val stats = renderVideo(sb, VideoFormat.FULL_HD, fonts, out, music?.let { File(musicDir, it.file.removePrefix("music/")) })
+            File(out.path.removeSuffix(".mp4") + "-mesures.json").writeText(stats.toJson())
+            println(stats.toJson())
+        }
+        else -> System.err.println("Usage : render|templates|plan|sheet|video …")
     }
 }
 

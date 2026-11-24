@@ -10,11 +10,11 @@ import kotlin.math.abs
 import kotlin.math.sin
 
 class TemplateTest {
-    @Test fun huitTemplatesDistincts() {
+    @Test fun dixTemplatesDistincts() {
         val all = Templates.ALL
-        assertEquals(8, all.size)
-        assertEquals(8, all.map { it.id }.toSet().size)
-        assertEquals("Chaque template a son décor", 8, all.map { it.decor }.toSet().size)
+        assertEquals(10, all.size)
+        assertEquals(10, all.map { it.id }.toSet().size)
+        assertEquals("Chaque template a son décor", 10, all.map { it.decor }.toSet().size)
         assertTrue("Au moins 6 typographies de titre différentes", all.map { it.titleFont.family }.toSet().size >= 6)
         assertTrue("Thèmes clairs et sombres", all.any { it.style.dark } && all.any { !it.style.dark })
     }
@@ -56,18 +56,22 @@ class TemplateTest {
 class DomainTest {
     @Test fun detecteLesDomaines() {
         assertEquals(Domain.CYBER, DomainDetector.detect("Comment repérer un e-mail de phishing qui vole ton mot de passe ?"))
-        assertEquals(Domain.SANTE, DomainDetector.detect("Le paludisme : dormir sous moustiquaire et consulter vite en cas de fièvre."))
-        assertEquals(Domain.AGRO, DomainDetector.detect("Réussir son compost et améliorer le sol de son champ avant la récolte."))
-        assertEquals(Domain.MARKETING, DomainDetector.detect("Attirer des clients sur Facebook : soigner chaque publication de ta marque."))
+        assertEquals(Domain.RESEAUX, DomainDetector.detect("Configurer un VLAN et un trunk sur un switch Cisco pour le CCNA."))
+        assertEquals(Domain.SYSTEMES, DomainDetector.detect("Sous Windows, ouvre PowerShell ; sous Linux, utilise sudo apt update."))
+        assertEquals(Domain.IA, DomainDetector.detect("Écrire un bon prompt pour ChatGPT ou Claude : l'intelligence artificielle répond mieux."))
+        assertEquals(Domain.FULLSTACK, DomainDetector.detect("Crée une API REST en Node avec Express, puis un frontend React en TypeScript."))
+        assertEquals(Domain.SANTE, DomainDetector.detect("Pour vivre longtemps en bonne santé : dormir 7 heures et marcher chaque jour."))
+        assertEquals(Domain.MARKETING, DomainDetector.detect("Attirer des clients sur LinkedIn : soigne chaque publication de ta marque."))
+        assertEquals(Domain.ANGLAIS, DomainDetector.detect("English tip: learn irregular verbs and improve your pronunciation."))
         assertEquals(Domain.GENERAL, DomainDetector.detect("Bonjour à tous"))
     }
 
     @Test fun recommandeSansImposer() {
-        val rec = DomainDetector.recommend("Protéger son mot de passe et son compte contre les pirates informatiques")
+        val rec = DomainDetector.recommend("Protéger son mot de passe et son compte contre les pirates : active la MFA")
         assertEquals(Templates.CYBER_NEON, rec.first())
-        assertEquals(8, rec.size) // tous les templates restent proposés
-        assertEquals(Templates.MEDICAL_CLEAN, DomainDetector.recommend(DomainDetector.textOf(Samples.SANTE)).first())
-        assertEquals(Templates.GREEN_NATURE, DomainDetector.recommend(DomainDetector.textOf(Samples.AGRO)).first())
+        assertEquals(Templates.ALL.size, rec.size) // tous les templates restent proposés
+        assertEquals(Templates.NETWORK_BLUEPRINT, DomainDetector.recommend("VLAN, trunk et OSPF sur un routeur Cisco").first())
+        assertEquals(Templates.CODE_STUDIO, DomainDetector.recommend("Une API en Kotlin et un frontend React avec Git").first())
     }
 }
 

@@ -1,0 +1,10 @@
+Écris de meilleurs prompts pour l'IA
+Un modèle de langage comme ChatGPT, Claude ou Gemini répond mieux quand ta demande est précise.
+La méthode en 4 points :
+- Rôle : dis à l'IA qui elle doit être (formateur, développeur, recruteur)
+- Contexte : explique ta situation et ton public
+- Tâche : décris exactement le résultat attendu
+- Format : précise la forme (liste, tableau, 100 mots)
+❌ Écris-moi un texte sur la cybersécurité.
+✅ Tu es formateur : écris 5 conseils de cybersécurité pour des étudiants, en liste courte.
+À retenir : vérifie toujours les faits, l'IA peut se tromper avec assurance.

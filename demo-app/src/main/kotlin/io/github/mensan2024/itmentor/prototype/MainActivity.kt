@@ -15,7 +15,9 @@ import android.os.SystemClock
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
+import android.widget.EditText
 import android.widget.FrameLayout
+import android.text.InputFilter
 import android.widget.HorizontalScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -36,7 +38,8 @@ import io.github.mensan2024.itmentor.engine.MusicChoice
 import io.github.mensan2024.itmentor.engine.MusicSource
 import io.github.mensan2024.itmentor.engine.MusicTrack
 import io.github.mensan2024.itmentor.engine.MusicVolume
-import io.github.mensan2024.itmentor.engine.Samples
+import io.github.mensan2024.itmentor.engine.CreativeDirector
+import io.github.mensan2024.itmentor.engine.TextSanitizer
 import io.github.mensan2024.itmentor.engine.Storyboard
 import io.github.mensan2024.itmentor.engine.Template
 import io.github.mensan2024.itmentor.engine.Templates
@@ -61,6 +64,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.Executors
+import java.security.SecureRandom
 import kotlin.math.abs
 
 /**
@@ -77,8 +81,16 @@ class MainActivity : ComponentActivity() {
     }
 
     // État de la création.
-    private var content: Storyboard = Samples.CYBER
+    // Texte de l'utilisateur et génération en cours. Une nouvelle graine = une nouvelle mise en scène.
+    private var userText: String = Examples.ALL.first().second
+    private var seed: Long = newSeed()
+    private var content: Storyboard = CreativeDirector.propose(userText, seed).storyboard
     private var template: Template = Templates.CYBER_NEON
+    /** L'utilisateur a choisi lui-même son modèle : « Une autre version » le garde. */
+    private var templateLocked = false
+    /** Derniers modèles utilisés : on les évite pour ne pas répéter le même format. */
+    private val recentTemplates = ArrayDeque<String>()
+    private var generation = 1
     private var choice = MusicChoice(null)
     private var category: MusicCategory? = null
     private lateinit var catalog: List<MusicTrack>
@@ -172,28 +184,59 @@ class MainActivity : ComponentActivity() {
         return h
     }
 
-    // ───────────────────────────── 1. Contenu ─────────────────────────────
+    private fun newSeed(): Long {
+        var s = 0L
+        while (s == 0L) s = SecureRandom().nextLong() // 0 est réservé aux rendus de référence
+        return s
+    }
+
+    /** Nouvelle proposition (storyboard, modèle, musique) pour le texte courant. */
+    private fun propose(regenerate: Boolean) {
+        if (regenerate) { seed = newSeed(); generation++ }
+        val p = CreativeDirector.propose(userText, seed, avoidTemplates = recentTemplates, forcedTemplate = if (templateLocked) template else null)
+        content = p.storyboard
+        template = p.template
+        recentTemplates.addLast(p.template.id); while (recentTemplates.size > 2) recentTemplates.removeFirst()
+        if (!templateLocked || choice.track == null) {
+            p.musicId?.let { id -> catalog.firstOrNull { it.id == id } }?.let { if (choice.track?.source != MusicSource.USER_IMPORT) choice = choice.copy(track = it) }
+        }
+    }
+
+    // ───────────────────────────── 1. Texte ─────────────────────────────
 
     private fun contentPage(): View {
         val page = vbox()
-        page.addView(label("Choisis un texte de démonstration. La saisie libre et le mode IA arrivent avec l'application complète.", 14f, Brand.MUTED))
-        val list = vbox()
-        for (sb in Samples.ALL) {
-            val selected = sb.id == content.id
-            val domain = DomainDetector.detect(DomainDetector.textOf(sb))
-            val card = vbox(dp(16f)).apply {
-                background = rounded(Brand.SURFACE, dp(16f).toFloat(), if (selected) Brand.SAFFRON else Brand.SURFACE_2, dp(2f))
-                addView(label(sb.title, 17f, bold = true))
-                addView(label("Domaine détecté : ${domain.label}", 13f, Brand.TEAL), lp(WRAP, WRAP, top = dp(4f)))
-                addView(label(sb.scenes.first().subtitle ?: "", 13f, Brand.MUTED), lp(WRAP, WRAP, top = dp(4f)))
-                setOnClickListener { content = sb; show(Step.CONTENT) }
-            }
-            list.addView(card, lp(MATCH, WRAP, top = dp(12f)))
+        page.addView(label("Colle ou écris ton texte : astuce, post, notes de cours. CODJIA en fait une vidéo, différente à chaque génération.", 14f, Brand.MUTED))
+        val counter = label("", 12f, Brand.MUTED)
+        val input = EditText(this).apply {
+            setText(userText)
+            setTextColor(Brand.TEXT); setHintTextColor(Brand.MUTED); textSize = 15f
+            hint = "Ex. : Astuce 028 — Active la double authentification…"
+            gravity = Gravity.TOP or Gravity.START
+            background = rounded(Brand.SURFACE, dp(14f).toFloat(), Brand.SURFACE_2, dp(1.5f))
+            setPadding(dp(14f), dp(14f), dp(14f), dp(14f))
+            filters = arrayOf(InputFilter.LengthFilter(TextSanitizer.MAX_CHARS))
+            addTextChangedListener(object : android.text.TextWatcher {
+                override fun afterTextChanged(e: android.text.Editable?) { counter.text = "${e?.length ?: 0} / ${TextSanitizer.MAX_CHARS}" }
+                override fun beforeTextChanged(a: CharSequence?, b: Int, c: Int, d: Int) {}
+                override fun onTextChanged(a: CharSequence?, b: Int, c: Int, d: Int) {}
+            })
         }
-        page.addView(ScrollView(this).apply { addView(list) }, lp(MATCH, 0, 1f, top = dp(8f)))
-        page.addView(button("Analyser et choisir un modèle") {
-            template = DomainDetector.recommend(DomainDetector.textOf(content)).first()
-            show(Step.TEMPLATE)
+        counter.text = "${userText.length} / ${TextSanitizer.MAX_CHARS}"
+        page.addView(input, lp(MATCH, 0, 1f, top = dp(10f)))
+        page.addView(counter, lp(WRAP, WRAP, top = dp(4f)))
+        val examples = hbox()
+        for ((name, text) in Examples.ALL) examples.addView(chip(name, false) { input.setText(text) }, lp(WRAP, WRAP, end = dp(8f)))
+        page.addView(HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(examples) }, lp(MATCH, WRAP, top = dp(8f)))
+        page.addView(button("Analyser et créer ma vidéo") {
+            val text = input.text.toString()
+            val result = runCatching {
+                userText = text
+                templateLocked = false
+                propose(regenerate = true)
+            }
+            result.onSuccess { show(Step.TEMPLATE) }
+                .onFailure { Toast.makeText(this, it.message ?: "Texte inutilisable", Toast.LENGTH_LONG).show() }
         }, lp(MATCH, WRAP, top = dp(12f)))
         return page
     }
@@ -202,9 +245,9 @@ class MainActivity : ComponentActivity() {
 
     private fun templatePage(): View {
         val page = vbox()
-        val rec = DomainDetector.recommend(DomainDetector.textOf(content))
-        val domain = DomainDetector.detect(DomainDetector.textOf(content))
-        page.addView(label("Recommandés pour « ${domain.label} ». Tous les modèles restent disponibles.", 14f, Brand.MUTED))
+        val rec = DomainDetector.recommend(userText)
+        val domain = DomainDetector.detect(TextSanitizer.clean(userText))
+        page.addView(label("Domaine détecté : ${domain.label}. Les 3 premiers sont recommandés ; tous restent disponibles.", 14f, Brand.MUTED))
         val grid = vbox()
         var row: LinearLayout? = null
         val w = (resources.displayMetrics.widthPixels - dp(40f) - dp(12f)) / 2
@@ -213,12 +256,12 @@ class MainActivity : ComponentActivity() {
             val selected = tp.id == template.id
             val cell = vbox(dp(6f)).apply {
                 background = rounded(Brand.SURFACE, dp(14f).toFloat(), if (selected) Brand.SAFFRON else Brand.SURFACE, dp(3f))
-                setOnClickListener { template = tp; show(Step.TEMPLATE) }
+                setOnClickListener { template = tp; templateLocked = true; show(Step.TEMPLATE) }
             }
             val img = ImageView(this).apply { scaleType = ImageView.ScaleType.CENTER_CROP; setBackgroundColor(tp.style.bgTop) }
             cell.addView(img, lp(MATCH, (w - dp(12f)) * 16 / 9))
             cell.addView(label(tp.name, 14f, bold = true), lp(WRAP, WRAP, top = dp(6f)))
-            cell.addView(label(if (i < 2) "★ Recommandé" else tp.tagline, 12f, if (i < 2) Brand.SAFFRON else Brand.MUTED))
+            cell.addView(label(if (i < 3) "★ Recommandé" else tp.tagline, 12f, if (i < 3) Brand.SAFFRON else Brand.MUTED))
             row!!.addView(cell, lp(0, WRAP, 1f, end = if (i % 2 == 0) dp(12f) else 0))
             thumbnail(tp, img)
         }
@@ -229,7 +272,7 @@ class MainActivity : ComponentActivity() {
 
     /** Vignette = vraie image du moteur (couverture du contenu choisi, dans ce modèle). */
     private fun thumbnail(tp: Template, view: ImageView) {
-        val key = "${content.id}/${tp.id}"
+        val key = "${content.id}/${tp.id}/$seed"
         thumbs[key]?.let { view.setImageBitmap(it); return }
         lifecycleScope.launch {
             val bmp = withContext(renderThread) {
@@ -348,7 +391,7 @@ class MainActivity : ComponentActivity() {
         val page = vbox()
         val sb = Composer.prepare(content, template, choice.track?.takeIf { it.bpm > 0 })
         val music = choice.track?.let { if (choice.hasAudio) it.title else "${it.title} (coupée)" } ?: "Sans musique"
-        page.addView(label("${template.name} · $music", 14f, Brand.MUTED))
+        page.addView(label("Version $generation · ${template.name} · $music", 14f, Brand.MUTED))
         val screenW = resources.displayMetrics.widthPixels
         val pw = (screenW * 0.62f).toInt()
         val img = ImageView(this).apply { setBackgroundColor(template.style.bgTop) }
@@ -358,6 +401,7 @@ class MainActivity : ComponentActivity() {
         actions.addView(button("Modèle", primary = false) { show(Step.TEMPLATE) }, lp(0, WRAP, 1f, end = dp(10f)))
         actions.addView(button("Musique", primary = false) { show(Step.MUSIC) }, lp(0, WRAP, 1f))
         page.addView(actions, lp(MATCH, WRAP, top = dp(12f)))
+        page.addView(button("🔀 Une autre version", primary = false) { propose(regenerate = true); show(Step.PREVIEW) }, lp(MATCH, WRAP, top = dp(10f)))
         page.addView(button("Générer la vidéo") { show(Step.EXPORT) }, lp(MATCH, WRAP, top = dp(10f)))
         startPreview(sb, img)
         return page

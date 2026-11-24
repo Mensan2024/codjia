@@ -1,0 +1,9 @@
+5 commandes Linux à connaître pour diagnostiquer ton système
+Quand une machine Linux ralentit, le terminal donne la réponse en quelques secondes.
+Les commandes essentielles :
+- top : voir en direct les processus qui consomment le processeur et la mémoire
+- df -h : vérifier l'espace disque restant
+- free -h : contrôler la mémoire vive disponible
+- journalctl -xe : lire les derniers messages d'erreur du système
+- systemctl status nom_du_service : savoir si un service tourne
+À retenir : observe d'abord, puis agis. Ne tue jamais un processus sans savoir ce qu'il fait.

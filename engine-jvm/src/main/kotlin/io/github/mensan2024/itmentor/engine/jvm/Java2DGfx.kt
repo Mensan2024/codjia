@@ -192,7 +192,9 @@ class Java2DGfx(private val image: BufferedImage, private val fonts: FontBank) :
         val f = fonts.get(font)
         g.font = f; g.color = color(color)
         g.drawString(text, x, baseline)
-        recordText?.let { rec ->
+        // Seul le texte destiné à être lu est enregistré (pas les textes décoratifs très transparents du décor).
+        val visible = ((color ushr 24) and 0xFF) / 255f * alpha >= 0.4f
+        if (visible) recordText?.let { rec ->
             val b = f.getStringBounds(text, frc)
             val local = Rectangle2D.Double(x.toDouble(), baseline + b.y, b.width, b.height)
             rec += text to g.transform.createTransformedShape(local).bounds2D

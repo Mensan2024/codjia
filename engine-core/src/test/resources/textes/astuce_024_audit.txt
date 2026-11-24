@@ -1,0 +1,11 @@
+Astuce 024 — Effectue régulièrement un audit de sécurité
+Apprentissage technique :
+Un audit de sécurité consiste à examiner un système, ses configurations, ses accès et ses mécanismes de protection afin d'identifier les faiblesses.
+Action :
+Sur tes propres machines ou avec autorisation :
+Vérifie les comptes utilisateurs.
+Examine les permissions.
+Contrôle les ports ouverts.
+Analyse les services actifs.
+Vérifie les mises à jour.
+Documente les vulnérabilités identifiées et les corrections.
