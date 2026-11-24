@@ -91,7 +91,7 @@ object Templates {
         decor = Decor.EDU_SHAPES, titleFont = f(FontFamily.ROUNDED, 700),
         motion = TitleMotion.WORDS_POP, emphasis = Emphasis.MARKER, card = CardStyle.SOLID, radius = 36f,
         transitions = listOf(TransitionType.CIRCLE, TransitionType.SLIDE, TransitionType.WIPE, TransitionType.CIRCLE),
-        enter = AnimType.ZOOM_IN, domains = setOf(Domain.ANGLAIS, Domain.GENERAL, Domain.SYSTEMES),
+        enter = AnimType.ZOOM_IN, domains = setOf(Domain.ANGLAIS, Domain.GENERAL),
     )
 
     val GREEN_NATURE = Template(
@@ -212,7 +212,7 @@ object Templates {
     fun apply(sb: Storyboard, t: Template): Storyboard {
         var previous: TransitionType? = null
         // La graine décale la rotation : deux générations n'enchaînent pas les mêmes transitions.
-        val offset = (Rand(sb.seed.toInt() xor 0x51F3).nextInt() ushr 1) % t.transitions.size
+        val offset = (Rand.of(sb.seed, 0x51F3).nextInt() ushr 1) % t.transitions.size
         val scenes = sb.scenes.mapIndexed { i, s ->
             var k = i + offset
             var type = t.transitions[k % t.transitions.size]
@@ -233,7 +233,7 @@ object Templates {
      */
     fun vary(t: Template, seed: Long): Template {
         if (seed == 0L) return t
-        val r = Rand((seed xor (seed ushr 32)).toInt() xor 0x2B7E)
+        val r = Rand.of(seed, 0x2B7E)
         val s = t.style
         val swap = r.next() < 0.5f
         val style = if (swap) s.copy(accent = s.accent2, accent2 = s.accent) else s

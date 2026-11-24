@@ -276,7 +276,7 @@ object StoryboardPlanner {
 
     fun plan(raw: String, seed: Long = 0, templateId: String? = null): Storyboard {
         val a = analyze(raw)
-        val r = Rand((seed xor (seed ushr 32)).toInt() xor 0x6C1A)
+        val r = Rand.of(seed, 0x6C1A)
         fun pick(options: List<String>) = if (seed == 0L) options.first() else options[(r.nextInt() ushr 1) % options.size]
         fun variant() = if (seed == 0L) 0 else (r.nextInt() ushr 1) % 2
         val d = a.domain
@@ -334,7 +334,7 @@ object StoryboardPlanner {
         val compare = if (a.bad.isNotEmpty() && a.good.isNotEmpty()) Scene(id = "s-cmp", layout = Layout.COMPARE, durationMs = 1,
             kicker = if (english) "WRONG / RIGHT" else "À ÉVITER / À FAIRE", title = if (english) "*Wrong* or *right*?" else "*Vrai* ou *faux*$NB?",
             compare = Compare(if (english) "Avoid" else "À éviter", listOf(Span(shorten(a.bad.first(), 60), true)),
-                if (english) "Do" else "À faire", listOf(Span(shorten(a.good.first(), 60))))) else null
+                if (english) "Do" else "À faire", listOf(Span(shorten(a.good.first(), 60)))), variant = variant()) else null
 
         // 5. Chiffre clé : le premier nombre accompagné d'une unité parlante.
         val stat = findStat(a)?.let { (value, sentence) ->
@@ -364,7 +364,7 @@ object StoryboardPlanner {
             items = takeaways.map { cap(frenchTypo(it)) },
             subtitle = (a.closing ?: a.conclusion?.takeIf { takeaways.size < 2 })?.let { frenchTypo(shorten(it, 120)) },
             body = if (english) pick(listOf("Share it with a friend", "Save this tip")) else pick(listOf("Partage à quelqu’un qui en a besoin", "Enregistre cette astuce", "Partage cette astuce")),
-            exit = AnimSpec(AnimType.FADE_OUT, 600, easing = Easing.EASE_IN))
+            exit = AnimSpec(AnimType.FADE_OUT, 600, easing = Easing.EASE_IN), variant = variant())
 
         // Ordre : la graine peut avancer le chiffre clé ou la comparaison, pour varier le récit.
         val middle = ArrayList<Scene>()
@@ -454,7 +454,7 @@ object CreativeDirector {
      */
     fun propose(text: String, seed: Long, avoidTemplates: Collection<String> = emptyList(), forcedTemplate: Template? = null): Proposal {
         val domain = DomainDetector.detect(TextSanitizer.clean(text))
-        val r = Rand((seed xor (seed ushr 32)).toInt() xor 0x1D3A)
+        val r = Rand.of(seed, 0x1D3A)
         val top = DomainDetector.recommend(text).take(3)
         val template = forcedTemplate ?: run {
             val fresh = top.filter { it.id !in avoidTemplates }.ifEmpty { top }

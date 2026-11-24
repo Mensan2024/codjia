@@ -1,6 +1,13 @@
 # CODJIA — Plan de développement de l'application complète (phase D)
 
-**Condition de départ :** la version 0.3 du prototype doit être validée sur le Galaxy A16 (voir RAPPORT_VALIDATION §5).
+**Condition de départ :** la version 0.4 du prototype doit être validée sur le Galaxy A16 (voir RAPPORT_VALIDATION §5).
+
+**Avancement (version 0.4) :**
+- **D2** (texte → storyboard) est en grande partie réalisé dans le moteur : planificateur, 8 domaines, variation à chaque génération.
+- Une partie de **D6** est en place : contrôle du MP4, nettoyage des fichiers.
+- La sécurité de base est en place : manifeste sans réseau, limites d'import, R8, CodeQL, Dependabot.
+
+Il reste à porter tout cela dans l'architecture Compose.
 
 **Méthode :**
 - On développe un module à la fois. Chaque module est testé, puis documenté.
@@ -29,7 +36,7 @@ Les règles du prototype restent valables :
 | Étape | Contenu | Livrable testable sur le téléphone | Tests |
 | --- | --- | --- | --- |
 | **D1. Socle** | Projet multi-module, Hilt, Compose, thème CODJIA, navigation, Room et DataStore, intégration continue (tests, lint, analyse des licences) | L'application s'ouvre : démarrage, accueil vide, réglages | Compilation des 2 variantes, tests de navigation |
-| **D2. Du texte au storyboard** | Mode texte : collage, nettoyage, découpage en idées, choix des compositions (définition, étapes, comparaison, chiffre, à retenir), mots-clés mis en valeur automatiquement, respect des 40 s | Un texte collé devient un storyboard affiché scène par scène | Textes de référence (astuces 021 à 027), durées, aucune perte de contenu, textes trop longs |
+| **D2. Du texte au storyboard** *(moteur fait en 0.4)* | Mode texte : collage, nettoyage, découpage en idées, choix des compositions (définition, étapes, comparaison, chiffre, à retenir), mots-clés mis en valeur automatiquement, respect des 40 s | Un texte collé devient un storyboard affiché scène par scène | Textes de référence (astuces 021 à 027), durées, aucune perte de contenu, textes trop longs |
 | **D3. Modèles** | Galerie des 8 templates avec vignettes réelles, recommandation par domaine, possibilité de changer à tout moment | Le choix de modèle avec aperçu immédiat | Captures de référence, contraste, zone sûre |
 | **D4. Musique** | Bibliothèque par catégories, écoute avec forme d'onde, import de fichiers, volume, « sans musique », extension du catalogue par JSON | Le choix de musique façon Reels | Décodage MP3, AAC et OGG ; fondus ; synchronisation |
 | **D5. Aperçu et éditeur** | Aperçu animé avec musique, modification d'un texte ou de l'ordre des scènes, durée totale affichée | Corriger une scène puis revoir l'aperçu | Le rendu reste identique entre aperçu et export |
@@ -56,9 +63,17 @@ D2 est le chantier le plus important : c'est lui qui transforme « n'importe que
 - Jamais de vidéo muette quand une musique a été choisie ; écart audio/vidéo inférieur à une image.
 - Aucune clé d'API dans le code, les journaux ou les sauvegardes. Aucun traceur ni Google Play Services dans la variante F-Droid.
 - Licence vérifiée pour chaque dépendance, police et musique (inventaire automatique dans l'intégration continue).
-- Avis favorable de ta part sur une série de 10 vidéos réelles (astuces cybersécurité, santé, agriculture, marketing).
+- Avis favorable de ta part sur une série de 10 vidéos réelles : réseaux, systèmes, cybersécurité, IA, fullstack, santé, marketing, anglais.
+- Sécurité : CodeQL sans alerte ouverte, aucune permission en dehors de `core:ai`, aucune dépendance avec une vulnérabilité connue (Dependabot), revue du modèle de menaces mise à jour pour le mode IA.
 
-## 5. Décisions à prendre avant D1
+## 5. Pistes pour rendre chaque vidéo encore plus unique
+
+- 3 variantes par composition au lieu de 2. Nouvelles compositions : chronologie, citation d'expert, code avec coloration, schéma réseau annoté.
+- Illustrations générées à partir du contenu, par exemple une topologie avec les vrais noms de VLAN.
+- Rythme des animations synchronisé sur les temps forts de la musique, pas seulement sur le début des scènes.
+- Historique des graines : pouvoir revenir à une version préférée.
+
+## 6. Décisions à prendre avant D1
 
 1. L'identifiant définitif sur Google Play : `io.github.mensan2024.codjia` est proposé. Il ne pourra plus changer après la publication.
 2. Le nom de domaine ou la page du projet pour la politique de confidentialité (une page GitHub suffit).

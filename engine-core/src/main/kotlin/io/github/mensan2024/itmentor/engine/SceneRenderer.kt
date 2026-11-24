@@ -37,9 +37,9 @@ class SceneRenderer(private val tp: Template) {
             Layout.HERO -> if (alt) heroSplit(g, sc, t, exit, tGlobal) else hero(g, sc, t, exit, tGlobal)
             Layout.DEFINITION -> if (alt) definitionQuote(g, sc, t, dur, exit, tGlobal) else definition(g, sc, t, dur, exit, tGlobal)
             Layout.STEPS -> if (alt) stepsCards(g, sc, t, exit, tGlobal) else steps(g, sc, t, exit, tGlobal)
-            Layout.COMPARE -> compare(g, sc, t, exit)
+            Layout.COMPARE -> if (alt) compareVersus(g, sc, t, exit) else compare(g, sc, t, exit)
             Layout.STAT -> if (alt) statBar(g, sc, t, exit, tGlobal) else stat(g, sc, t, exit, tGlobal)
-            Layout.CHECKLIST -> checklist(g, sc, t, exit, tGlobal)
+            Layout.CHECKLIST -> if (alt) checklistCards(g, sc, t, exit, tGlobal) else checklist(g, sc, t, exit, tGlobal)
         }
     }
 
@@ -525,6 +525,82 @@ class SceneRenderer(private val tp: Template) {
                 g.fillRoundRect(cx - w / 2, y + 10f, cx + w / 2, y + 102f, if (tp.emphasis == Emphasis.BOX) 4f else 46f, style.shadow)
                 g.fillRoundRect(cx - w / 2, y, cx + w / 2, y + 92f, if (tp.emphasis == Emphasis.BOX) 4f else 46f, style.highlight)
                 g.drawText(text, cx - g.measureText(text, f) / 2, y + 46f + g.metrics(f).ascent / 2, f, style.highlightInk)
+            }
+        }
+    }
+
+    /** Comparaison, variante « versus » : pastille VS entre les cartes, la mauvaise pratique est barrée. */
+    private fun compareVersus(g: Gfx, sc: Scene, t: Float, exit: Pose) {
+        val cmp = sc.compare ?: return
+        val x = Safe.LEFT
+        var y = 230f
+        sc.kicker?.let { k -> g.withPose(p(sc, t, exit, 0, AnimType.SLIDE_DOWN), x, y + 28f) { kicker(g, k, x, y + 28f, Align.LEFT) }; y += 96f }
+        y += title(g, sc, "titleV", 84f, Safe.WIDTH, 2, x, y, Align.LEFT, t, exit, 100f) + 56f
+        val cardH = 300f
+        val gap = 120f
+        val aTop = y
+        val bTop = y + cardH + gap
+        cmpCard(g, sc, t, exit, aTop, cardH, cmp.badLabel, cmp.badValue, style.danger, IconId.CROSS, AnimType.SLIDE_LEFT, 300, -1f)
+        // Trait qui barre la mauvaise pratique.
+        val strike = Easing.EASE_IN_OUT.ease(window(t, 1500f, 600f))
+        if (strike > 0f) g.withPose(exit, Safe.CENTER_X, aTop + 195f) {
+            val l = Safe.LEFT + 50f
+            g.fillRoundRect(l, aTop + 191f, l + (Safe.RIGHT - 50f - l) * strike, aTop + 199f, 4f, style.danger)
+        }
+        val vsY = aTop + cardH + gap / 2
+        g.withPose(p(sc, t, exit, 1100, AnimType.ZOOM_IN, 600, Easing.BACK_OUT), Safe.CENTER_X, vsY) {
+            g.fillCircle(Safe.CENTER_X, vsY, 50f, style.accent)
+            val vf = FontSpec(FontFamily.DISPLAY, 800, 40f)
+            g.drawText("VS", Safe.CENTER_X - g.measureText("VS", vf) / 2, vsY + g.metrics(vf).ascent / 2, vf, style.highlightInk)
+        }
+        cmpCard(g, sc, t, exit, bTop, cardH, cmp.goodLabel, cmp.goodValue, style.ok, IconId.CHECK, AnimType.ZOOM_IN, 1900, -1f)
+        sc.subtitle?.let { s ->
+            val top = bTop + cardH + 50f
+            val sub = block(g, "${sc.id}/subV", Marked.strip(s), fSub.withSize(40f), Safe.WIDTH, 3, 1.35f)
+            g.withPose(p(sc, t, exit, 2700, AnimType.FADE_IN, 700), x, top) { g.drawBlock(sub, x, top, style.textMuted) }
+        }
+    }
+
+    /** Liste à retenir, variante « cartes » : titre en haut, chaque point dans une carte qui monte. */
+    private fun checklistCards(g: Gfx, sc: Scene, t: Float, exit: Pose, tg: Float) {
+        val x = Safe.LEFT
+        val n = sc.items.size.coerceAtLeast(1)
+        // Peu de points : le bloc descend vers le centre optique au lieu de laisser un grand vide en bas.
+        var y = 240f + (4 - n).coerceAtLeast(0) * 110f
+        y += title(g, sc, "titleK", 90f, Safe.WIDTH, 2, x, y, Align.LEFT, t, exit, 0f) + 52f
+        val textX = x + 118f
+        val textW = Safe.RIGHT - 36f - textX
+        val tail = (if (sc.subtitle != null) 170f else 0f) + (if (sc.body.isNotEmpty()) 130f else 0f)
+        val slot = ((Safe.BOTTOM - 20f - tail - y) / n).coerceAtMost(190f)
+        val maxLines = if (slot >= 150f) 2 else 1
+        for ((i, item) in sc.items.withIndex()) {
+            val b = block(g, "${sc.id}/k$i/$maxLines", Marked.strip(item), fItem, textW, maxLines, 1.22f)
+            val h = (b.height + 52f).coerceAtLeast(if (n <= 3) 150f else 108f).coerceAtMost(slot - 18f)
+            val top = y
+            val delay = 400 + i * 380
+            g.withPose(p(sc, t, exit, delay, AnimType.SLIDE_UP, 650), x, top) {
+                card(g, x, top, Safe.RIGHT, top + h, style.ok.withAlpha(0.45f))
+                val cy = top + h / 2
+                val checked = window(t, delay + 280f, 380f)
+                g.fillCircle(x + 58f, cy, 32f, style.ok.withAlpha(0.18f + 0.6f * checked))
+                if (checked > 0f) Icons.draw(g, IconId.CHECK, x + 58f, cy, 40f, if (checked > 0.6f) style.highlightInk else style.ok, 3f)
+                g.drawBlock(b, textX, cy - b.height / 2, style.text)
+            }
+            y += h + 18f
+        }
+        y += 22f
+        sc.subtitle?.let { s ->
+            val sub = block(g, "${sc.id}/subK", Marked.strip(s), fSub.withSize(38f), Safe.WIDTH, 3, 1.35f)
+            g.withPose(p(sc, t, exit, 400 + n * 380 + 200, AnimType.FADE_IN, 700), x, y) { g.drawBlock(sub, x, y, style.textMuted) }
+            y += sub.height + 36f
+        }
+        if (sc.body.isNotEmpty()) {
+            val f = FontSpec(FontFamily.TEXT, 700, 38f)
+            val text = Marked.strip(sc.body)
+            val w = min(g.measureText(text, f) + 80f, Safe.WIDTH)
+            g.withPose(p(sc, t, exit, 400 + n * 380 + 600, AnimType.SLIDE_LEFT, 700), x, y + 46f) {
+                g.fillRoundRect(x, y, x + w, y + 92f, if (tp.emphasis == Emphasis.BOX) 4f else 46f, style.highlight)
+                g.drawText(text, x + 40f, y + 46f + g.metrics(f).ascent / 2, f, style.highlightInk)
             }
         }
     }

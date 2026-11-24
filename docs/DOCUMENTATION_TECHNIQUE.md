@@ -1,8 +1,12 @@
-# CODJIA — Documentation technique du moteur vidéo (version 0.3)
+# CODJIA — Documentation technique du moteur vidéo (version 0.4)
 
 ## 1. Vue d'ensemble
 
 ```
+Texte libre ──► CreativeDirector.propose(texte, graine, templates récents)
+                  ├─ TextSanitizer   : nettoyage, 5 000 caractères au plus
+                  ├─ DomainDetector  : domaine + templates recommandés
+                  └─ StoryboardPlanner.plan : scènes, compositions, durées ≤ 40 s
 Contenu (Storyboard)  ──►  Composer.prepare(contenu, template, musique)
                               ├─ Templates.apply  : habillage (transitions, identité)
                               └─ Rhythm.align     : début des scènes calé sur le tempo
@@ -49,6 +53,8 @@ Un `Template` réunit toute une identité :
 | Marketing Impact | Big Shoulders (majuscules) | Mots qui rebondissent | Bloc de couleur | Blocs diagonaux, étoiles | Volets, zoom, glissement |
 | Bold Typography | Boldonse (majuscules) | Lignes qui sortent d'un masque | Bloc jaune | Mots géants qui défilent | Glissement, volets, zoom |
 | Cinematic Story | Instrument Serif | Lettres en fondu | Soulignement | Fuite de lumière, vignette, grain, bandes cinéma | Passage au noir, zoom, fondu |
+| Network Blueprint *(0.4)* | Tektur | Lignes qui sortent d'un masque | Soulignement | Plan technique : quadrillage, topologie, paquets qui circulent | Volets, glissement, cercle, fondu |
+| Code Studio *(0.4)* | JetBrains Mono | Lettres en fondu | Soulignement | Éditeur de code : numéros de ligne, coloration, curseur | Glissement, volets, fondu, zoom |
 
 Les titres s'écrivent avec des `*astérisques*` autour des mots à mettre en valeur, par exemple « Repère un *e-mail piégé* ».
 
@@ -58,15 +64,46 @@ Chaque scène reçoit une légère variation de teinte de fond. Les couleurs de 
 
 **Ajouter un template.** Il suffit de créer une valeur `Template` dans `Templates.kt` et, si besoin, un `Decor`. Le reste du moteur n'est pas modifié.
 
-## 4. Recommandation de templates
+## 4. Domaines et recommandation
 
-`DomainDetector` compte des mots-clés français (sans accents, par racine) dans 6 domaines : cyber, santé, agro, marketing, entreprise et éducation. Le domaine le plus fort est retenu s'il a au moins 2 occurrences ; sinon, le texte est classé « Général ».
+CODJIA se concentre sur l'informatique, l'IA et quelques domaines voisins. `DomainDetector` attribue un score pondéré à des mots-clés (sans accents, par racine) dans 8 domaines :
 
-`recommend()` classe les **8** templates du plus adapté au moins adapté. Aucun n'est retiré : l'utilisateur garde le libre choix.
+| Domaine | Exemples de mots-clés | 3 templates proposés (texte de test) | Musiques proposées |
+| --- | --- | --- | --- |
+| Réseaux (CCNA, CCNP) | ccna, vlan, ospf, bgp, hsrp, trunk, mikrotik | Network Blueprint, Cyber Neon, Corporate Premium | pulse, horizon, momentum |
+| Systèmes (Windows, Linux, macOS, Android) | powershell, systemd, macos, sudo, active directory | Network Blueprint, Code Studio, Corporate Premium | pulse, lofi, horizon |
+| Cybersécurité | phishing, rdp, mfa, malware, chiffrement, fail2ban | Cyber Neon, Bold Typography, Network Blueprint | pulse, momentum, elan |
+| IA | prompt, llm, chatgpt, hallucination, deep learning | Bold Typography, Cyber Neon, Code Studio | elan, pulse, horizon |
+| Fullstack | javascript, react, api, sql, git, docker | Code Studio, Cyber Neon, Network Blueprint | lofi, pulse, momentum |
+| Santé et longévité | sommeil, longévité, activité physique, stress | Medical Clean, Green Nature, Cinematic Story | aube, canopee, sahel |
+| Marketing | linkedin, audience, branding, seo, conversion | Marketing Impact, Corporate Premium, Bold Typography | momentum, horizon, elan |
+| Anglais | english, present perfect, grammar, pronunciation | Modern Education, Marketing Impact, Corporate Premium | lofi, elan, sahel |
 
-Cette détection fonctionne hors ligne et s'explique simplement. Le mode IA pourra l'affiner en phase D.
+Le domaine n'est retenu qu'à partir d'un score de 3. En dessous, le texte est classé « Général ». `recommend()` classe les **10** templates sans en retirer aucun : l'utilisateur garde le libre choix. Les mots-clés du domaine servent aussi à choisir le mot mis en valeur dans les titres.
 
-## 5. Musique
+## 5. Du texte libre à la vidéo (`Planner.kt`)
+
+1. **Nettoyage** (`TextSanitizer`). 5 000 caractères au plus. On retire les emojis et les caractères de contrôle et on garde une liste blanche (latin jusqu'à U+017F, ponctuation). Les marqueurs ❌ et ✅ sont lus **avant** le nettoyage pour repérer les comparaisons.
+2. **Analyse** (`TextAnalysis`). Titre « Astuce NNN — … », accroche, définition, listes (puces et en-têtes terminés par « : »), conclusion (« à retenir », « en résumé », « remember »), hashtags.
+3. **Planification** (`StoryboardPlanner.plan`). Couverture, puis définition, chiffre clé (nombre avec unité, ports entre parenthèses), étapes, comparaison et « à retenir ». La durée de chaque scène vient du temps de lecture (2,7 mots/s), bornée selon la composition. Si le total dépasse 38,5 s, on retire d'abord les scènes facultatives, puis on resserre.
+4. **Typographie française.** Espace insécable avant `: ; ! ?` et dans les guillemets. Les commandes (`git`, `df`…) ne prennent pas de majuscule. Les éléments sont découpés en « libellé : détail ».
+
+## 6. Une vidéo différente à chaque génération
+
+Chaque génération reçoit une **graine** de 64 bits tirée par `SecureRandom`. Le bouton « 🔀 Une autre version » en tire une nouvelle. Les tirages dérivent de la graine par SplitMix64 (`Rand.of(graine, usage)`), si bien que deux graines voisines donnent des résultats indépendants. La graine fait varier :
+
+| Niveau | Ce qui change |
+| --- | --- |
+| Template | Choisi parmi les 3 meilleurs du domaine, en **évitant les 2 derniers utilisés**. Si l'utilisateur choisit un template, il est conservé |
+| Compositions | Chacune des 6 compositions a 2 variantes : couverture classique ou « titre d'abord », définition en carte ou en citation, étapes en frise ou en cartes, chiffre en anneau ou en jauge, comparaison empilée ou « versus » barrée, « à retenir » centré ou en cartes |
+| Ordre | L'ordre des scènes intermédiaires peut changer (étapes avant ou après le chiffre, par exemple) |
+| Habillage | Couleurs d'accent permutées, variante de mouvement des titres, rotation des transitions décalée |
+| Textes | Formulation des intertitres (« À retenir », « L'essentiel », « En résumé ») et de l'appel à l'action |
+| Musique | Tirée parmi les 3 pistes du domaine, sauf si l'utilisateur en a choisi une ou en a importé une |
+
+Le test `VariationTest` exige au moins 6 rendus distincts sur 8 graines, et jamais deux fois de suite le même template. Avec la même graine, on obtient exactement la même vidéo, ce qui rend les rendus reproductibles. La graine 0 donne le rendu de référence sans variation, utilisé pour les captures.
+
+## 7. Musique
 
 | Étape | Où | Détail |
 | --- | --- | --- |
@@ -79,18 +116,23 @@ Cette détection fonctionne hors ligne et s'explique simplement. Le mode IA pour
 | Encodage | Media3 Transformer | AAC dans le MP4, deux séquences parallèles (vidéo + audio) qui démarrent à 0 |
 | Contrôle | `Mp4Inspector` | Si une musique a été choisie et que le MP4 n'a pas de piste audio, l'export est refusé avec un message |
 
-## 6. Signature et installation
+## 8. Signature et installation
 
 - **Clé de développement fixe :** `demo-app/codjia-debug.keystore`, mot de passe `android`. Elle est volontairement publique et ne sert qu'aux tests. Elle permet d'installer chaque nouvel APK par-dessus le précédent.
 - **Clé de publication :** celle de Google Play et de F-Droid sera différente et ne sera jamais versionnée.
+- **Version de publication :** `assembleRelease` produit un APK non signé, réduit et obscurci par R8. La CI le compile et vérifie ses permissions à chaque envoi.
 
-## 7. Compiler et tester
+La sécurité est décrite dans [SECURITE.md](SECURITE.md) : modèle de menaces, limites d'import, manifeste sans réseau, CodeQL et Dependabot.
+
+## 9. Compiler et tester
 
 ```
-./test.sh                                    # 38 tests, sans réseau (compilateur Kotlin de Gradle)
+./test.sh                                    # 54 tests, sans réseau (compilateur Kotlin de Gradle)
 ./gradlew :engine-core:test :engine-jvm:test :demo-app:assembleDebug
 ./gradlew :engine-jvm:run --args="templates out/captures"
 ./gradlew :engine-jvm:run --args="render out/demo.mp4 cyber-neon pulse 1080"
+./gradlew :engine-jvm:run --args="plan astuce.txt 42"          # storyboard proposé pour la graine 42
+./gradlew :engine-jvm:run --args="video astuce.txt 42 out.mp4" # vidéo complète avec musique
 tools/music/build_music.sh                   # régénère les 8 musiques
 ```
 

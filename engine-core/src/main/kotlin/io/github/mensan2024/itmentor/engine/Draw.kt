@@ -78,6 +78,20 @@ class Rand(seed: Int) {
     fun nextInt(): Int { s = s xor (s shl 13); s = s xor (s ushr 17); s = s xor (s shl 5); return s }
     fun next(): Float = (nextInt() ushr 8) / 16777216f
     fun range(a: Float, b: Float) = a + (b - a) * next()
+
+    companion object {
+        /**
+         * Générateur pour une graine de génération (64 bits) et un usage (`salt`) : la graine passe par
+         * SplitMix64, si bien que deux graines voisines (3 et 4) donnent des tirages indépendants.
+         */
+        fun of(seed: Long, salt: Int): Rand {
+            var z = seed + salt.toLong() * -0x61c8864680b583ebL
+            z = (z xor (z ushr 30)) * -0x40a7b892e31b1a47L
+            z = (z xor (z ushr 27)) * -0x6b2fb644ecceee15L
+            z = z xor (z ushr 31)
+            return Rand((z xor (z ushr 32)).toInt())
+        }
+    }
 }
 
 /** Texte dont certains mots sont mis en valeur : « Repère un *e-mail piégé* ». */

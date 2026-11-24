@@ -1,4 +1,74 @@
-# CODJIA — Rapport de validation, version 0.3 (phases B et C)
+# CODJIA — Rapport de validation, version 0.4
+
+Date : 24 novembre 2026. La version 0.3 (musique, 8 templates) est décrite en annexe, plus bas.
+
+## 1. Verdict
+
+| Exigence | Résultat | Preuve |
+| --- | --- | --- |
+| L'utilisateur écrit **son propre texte** et l'appli en tire la vidéo | ✅ Saisie libre (5 000 caractères au plus), 8 exemples intégrés, analyse puis storyboard automatique | `StoryboardPlanner`, `PlannerTest` (14 textes) |
+| Domaines recentrés : réseaux (CCNA, CCNP), systèmes (Windows, macOS, Linux, Android), cybersécurité, IA, fullstack, santé et longévité, marketing, anglais | ✅ 8 domaines + « Général » | `Domain.kt`, `DomainTest` |
+| Une vidéo **différente à chaque génération** | ✅ Graine aléatoire (`SecureRandom`). Le template change d'une génération à l'autre, chaque composition a 2 variantes, plus l'ordre, les couleurs d'accent, les transitions, les intertitres et la musique. Bouton « 🔀 Une autre version » | `VariationTest`, vidéo `CODJIA_variation_3_versions.mp4` |
+| Templates adaptés à l'informatique | ✅ 2 nouveaux : **Network Blueprint** et **Code Studio** (10 au total) | `TemplateTest` |
+| Application sécurisée | ✅ Voir §4 et [SECURITE.md](SECURITE.md) | `SecurityTest`, CI, CodeQL |
+| Aucun texte hors de la zone sûre ni superposé | ✅ 12 textes × 3 graines × 10 templates, en 720p et 1080p | `RenderTest` |
+| Installation par-dessus la version précédente | ✅ Identifiant et clé inchangés, `versionCode` 4 | `demo-app/build.gradle.kts` |
+| APK compilé (debug + release R8) | ✅ GitHub Actions | Onglet *Actions* |
+
+## 2. Vidéos de démonstration (relues avec ffprobe)
+
+Toutes ont été produites à partir d'un **texte brut**, sans retouche manuelle. Chacune contient une piste H.264 1080 × 1920 à 30 i/s et une piste AAC qui démarrent toutes deux à 0 s.
+
+| Fichier | Texte | Template | Musique | Durée vidéo / audio | Écart de fin |
+| --- | --- | --- | --- | --- | --- |
+| `CODJIA_RDP_v1.mp4` | Astuce 022, RDP | Network Blueprint | Élan | 36,000 / 36,000 s | 0 ms |
+| `CODJIA_RDP_v2.mp4` | Astuce 022, RDP | Bold Typography | Momentum | 37,100 / 37,119 s | 19 ms |
+| `CODJIA_RDP_v3.mp4` | Astuce 022, RDP | Cyber Neon | Momentum | 37,100 / 37,119 s | 19 ms |
+| `CODJIA_Reseaux_VLAN.mp4` | VLAN (CCNA) | Cyber Neon | Pulse | 31,067 / 31,091 s | 24 ms |
+| `CODJIA_IA_prompt.mp4` | Bien écrire un prompt | Cyber Neon | Élan | 27,600 / 27,600 s | 0 ms |
+| `CODJIA_English.mp4` | Present perfect | Modern Education | Élan | 27,000 / 27,000 s | 0 ms |
+| `CODJIA_Sante.mp4` | Vivre longtemps en bonne santé | Green Nature | Canopée | 27,133 / 27,121 s | 12 ms |
+| `CODJIA_variation_3_versions.mp4` | Les 3 versions RDP côte à côte | — | — | 37,1 s | — |
+
+Tous les écarts de fin sont inférieurs à une image (33 ms). Le niveau moyen va de −17,3 à −16,3 dBFS.
+
+## 3. Tests automatiques : 54 sur 54 réussis
+
+| Suite | Ce qu'elle vérifie |
+| --- | --- |
+| `PlannerTest` (nouveau) | 14 textes réels × 6 graines : storyboard valide, ≤ 40 s, domaine juste, « 022 » lu comme 22, nettoyage, typographie française, commandes sans majuscule |
+| `VariationTest` (nouveau) | ≥ 6 rendus distincts sur 8 graines, pas deux fois de suite le même template, même graine = même vidéo, template imposé respecté |
+| `SecurityTest` (nouveau) | Fichiers audio hostiles refusés, budget mémoire borné, noms nettoyés (contrôles, U+202E, `../`) |
+| `RenderTest` | Déterminisme, polices françaises complètes, zone sûre, aucune superposition de textes, 12 textes libres × 3 graines, 720p et 1080p |
+| `TemplateTest`, `DomainTest`, `MusicTest`, moteur | 10 templates et décors, contrastes, recommandations, mixage, fondus, calage sur le tempo |
+
+## 4. Sécurité : ce qui a été ajouté
+
+- Manifeste **sans aucune permission**. INTERNET et l'accès au stockage sont retirés explicitement. Texte en clair interdit. Sauvegardes cloud et transferts entre appareils désactivés.
+- Musique importée :
+  - contrôlée (type, taille ≤ 60 Mo, durée ≤ 30 min, fréquence, canaux) ;
+  - décodée avec un **budget mémoire fixe** et un délai maximal ;
+  - analysée hors du fil d'interface.
+- Fichiers de travail dans l'espace privé, **supprimés** après chaque export, même en cas d'échec.
+- Version de publication réduite et obscurcie par R8, journaux de débogage retirés.
+- CI :
+  - jeton en lecture seule et vérification du Gradle Wrapper ;
+  - **échec automatique** si une permission réseau ou de stockage apparaît dans l'APK ;
+  - CodeQL `security-extended` ;
+  - Dependabot.
+- `SECURITY.md` (signalement privé) et modèle de menaces (`docs/SECURITE.md`).
+
+## 5. À vérifier sur le Galaxy A16
+
+1. Installer l'APK par-dessus la version 0.3 : il doit s'installer sans désinstaller.
+2. Coller un texte personnel, puis « Analyser et créer ma vidéo ». Appuyer 3 fois sur « 🔀 Une autre version » : le modèle et la mise en page doivent changer à chaque fois.
+3. Importer un MP3 personnel, puis tenter un fichier très lourd ou qui n'est pas de l'audio : un message clair doit s'afficher, sans plantage.
+4. Générer, puis vérifier le son dans la Galerie (*Movies › CODJIA*) et le partage.
+
+---
+
+# Annexe — Rapport de la version 0.3
+
 
 Date : 24 novembre 2026.
 
