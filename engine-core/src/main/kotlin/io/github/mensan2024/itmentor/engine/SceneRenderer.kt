@@ -40,6 +40,7 @@ class SceneRenderer(private val tp: Template) {
             Layout.COMPARE -> if (alt) compareVersus(g, sc, t, exit) else compare(g, sc, t, exit)
             Layout.STAT -> if (alt) statBar(g, sc, t, exit, tGlobal) else stat(g, sc, t, exit, tGlobal)
             Layout.CHECKLIST -> if (alt) checklistCards(g, sc, t, exit, tGlobal) else checklist(g, sc, t, exit, tGlobal)
+            Layout.SCREEN -> {}
         }
     }
 

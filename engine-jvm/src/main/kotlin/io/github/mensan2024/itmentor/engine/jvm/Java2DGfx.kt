@@ -197,7 +197,14 @@ class Java2DGfx(private val image: BufferedImage, private val fonts: FontBank) :
         if (visible) recordText?.let { rec ->
             val b = f.getStringBounds(text, frc)
             val local = Rectangle2D.Double(x.toDouble(), baseline + b.y, b.width, b.height)
-            rec += text to g.transform.createTransformedShape(local).bounds2D
+            var dev = g.transform.createTransformedShape(local).bounds2D
+            // Texte partiellement masqué (zone de découpe, zoom de caméra) : seule la partie visible compte.
+            g.clip?.let { c ->
+                val clipDev = g.transform.createTransformedShape(c).bounds2D
+                if (!clipDev.intersects(dev)) return
+                dev = dev.createIntersection(clipDev)
+            }
+            rec += text to dev
         }
     }
 

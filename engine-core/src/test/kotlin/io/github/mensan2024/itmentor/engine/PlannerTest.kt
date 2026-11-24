@@ -19,8 +19,8 @@ class PlannerTest {
         for ((name, text) in Fixtures.ALL) for (seed in 0L..5L) {
             val p = CreativeDirector.propose(text, seed)
             val sb = Composer.prepare(p.storyboard, p.template, null)
-            val tl = Timeline.build(sb) // lève une exception au-delà de 40 s
-            assertTrue("$name/$seed : ${tl.totalMs} ms", tl.totalMs in 15_000L..40_000L)
+            val tl = Timeline.build(sb) // lève une exception au-delà de 45 s
+            assertTrue("$name/$seed : ${tl.totalMs} ms", tl.totalMs in 15_000L..45_000L)
             assertTrue("$name/$seed : trop peu de scènes", sb.scenes.size >= 3)
             assertEquals(Layout.HERO, sb.scenes.first().layout)
             assertEquals(Layout.CHECKLIST, sb.scenes.last().layout)
@@ -116,5 +116,27 @@ class VariationTest {
     @Test fun leChoixDeLUtilisateurEstRespecte() {
         val text = Fixtures.ALL.getValue("sante_longevite")
         assertEquals(Templates.BOLD_TYPOGRAPHY, CreativeDirector.propose(text, 9, forcedTemplate = Templates.BOLD_TYPOGRAPHY).template)
+    }
+
+    @Test fun leFormatChangeAChaqueGeneration() {
+        // Comme dans l'appli : on évite les 2 derniers formats ; 6 générations de suite = au moins 4 formats différents.
+        for ((name, text) in Fixtures.ALL) {
+            val recent = ArrayDeque<Look>()
+            val seen = LinkedHashSet<Look>()
+            var prev: Look? = null
+            for (seed in 1L..6L) {
+                val look = CreativeDirector.propose(text, seed * 7919, avoidLooks = recent).look
+                assertTrue("$name : même format deux fois de suite ($look)", look != prev)
+                seen += look; prev = look
+                recent.addLast(look); while (recent.size > 2) recent.removeFirst()
+            }
+            assertTrue("$name : formats trop peu variés $seen", seen.size >= 4)
+        }
+    }
+
+    @Test fun laDemoEcranEstReserveeALInformatique() {
+        val text = Fixtures.ALL.getValue("sante_longevite")
+        for (seed in 1L..40L) assertTrue(CreativeDirector.propose(text, seed).look != Look.DEMO)
+        assertEquals(Look.DEMO, CreativeDirector.propose(text, 3, forcedLook = Look.DEMO).look)
     }
 }

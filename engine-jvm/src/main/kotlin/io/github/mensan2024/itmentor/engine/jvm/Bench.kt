@@ -58,7 +58,7 @@ fun main(args: Array<String>) {
             val text = File(args[1]).readText()
             val seed = args.getOrNull(2)?.toLong() ?: 0L
             val p = io.github.mensan2024.itmentor.engine.CreativeDirector.propose(text, seed)
-            println("Domaine : ${p.domain} · template : ${p.template.id} · musique : ${p.musicId}")
+            println("Domaine : ${p.domain} · format : ${p.look} · template : ${p.template.id} · musique : ${p.musicId}")
             val tl = io.github.mensan2024.itmentor.engine.Timeline.build(Composer.prepare(p.storyboard, p.template, null))
             println("Durée : ${tl.totalMs} ms")
             for (sc in p.storyboard.scenes) {
@@ -75,7 +75,7 @@ fun main(args: Array<String>) {
             val text = File(args[1]).readText()
             val seed = args[2].toLong()
             val out = File(args[3])
-            val p = io.github.mensan2024.itmentor.engine.CreativeDirector.propose(text, seed)
+            val p = io.github.mensan2024.itmentor.engine.CreativeDirector.propose(text, seed, forcedLook = args.getOrNull(4)?.let { io.github.mensan2024.itmentor.engine.Look.valueOf(it) })
             val r = FrameRenderer(Composer.prepare(p.storyboard, p.template, null), VideoFormat(540, 960, 30), p.template)
             val slots = r.timeline.slots
             val sheet = BufferedImage(540 * slots.size, 960, BufferedImage.TYPE_INT_RGB)
@@ -86,13 +86,22 @@ fun main(args: Array<String>) {
                 g2.drawImage(img, i * 540, 0, null)
             }
             ImageIO.write(sheet, "png", out)
-            println("${p.domain} · ${p.template.id} · ${p.musicId} · ${r.timeline.totalMs} ms")
+            println("${p.domain} · ${p.look} · ${p.template.id} · ${p.musicId} · ${r.timeline.totalMs} ms")
+        }
+        "frames" -> {
+            // Images en pleine résolution à des instants donnés : frames <texte> <graine> <format> <out-dir> t1 t2 …
+            val p = io.github.mensan2024.itmentor.engine.CreativeDirector.propose(File(args[1]).readText(), args[2].toLong(),
+                forcedLook = io.github.mensan2024.itmentor.engine.Look.valueOf(args[3]))
+            val r = FrameRenderer(Composer.prepare(p.storyboard, p.template, null), VideoFormat.FULL_HD, p.template)
+            val dir = File(args[4]).apply { mkdirs() }
+            for (t in args.drop(5)) savePng(r, fonts, t.toFloat(), File(dir, "f_$t.png"))
+            println(r.timeline.slots.joinToString { "${it.scene.layout}@${it.startMs}-${it.endMs}" })
         }
         "video" -> {
             val text = File(args[1]).readText()
             val seed = args[2].toLong()
             val out = File(args[3])
-            val p = io.github.mensan2024.itmentor.engine.CreativeDirector.propose(text, seed)
+            val p = io.github.mensan2024.itmentor.engine.CreativeDirector.propose(text, seed, forcedLook = args.getOrNull(4)?.let { io.github.mensan2024.itmentor.engine.Look.valueOf(it) })
             val music = p.musicId?.let { id -> readCatalog(musicDir).first { it.id == id } }
             val sb = Composer.prepare(p.storyboard, p.template, music)
             val stats = renderVideo(sb, VideoFormat.FULL_HD, fonts, out, music?.let { File(musicDir, it.file.removePrefix("music/")) })

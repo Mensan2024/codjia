@@ -17,6 +17,7 @@ enum class FontFamily {
     CINEMA,     // Instrument Serif : titres de film (Cinematic Story)
     CINEMA_ITALIC,
     TECH,       // Tektur : technique (étiquettes Cyber Neon)
+    HAND,       // Kalam : écriture au feutre (format Tableau blanc)
 }
 
 /** Fichier à utiliser pour chaque famille et graisse. Partagé par les rendus Android et JVM. */
@@ -35,6 +36,7 @@ object FontCatalog {
         FontFamily.CINEMA to mapOf(400 to "InstrumentSerif-Regular.ttf"),
         FontFamily.CINEMA_ITALIC to mapOf(400 to "InstrumentSerif-Italic.ttf"),
         FontFamily.TECH to mapOf(500 to "Tektur-Medium.ttf"),
+        FontFamily.HAND to mapOf(400 to "Kalam-Regular.ttf", 700 to "Kalam-Bold.ttf"),
     )
 
     fun file(family: FontFamily, weight: Int): String {

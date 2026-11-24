@@ -58,12 +58,12 @@ class TimelineTest {
         assertTrue(tl.at(7500f) is Moment.Single) // coupe franche : jamais de mélange
     }
 
-    @Test fun refuseUneVideoDePlusDe40Secondes() {
-        val sb = Storyboard("t", "t", "cyber-neon", List(9) { scene("s$it", 5000) })
+    @Test fun refuseUneVideoDePlusDe45Secondes() {
+        val sb = Storyboard("t", "t", "cyber-neon", List(11) { scene("s$it", 5000) })
         try {
-            Timeline.build(sb); fail("Une vidéo de plus de 40 s doit être refusée")
+            Timeline.build(sb); fail("Une vidéo de plus de 45 s doit être refusée")
         } catch (e: StoryboardException) {
-            assertTrue(e.message!!.contains("40"))
+            assertTrue(e.message!!.contains("45"))
         }
     }
 

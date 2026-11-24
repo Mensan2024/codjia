@@ -98,6 +98,14 @@ object Icons {
         IconId.BOOK -> listOf(Part(PathData().moveTo(12f, 6.5f).cubicTo(9.5f, 4.8f, 6f, 4.6f, 3f, 5.5f).lineTo(3f, 18.5f).cubicTo(6f, 17.6f, 9.5f, 17.8f, 12f, 19.5f)
             .cubicTo(14.5f, 17.8f, 18f, 17.6f, 21f, 18.5f).lineTo(21f, 5.5f).cubicTo(18f, 4.6f, 14.5f, 4.8f, 12f, 6.5f).close()),
             Part(PathData().moveTo(12f, 6.5f).lineTo(12f, 19.5f)))
+        IconId.GEAR -> listOf(Part(PathData().circle(12f, 12f, 6.2f)), Part(PathData().circle(12f, 12f, 2.6f)),
+            Part(PathData().apply {
+                for (k in 0 until 8) {
+                    val a = k * Math.PI / 4
+                    moveTo((12 + 6.2 * kotlin.math.cos(a)).toFloat(), (12 + 6.2 * kotlin.math.sin(a)).toFloat())
+                    lineTo((12 + 9.2 * kotlin.math.cos(a)).toFloat(), (12 + 9.2 * kotlin.math.sin(a)).toFloat())
+                }
+            }))
     }
 
     fun roundRect(l: Float, t: Float, r: Float, b: Float, rad: Float): PathData {

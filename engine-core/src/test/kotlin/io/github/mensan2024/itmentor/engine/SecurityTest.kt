@@ -26,7 +26,7 @@ class SecurityTest {
     @Test fun pcmBudgetIsBounded() {
         // 40 s + 3 s de marge, 48 kHz stéréo 16 bits ≈ 8,3 Mo, quelle que soit la longueur du fichier source.
         assertEquals(43_000L * 48_000 / 1000 * 2 * 2, ImportPolicy.pcmByteBudget(40_000, 48_000, 2))
-        assertTrue(ImportPolicy.pcmByteBudget(Long.MAX_VALUE, Int.MAX_VALUE, Int.MAX_VALUE) < 100L * 1024 * 1024)
+        assertTrue(ImportPolicy.pcmByteBudget(Long.MAX_VALUE, Int.MAX_VALUE, Int.MAX_VALUE) < 40L * 1024 * 1024)
     }
 
     @Test fun displayNameIsSanitized() {

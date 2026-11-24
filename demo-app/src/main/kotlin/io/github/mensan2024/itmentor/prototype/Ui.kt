@@ -7,8 +7,11 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.annotation.SuppressLint
 import android.util.TypedValue
 import android.view.Gravity
+import android.view.HapticFeedbackConstants
+import android.view.MotionEvent
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -38,6 +41,21 @@ fun Context.label(text: String, size: Float = 15f, color: Int = Brand.TEXT, bold
     if (bold) setTypeface(typeface, Typeface.BOLD)
 }
 
+/** Retour tactile léger + effet d'enfoncement : l'appli répond au doigt comme une appli native. */
+@SuppressLint("ClickableViewAccessibility")
+fun View.pressable(onClick: () -> Unit): View {
+    isClickable = true
+    setOnTouchListener { v, e ->
+        when (e.actionMasked) {
+            MotionEvent.ACTION_DOWN -> v.animate().scaleX(0.96f).scaleY(0.96f).setDuration(90).start()
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> v.animate().scaleX(1f).scaleY(1f).setDuration(140).start()
+        }
+        false
+    }
+    setOnClickListener { v -> v.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY); onClick() }
+    return this
+}
+
 /** Bouton principal (safran) ou secondaire (contour). */
 fun Context.button(text: String, primary: Boolean = true, onClick: () -> Unit) = TextView(this).apply {
     this.text = text; textSize = 16f; gravity = Gravity.CENTER
@@ -46,17 +64,20 @@ fun Context.button(text: String, primary: Boolean = true, onClick: () -> Unit) =
     background = if (primary) rounded(Brand.SAFFRON, dp(14f).toFloat())
     else rounded(Color.TRANSPARENT, dp(14f).toFloat(), Brand.MUTED, dp(1.5f))
     setPadding(dp(18f), dp(14f), dp(18f), dp(14f))
-    isClickable = true
-    setOnClickListener { onClick() }
+    pressable(onClick)
 }
 
 /** Pastille de filtre (catégories, volume). */
 fun Context.chip(text: String, selected: Boolean, onClick: () -> Unit) = TextView(this).apply {
     this.text = text; textSize = 14f
-    setTextColor(if (selected) Brand.INK else Brand.TEXT)
-    background = if (selected) rounded(Brand.TEAL, dp(20f).toFloat()) else rounded(Brand.SURFACE_2, dp(20f).toFloat())
+    setChipSelected(selected)
     setPadding(dp(14f), dp(8f), dp(14f), dp(8f))
-    setOnClickListener { onClick() }
+    pressable(onClick)
+}
+
+fun TextView.setChipSelected(selected: Boolean) {
+    setTextColor(if (selected) Brand.INK else Brand.TEXT)
+    background = if (selected) rounded(Brand.TEAL, context.dp(20f).toFloat()) else rounded(Brand.SURFACE_2, context.dp(20f).toFloat())
 }
 
 fun Context.vbox(pad: Int = 0) = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(pad, pad, pad, pad) }

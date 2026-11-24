@@ -15,8 +15,8 @@ object ImportPolicy {
     /** 30 min : au-delà, ce n'est plus une musique de fond. */
     const val MAX_AUDIO_DURATION_MS: Long = 30L * 60 * 1000
     const val MIN_AUDIO_DURATION_MS: Long = 1_000
-    val SAMPLE_RATES = 8_000..96_000
-    val CHANNELS = 1..8
+    val SAMPLE_RATES = 8_000..48_000
+    val CHANNELS = 1..2
     /** Le décodage s'arrête dès qu'on a de quoi couvrir la vidéo (+ marge) : mémoire bornée, quelle que soit la source. */
     const val DECODE_MARGIN_MS: Long = 3_000
     /** Garde-fou contre un décodeur bloqué. */
@@ -39,7 +39,7 @@ object ImportPolicy {
 
     /** Nombre maximal d'octets PCM 16 bits à conserver pour une vidéo de `videoMs`. */
     fun pcmByteBudget(videoMs: Long, sampleRate: Int, channels: Int): Long {
-        val ms = (videoMs.coerceIn(0, 60_000) + DECODE_MARGIN_MS)
+        val ms = (videoMs.coerceIn(0, Timeline.MAX_DEMO_DURATION_MS) + DECODE_MARGIN_MS)
         return ms * sampleRate.coerceIn(SAMPLE_RATES) / 1000 * channels.coerceIn(CHANNELS) * 2
     }
 

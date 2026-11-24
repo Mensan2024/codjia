@@ -27,10 +27,12 @@ data class VideoFormat(val width: Int = 1080, val height: Int = 1920, val fps: I
 }
 
 /** Les compositions graphiques disponibles. Chacune est une mise en page différente. */
-enum class Layout { HERO, DEFINITION, STEPS, COMPARE, STAT, CHECKLIST }
+enum class Layout { HERO, DEFINITION, STEPS, COMPARE, STAT, CHECKLIST,
+    /** Démonstration sur un écran simulé (Windows, macOS, Ubuntu, console réseau) : voir [DemoStep]. */
+    SCREEN }
 
 enum class IconId { SHIELD, LOCK, MAIL, WARNING, CHECK, CROSS, KEY, EYE, USER, HOOK, SEARCH, CLOCK, DROP, HEART, LEAF, SUN, MEGAPHONE, TARGET, BULB, CHART,
-    ROUTER, WIFI, TERMINAL, CODE, GLOBE, CHAT, BRAIN, CPU, MOON, BOOK }
+    ROUTER, WIFI, TERMINAL, CODE, GLOBE, CHAT, BRAIN, CPU, MOON, BOOK, GEAR }
 
 enum class IllustrationId { NONE, PHISHING_MAIL, SHIELD_CHECK, WATER_DROP, PLANT_GROWTH, CHART_GROWTH, CHECK_CIRCLE,
     NETWORK_TOPOLOGY, CODE_WINDOW, OS_TERMINAL, NEURAL_NET, HEART_BEAT, SPEECH_BUBBLES }
@@ -103,6 +105,8 @@ data class Scene(
     val exit: AnimSpec = AnimSpec(AnimType.FADE_OUT, durationMs = 350, easing = Easing.EASE_IN),
     /** Transition vers la scène suivante (ignorée pour la dernière scène). */
     val transitionOut: Transition = Transition(TransitionType.FADE, 500),
+    /** Étape de démonstration (uniquement pour [Layout.SCREEN]). */
+    val demo: DemoStep? = null,
 ) {
     init {
         require(id.isNotBlank()) { "Une scène doit avoir un identifiant" }
@@ -119,6 +123,8 @@ data class Storyboard(
     val hashtag: String? = null,
     /** Graine de variation : chaque génération en tire une nouvelle ; même graine = même vidéo. */
     val seed: Long = 0,
+    /** Format de réalisation (tableau blanc, démo, mascotte…). */
+    val look: Look = Look.MOTION,
 ) {
     init {
         require(scenes.isNotEmpty()) { "Le storyboard est vide" }

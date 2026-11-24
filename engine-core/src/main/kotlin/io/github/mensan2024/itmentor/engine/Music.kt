@@ -57,7 +57,7 @@ data class MusicChoice(val track: MusicTrack?, val volume: MusicVolume = MusicVo
  * et la vidéo ne dépasse jamais 40 s : si besoin, on retire un temps aux scènes les plus longues.
  */
 object Rhythm {
-    fun align(sb: Storyboard, beatMs: Double, maxMs: Long = Timeline.MAX_DURATION_MS): Storyboard {
+    fun align(sb: Storyboard, beatMs: Double, maxMs: Long = Timeline.limitFor(sb)): Storyboard {
         val last = sb.scenes.lastIndex
         fun overlap(i: Int, s: Scene) =
             if (i == last || s.transitionOut.type == TransitionType.CUT) 0L else s.transitionOut.durationMs.toLong()

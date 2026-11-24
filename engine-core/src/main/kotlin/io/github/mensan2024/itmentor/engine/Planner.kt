@@ -414,6 +414,7 @@ object StoryboardPlanner {
             Layout.COMPARE -> Triple(3200, 5600, 7200)
             Layout.STAT -> Triple(2600, 4400, 6000)
             Layout.CHECKLIST -> Triple(2400, 5200, 8000)
+            Layout.SCREEN -> return s
         }
         return s.copy(durationMs = (base + read).coerceIn(lo, hi))
     }
@@ -439,7 +440,9 @@ object StoryboardPlanner {
  * Chaque nouvelle génération (nouvelle graine) donne une vidéo différente ; la même graine redonne la même.
  */
 object CreativeDirector {
-    data class Proposal(val storyboard: Storyboard, val template: Template, val musicId: String?, val domain: Domain)
+    data class Proposal(val storyboard: Storyboard, val template: Template, val musicId: String?, val domain: Domain) {
+        val look: Look get() = storyboard.look
+    }
 
     private val MUSIC = mapOf(
         Domain.RESEAUX to listOf("pulse", "horizon", "momentum"), Domain.SYSTEMES to listOf("pulse", "lofi", "horizon"),
@@ -451,8 +454,12 @@ object CreativeDirector {
 
     /**
      * @param avoidTemplates templates des dernières générations : on les évite si possible, pour ne pas répéter le même format.
+     * @param avoidLooks formats des dernières générations : chaque nouvelle génération change de forme.
      */
-    fun propose(text: String, seed: Long, avoidTemplates: Collection<String> = emptyList(), forcedTemplate: Template? = null): Proposal {
+    fun propose(
+        text: String, seed: Long, avoidTemplates: Collection<String> = emptyList(), forcedTemplate: Template? = null,
+        avoidLooks: Collection<Look> = emptyList(), forcedLook: Look? = null,
+    ): Proposal {
         val domain = DomainDetector.detect(TextSanitizer.clean(text))
         val r = Rand.of(seed, 0x1D3A)
         val top = DomainDetector.recommend(text).take(3)
@@ -462,7 +469,47 @@ object CreativeDirector {
         }
         val musics = MUSIC.getValue(domain)
         val music = musics[(r.nextInt() ushr 1) % musics.size]
-        val sb = StoryboardPlanner.plan(text, seed, template.id)
+        val look = forcedLook ?: run {
+            val allowed = Looks.forDomain(domain)
+            val fresh = allowed.filter { it !in avoidLooks }.ifEmpty { allowed }
+            fresh[(Rand.of(seed, 0x2C7F).nextInt() ushr 1) % fresh.size]
+        }
+        var sb = StoryboardPlanner.plan(text, seed, template.id).copy(look = look)
+        Procedures.match(TextSanitizer.clean(text))?.let { topic -> sb = withDemo(sb, topic, text, seed) }
         return Proposal(sb, template, music, domain)
+    }
+
+    /**
+     * Insère une démonstration à l'écran : couverture, (définition), étapes de la démo, (comparaison ou
+     * chiffre), à retenir. On ajoute les scènes facultatives tant que la vidéo reste sous 42 s.
+     */
+    internal fun withDemo(sb: Storyboard, topic: Procedures.Topic, text: String, seed: Long): Storyboard {
+        val demo = Procedures.scenes(Procedures.pick(topic, text, seed))
+        val byLayout = sb.scenes.associateBy { it.layout }
+        val hero = byLayout[Layout.HERO]?.let { it.copy(durationMs = it.durationMs.coerceAtMost(4800)) }
+        val checklist = byLayout[Layout.CHECKLIST]?.let { it.copy(durationMs = it.durationMs.coerceAtMost(6500)) }
+        fun total(sc: List<Scene>) = sc.sumOf { it.durationMs } - sc.dropLast(1).count { it.layout != Layout.SCREEN } * 600
+        var scenes = listOfNotNull(hero) + demo.dropLast(1) + demo.last().copy(transitionOut = Transition(TransitionType.FADE, 500)) + listOfNotNull(checklist)
+        // Scènes d'explication en plus, si la durée le permet (cible : 35 à 42 s).
+        for (extra in listOf(Layout.DEFINITION, Layout.COMPARE, Layout.STAT)) {
+            val sc = byLayout[extra] ?: continue
+            if (total(scenes) >= 35_000) break
+            val candidate = if (extra == Layout.DEFINITION) listOfNotNull(hero, sc) + scenes.drop(if (hero != null) 1 else 0)
+                else scenes.dropLast(if (checklist != null) 1 else 0) + sc + listOfNotNull(checklist)
+            if (total(candidate) <= 42_000) scenes = candidate
+        }
+        // Trop court (texte bref) : on laisse plus de temps à chaque étape de la démo, jusqu'à 35 s.
+        if (total(scenes) < 35_000) {
+            val screenMs = scenes.filter { it.layout == Layout.SCREEN }.sumOf { it.durationMs }.coerceAtLeast(1)
+            val k = (1.0 + (35_000 - total(scenes)).toDouble() / screenMs).coerceAtMost(1.35)
+            scenes = scenes.map { if (it.layout == Layout.SCREEN) it.copy(durationMs = (it.durationMs * k).toInt().coerceAtMost(9500)) else it }
+        }
+        // Trop long : on retire la liste finale, puis on resserre les étapes.
+        if (total(scenes) > 43_000 && checklist != null) scenes = scenes - checklist
+        if (total(scenes) > 43_000) {
+            val k = 43_000.0 / total(scenes)
+            scenes = scenes.map { it.copy(durationMs = (it.durationMs * k).toInt().coerceAtLeast(2600)) }
+        }
+        return sb.copy(scenes = scenes)
     }
 }

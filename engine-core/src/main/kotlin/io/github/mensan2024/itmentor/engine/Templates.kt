@@ -221,6 +221,8 @@ object Templates {
             previous = type
             // Une transition ne peut pas dépasser 40 % de la plus courte des deux scènes concernées.
             val next = sb.scenes.getOrNull(i + 1)
+            // Entre deux étapes d'une même démonstration : coupe franche, la caméra assure la continuité.
+            if (s.layout == Layout.SCREEN && next?.layout == Layout.SCREEN) return@mapIndexed s.copy(transitionOut = Transition.CUT)
             val maxMs = ((minOf(s.durationMs, next?.durationMs ?: s.durationMs)) * 0.4).toInt()
             s.copy(transitionOut = Transition(type, minOf(t.transitionMs, maxMs)))
         }

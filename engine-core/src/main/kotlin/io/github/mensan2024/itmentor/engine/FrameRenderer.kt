@@ -16,6 +16,12 @@ class FrameRenderer(val storyboard: Storyboard, val format: VideoFormat, baseTem
     val template: Template = Templates.vary(baseTemplate, storyboard.seed)
     private val style = template.style
     private val scenes = SceneRenderer(template)
+    /** Format autre que Motion design : il dessine les scènes à sa manière. */
+    private val look: LookRenderer? = Looks.renderer(storyboard.look, template, storyboard)
+    private val ink get() = look?.ink ?: style.text
+    private val muted get() = look?.muted ?: style.textMuted
+    private val accentA get() = look?.accent ?: style.accent
+    private val accentB get() = look?.accent2 ?: style.accent2
 
     private val W = VideoFormat.DESIGN_WIDTH
     private val H = VideoFormat.DESIGN_HEIGHT
@@ -34,12 +40,16 @@ class FrameRenderer(val storyboard: Storyboard, val format: VideoFormat, baseTem
             is Moment.Single -> scene(g, m.slot, m.localMs, tMs)
             is Moment.Blend -> transition(g, m, tMs)
         }
-        Backgrounds.overlayFx(g, template, (tMs / 33.333f).toInt())
+        if (look == null) Backgrounds.overlayFx(g, template, (tMs / 33.333f).toInt()) else look.overlayFx(g, (tMs / 33.333f).toInt())
         overlay(g, tMs)
         g.restore()
     }
 
+    private val screens = ScreenSceneRenderer(look?.accent ?: style.accent)
+
     private fun scene(g: Gfx, slot: Slot, local: Float, tGlobal: Float) {
+        if (slot.scene.layout == Layout.SCREEN) { screens.draw(g, slot.scene, local); return }
+        look?.let { it.scene(g, slot, local, tGlobal); return }
         Backgrounds.draw(g, template, slot.index, slot.scene.background, tGlobal)
         scenes.draw(g, slot.scene, local, tGlobal)
     }
@@ -57,7 +67,7 @@ class FrameRenderer(val storyboard: Storyboard, val format: VideoFormat, baseTem
                 g.save(); g.translate(-W * e, 0f); scene(g, m.from, m.fromLocalMs, tGlobal); g.restore()
                 g.save(); g.translate(W * (1f - e), 0f); scene(g, m.to, m.toLocalMs, tGlobal); g.restore()
                 val edge = W * (1f - e)
-                g.fillRect(edge - 18f, 0f, edge, H, 0x33000000)
+                if (look == null) g.fillRect(edge - 18f, 0f, edge, H, 0x33000000)
             }
             TransitionType.ZOOM -> {
                 g.save(); g.scale(1f + 0.22f * e, W / 2, H / 2); scene(g, m.from, m.fromLocalMs, tGlobal); g.restore()
@@ -68,9 +78,9 @@ class FrameRenderer(val storyboard: Storyboard, val format: VideoFormat, baseTem
             TransitionType.WIPE -> {
                 // Volets de couleur en diagonale : ils couvrent l'écran à mi-parcours, la scène change dessous.
                 if (m.progress < 0.5f) scene(g, m.from, m.fromLocalMs, tGlobal) else scene(g, m.to, m.toLocalMs, tGlobal)
-                panel(g, m.progress, 0.00f, style.accent2, 1.9f)
-                panel(g, m.progress, 0.07f, style.accent, 1.9f)
-                panel(g, m.progress, 0.12f, style.text.withAlpha(0.9f), 0.10f)
+                panel(g, m.progress, 0.00f, accentB, 1.9f)
+                panel(g, m.progress, 0.07f, accentA, 1.9f)
+                panel(g, m.progress, 0.12f, ink.withAlpha(0.9f), 0.10f)
             }
             TransitionType.CIRCLE -> {
                 // Ouverture circulaire depuis le centre, avec un anneau d'accent sur le bord.
@@ -81,7 +91,7 @@ class FrameRenderer(val storyboard: Storyboard, val format: VideoFormat, baseTem
                     g.clipPath(PathData().circle(W / 2, H / 2, r))
                     scene(g, m.to, m.toLocalMs, tGlobal)
                     g.restore()
-                    g.strokeCircle(W / 2, H / 2, r, 14f * (1f - e) + 2f, style.accent)
+                    g.strokeCircle(W / 2, H / 2, r, 14f * (1f - e) + 2f, accentA)
                 }
             }
             TransitionType.DIP -> {
@@ -114,19 +124,19 @@ class FrameRenderer(val storyboard: Storyboard, val format: VideoFormat, baseTem
         val y = 104f
         for ((i, s) in timeline.slots.withIndex()) {
             val l = Safe.LEFT + i * (segW + gap)
-            g.fillRoundRect(l, y, l + segW, y + 8f, 4f, style.text.withAlpha(0.16f))
+            g.fillRoundRect(l, y, l + segW, y + 8f, 4f, ink.withAlpha(0.16f))
             val f = window(tMs, s.startMs.toFloat(), s.durationMs.toFloat())
-            if (f > 0f) g.fillRoundRect(l, y, l + segW * f, y + 8f, 4f, style.text.withAlpha(0.9f))
+            if (f > 0f) g.fillRoundRect(l, y, l + segW * f, y + 8f, 4f, ink.withAlpha(0.9f))
         }
         val fy = 1608f
         val play = PathData().moveTo(Safe.LEFT, fy - 26f).lineTo(Safe.LEFT, fy + 6f).lineTo(Safe.LEFT + 27f, fy - 10f).close()
-        g.fillPath(play, style.text.withAlpha(0.9f))
+        g.fillPath(play, ink.withAlpha(0.9f))
         g.fillRoundRect(Safe.LEFT + 32f, fy + 2f, Safe.LEFT + 50f, fy + 8f, 3f, rgb(0xF5B301))
         val f = FontSpec(FontFamily.TEXT, 800, 28f)
-        g.drawTracked(storyboard.footer, Safe.LEFT + 66f, fy, f, style.text.withAlpha(0.9f), 2f)
+        g.drawTracked(storyboard.footer, Safe.LEFT + 66f, fy, f, ink.withAlpha(0.9f), 2f)
         storyboard.hashtag?.let { h ->
             val hf = FontSpec(FontFamily.TEXT, 500, 26f)
-            g.drawText(h, Safe.RIGHT - g.measureText(h, hf), fy, hf, style.textMuted)
+            g.drawText(h, Safe.RIGHT - g.measureText(h, hf), fy, hf, muted)
         }
     }
 }
@@ -137,7 +147,7 @@ class FrameRenderer(val storyboard: Storyboard, val format: VideoFormat, baseTem
  */
 object Composer {
     fun prepare(content: Storyboard, template: Template, music: MusicTrack?): Storyboard {
-        val dressed = Templates.apply(content, template)
+        val dressed = Looks.apply(Templates.apply(content, template), content.look)
         return if (music != null) Rhythm.align(dressed, music.beatMs) else dressed
     }
 }
