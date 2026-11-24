@@ -3,9 +3,11 @@
 #
 # Lancement : onglet Actions › « Publier une version » › Run workflow, en indiquant la version (ex. 1.0.0).
 # Prérequis : les 4 secrets CODJIA_* (voir docs/PUBLIER.md) et docs/release-notes/v<version>.md.
-name: Publier une version
+name: Essai de signature (clé jetable)
 
 on:
+  push:
+    branches: [test/release-dry]
   workflow_dispatch:
     inputs:
       version:
@@ -27,13 +29,12 @@ jobs:
   release:
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    environment: publication
     permissions:
       contents: write      # créer l'étiquette et la publication
       id-token: write      # attestation de provenance (Sigstore)
       attestations: write
     env:
-      VERSION: ${{ inputs.version }}
+      VERSION: 1.0.0
     steps:
       - uses: actions/checkout@v5
 
@@ -43,8 +44,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-z0-9.]+)?$ ]] || { echo "::error::Version invalide : $VERSION"; exit 1; }
-          [ "$GITHUB_REF_NAME" = "main" ] || { echo "::error::On ne publie que depuis main"; exit 1; }
-          [ "$HAS_KEY" = "true" ] || { echo "::error::Secrets de signature absents (voir docs/PUBLIER.md)"; exit 1; }
+
           grep -q "versionName = \"$VERSION\"" demo-app/build.gradle.kts || { echo "::error::versionName ne vaut pas $VERSION"; exit 1; }
           [ -f "docs/release-notes/v$VERSION.md" ] || { echo "::error::Notes de version manquantes : docs/release-notes/v$VERSION.md"; exit 1; }
           if gh release view "v$VERSION" >/dev/null 2>&1; then echo "::error::v$VERSION existe déjà"; exit 1; fi
@@ -58,18 +58,18 @@ jobs:
           validate-wrappers: true
 
       - name: Clé de publication (fichier temporaire, effacé en fin de job)
-        env:
-          KEYSTORE_B64: ${{ secrets.CODJIA_KEYSTORE_BASE64 }}
         run: |
           umask 077
+          keytool -genkeypair -keystore "$RUNNER_TEMP/k.jks" -storetype PKCS12 -alias codjia -keyalg RSA -keysize 4096 -validity 10000 -dname "CN=Essai" -storepass essai-jetable-123 -keypass essai-jetable-123
+          KEYSTORE_B64=$(base64 -w0 "$RUNNER_TEMP/k.jks")
           echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/codjia-release.jks"
           echo "CODJIA_KEYSTORE_FILE=$RUNNER_TEMP/codjia-release.jks" >> "$GITHUB_ENV"
 
       - name: Tests et compilation signée
         env:
-          CODJIA_KEYSTORE_PASSWORD: ${{ secrets.CODJIA_KEYSTORE_PASSWORD }}
-          CODJIA_KEY_ALIAS: ${{ secrets.CODJIA_KEY_ALIAS }}
-          CODJIA_KEY_PASSWORD: ${{ secrets.CODJIA_KEY_PASSWORD }}
+          CODJIA_KEYSTORE_PASSWORD: essai-jetable-123
+          CODJIA_KEY_ALIAS: codjia
+          CODJIA_KEY_PASSWORD: essai-jetable-123
         run: |
           chmod +x gradlew
           ./gradlew :engine-core:test :engine-jvm:test :demo-app:assembleRelease --no-configuration-cache --stacktrace
@@ -91,33 +91,8 @@ jobs:
           CERT=$(grep -m1 "certificate SHA-256 digest" signature.txt | awk -F': ' '{print $2}')
           echo "CERT_SHA256=$CERT" >> "$GITHUB_ENV"
 
-      - name: Attestation de provenance
-        uses: actions/attest-build-provenance@v4
-        with:
-          subject-path: dist/CODJIA-*.apk
-
-      - name: Publication
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PRERELEASE: ${{ inputs.prerelease }}
-        run: |
-          {
-            cat "docs/release-notes/v$VERSION.md"
-            echo
-            echo "## Vérifier le fichier"
-            echo
-            echo '```'
-            cat dist/SHA256SUMS.txt
-            echo '```'
-            echo
-            echo "Empreinte SHA-256 du certificat de signature : \`$CERT_SHA256\`"
-            echo
-            echo "Attestation de provenance : \`gh attestation verify CODJIA-$VERSION.apk -R $GITHUB_REPOSITORY\`"
-          } > notes.md
-          FLAGS=""; [ "$PRERELEASE" = "true" ] && FLAGS="--prerelease"
-          gh release create "v$VERSION" dist/CODJIA-$VERSION.apk dist/SHA256SUMS.txt \
-            --target "$GITHUB_SHA" --title "CODJIA $VERSION" --notes-file notes.md $FLAGS
-
+      - name: Résultat
+        run: ls -la dist && cat dist/SHA256SUMS.txt && echo "cert=$CERT_SHA256"
       - name: Effacement de la clé
         if: always()
         run: rm -f "$RUNNER_TEMP/codjia-release.jks"
