@@ -425,14 +425,15 @@ object StoryboardPlanner {
         fun total(sc: List<Scene>) = sc.sumOf { it.durationMs } - overlap * (sc.size - 1)
         var scenes = sb.scenes
         val dropOrder = listOf("s-steps1", "s-stat", "s-cmp", "s-def")
-        for (id in dropOrder) { if (total(scenes) <= 42_000) break; scenes = scenes.filter { it.id != id } }
+        // Cible : 35 s. Au-delà, on retire les scènes facultatives puis on resserre ; en deçà, on n'étire
+        // que légèrement (×1,15 au plus) pour garder du rythme : mieux vaut 31 s vives que 35 s lentes.
+        for (id in dropOrder) { if (total(scenes) <= 35_000) break; scenes = scenes.filter { it.id != id } }
         val t = total(scenes)
-        if (t > 42_000) {
-            val k = (42_000.0 + overlap * (scenes.size - 1)) / scenes.sumOf { it.durationMs }
-            scenes = scenes.map { it.copy(durationMs = max(3_600, (it.durationMs * k).toInt())) }
-        } else if (t < 35_000) {
-            // Cible 35-45 s : on laisse plus de temps à chaque scène (écriture, explication), sans dépasser ×1,6.
-            val k = ((36_000.0 + overlap * (scenes.size - 1)) / scenes.sumOf { it.durationMs }).coerceAtMost(1.6)
+        if (t > 35_000) {
+            val k = (35_000.0 + overlap * (scenes.size - 1)) / scenes.sumOf { it.durationMs }
+            scenes = scenes.map { it.copy(durationMs = max(3_200, (it.durationMs * k).toInt())) }
+        } else if (t < 33_000) {
+            val k = ((34_500.0 + overlap * (scenes.size - 1)) / scenes.sumOf { it.durationMs }).coerceAtMost(1.3)
             scenes = scenes.map { it.copy(durationMs = (it.durationMs * k).toInt()) }
         }
         return sb.copy(scenes = scenes)
@@ -497,21 +498,28 @@ object CreativeDirector {
         // Scènes d'explication en plus, si la durée le permet (cible : 35 à 42 s).
         for (extra in listOf(Layout.DEFINITION, Layout.COMPARE, Layout.STAT)) {
             val sc = byLayout[extra] ?: continue
-            if (total(scenes) >= 35_000) break
+            if (total(scenes) >= 32_000) break
             val candidate = if (extra == Layout.DEFINITION) listOfNotNull(hero, sc) + scenes.drop(if (hero != null) 1 else 0)
                 else scenes.dropLast(if (checklist != null) 1 else 0) + sc + listOfNotNull(checklist)
-            if (total(candidate) <= 42_000) scenes = candidate
+            if (total(candidate) <= 35_000) scenes = candidate
         }
-        // Trop court (texte bref) : on laisse plus de temps à chaque étape de la démo, jusqu'à 35 s.
-        if (total(scenes) < 35_000) {
+        // Un peu court : léger étirement des étapes de la démo (×1,15 au plus, pour garder du rythme).
+        if (total(scenes) < 32_000) {
             val screenMs = scenes.filter { it.layout == Layout.SCREEN }.sumOf { it.durationMs }.coerceAtLeast(1)
-            val k = (1.0 + (35_000 - total(scenes)).toDouble() / screenMs).coerceAtMost(1.35)
+            val k = (1.0 + (34_000 - total(scenes)).toDouble() / screenMs).coerceAtMost(1.15)
             scenes = scenes.map { if (it.layout == Layout.SCREEN) it.copy(durationMs = (it.durationMs * k).toInt().coerceAtMost(9500)) else it }
         }
         // Trop long : on retire la liste finale, puis on resserre les étapes.
-        if (total(scenes) > 43_000 && checklist != null) scenes = scenes - checklist
-        if (total(scenes) > 43_000) {
-            val k = 43_000.0 / total(scenes)
+        // Trop long : on resserre d'abord les étapes de la démo, on ne retire la liste finale qu'en dernier recours.
+        if (total(scenes) > 36_000) {
+            val over = total(scenes) - 35_000
+            val screenMs = scenes.filter { it.layout == Layout.SCREEN }.sumOf { it.durationMs }.coerceAtLeast(1)
+            val k = (1.0 - over.toDouble() / screenMs).coerceAtLeast(0.75)
+            scenes = scenes.map { if (it.layout == Layout.SCREEN) it.copy(durationMs = (it.durationMs * k).toInt().coerceAtLeast(3_200)) else it }
+        }
+        if (total(scenes) > 36_000 && checklist != null) scenes = scenes - checklist
+        if (total(scenes) > 36_000) {
+            val k = 35_000.0 / total(scenes)
             scenes = scenes.map { it.copy(durationMs = (it.durationMs * k).toInt().coerceAtLeast(2600)) }
         }
         return sb.copy(scenes = scenes)

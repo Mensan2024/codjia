@@ -27,6 +27,10 @@ import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
+import androidx.activity.enableEdgeToEdge
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.lifecycleScope
@@ -128,12 +132,21 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Bord à bord (obligatoire à partir d'Android 15) : le contenu est décalé sous la barre d'état,
+        // au-dessus de la barre de navigation et du clavier, sur tous les téléphones et toutes les encoches.
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+        )
         super.onCreate(savedInstanceState)
-        window.statusBarColor = Brand.BG
-        window.navigationBarColor = Brand.BG
         catalog = MusicCatalog.load(this)
         root = FrameLayout(this).apply { setBackgroundColor(Brand.BG) }
         setContentView(root)
+        ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
+            val b = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout() or WindowInsetsCompat.Type.ime())
+            v.setPadding(b.left, b.top, b.right, b.bottom)
+            WindowInsetsCompat.CONSUMED
+        }
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 when (step) {
@@ -295,22 +308,28 @@ class MainActivity : ComponentActivity() {
         val music = choice.track?.let { if (choice.hasAudio) it.title else "${it.title} (coupée)" } ?: "Sans musique"
         val secs = (FrameRenderer(sb, VideoFormat(360, 640, 30), template).timeline.totalMs + 500) / 1000
         page.addView(label("Version $generation · ${look.label}${if (hasDemo) " + démo à l'écran" else ""} · $music · $secs s", 13f, Brand.MUTED))
-        val screenW = resources.displayMetrics.widthPixels
-        val pw = (screenW * 0.6f).toInt()
         val img = ImageView(this).apply {
-            setBackgroundColor(Color.BLACK)
+            scaleType = ImageView.ScaleType.FIT_CENTER
             clipToOutline = true
             background = rounded(Color.BLACK, dp(16f).toFloat())
         }
         val hint = label("Touche pour mettre en pause", 12f, Brand.MUTED).apply { gravity = Gravity.CENTER }
-        val frame = FrameLayout(this).apply { addView(img, FrameLayout.LayoutParams(pw, pw * 16 / 9, Gravity.CENTER)) }
+        // L'aperçu prend toute la place disponible en gardant le format 9:16, quelle que soit la taille de l'écran.
+        val frame = FrameLayout(this).apply { addView(img, FrameLayout.LayoutParams(1, 1, Gravity.CENTER)) }
+        frame.addOnLayoutChangeListener { v, l, t, r, b, _, _, _, _ ->
+            val w = r - l; val h = b - t
+            if (w <= 0 || h <= 0) return@addOnLayoutChangeListener
+            val pw = minOf(w, h * 9 / 16); val ph = pw * 16 / 9
+            val lp = img.layoutParams as FrameLayout.LayoutParams
+            if (lp.width != pw || lp.height != ph) { lp.width = pw; lp.height = ph; v.post { img.layoutParams = lp } }
+        }
         img.pressable { previewPaused = !previewPaused; hint.text = if (previewPaused) "En pause · touche pour reprendre" else "Touche pour mettre en pause"; if (previewPaused) player?.pause() else player?.start() }
         page.addView(frame, lp(MATCH, 0, 1f, top = dp(8f)))
         page.addView(hint, lp(MATCH, WRAP, top = dp(4f)))
         val actions = hbox()
-        actions.addView(button("🎨 Style", primary = false) { show(Step.STYLE) }, lp(0, WRAP, 1f, end = dp(8f)))
-        actions.addView(button("🎵 Musique", primary = false) { show(Step.MUSIC) }, lp(0, WRAP, 1f, end = dp(8f)))
-        actions.addView(button("🔀 Autre", primary = false) {
+        actions.addView(button("Style", primary = false) { show(Step.STYLE) }, lp(0, WRAP, 1f, end = dp(8f)))
+        actions.addView(button("Musique", primary = false) { show(Step.MUSIC) }, lp(0, WRAP, 1f, end = dp(8f)))
+        actions.addView(button("Autre version", primary = false) {
             propose(regenerate = true)
             show(Step.PREVIEW, animate = false)
         }, lp(0, WRAP, 1f))

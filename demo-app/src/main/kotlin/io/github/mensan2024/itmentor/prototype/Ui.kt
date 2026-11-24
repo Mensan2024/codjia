@@ -63,7 +63,10 @@ fun Context.button(text: String, primary: Boolean = true, onClick: () -> Unit) =
     setTextColor(if (primary) Brand.INK else Brand.TEXT)
     background = if (primary) rounded(Brand.SAFFRON, dp(14f).toFloat())
     else rounded(Color.TRANSPARENT, dp(14f).toFloat(), Brand.MUTED, dp(1.5f))
-    setPadding(dp(18f), dp(14f), dp(18f), dp(14f))
+    setPadding(dp(12f), dp(14f), dp(12f), dp(14f))
+    // Une seule ligne, quelle que soit la largeur de l'écran : le texte se réduit au lieu de passer à la ligne.
+    maxLines = 1
+    if (android.os.Build.VERSION.SDK_INT >= 26) setAutoSizeTextTypeUniformWithConfiguration(11, 16, 1, TypedValue.COMPLEX_UNIT_SP)
     pressable(onClick)
 }
 

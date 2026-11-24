@@ -116,18 +116,12 @@ class FrameRenderer(val storyboard: Storyboard, val format: VideoFormat, baseTem
         g.fillPath(p, color)
     }
 
-    /** Éléments fixes : indicateur de progression par scène et pied de page. */
+    /** Éléments fixes : une seule ligne de progression continue (pas de segments par scène) et pied de page. */
     private fun overlay(g: Gfx, tMs: Float) {
-        val n = timeline.slots.size
-        val gap = 12f
-        val segW = (Safe.WIDTH - gap * (n - 1)) / n
         val y = 104f
-        for ((i, s) in timeline.slots.withIndex()) {
-            val l = Safe.LEFT + i * (segW + gap)
-            g.fillRoundRect(l, y, l + segW, y + 8f, 4f, ink.withAlpha(0.16f))
-            val f = window(tMs, s.startMs.toFloat(), s.durationMs.toFloat())
-            if (f > 0f) g.fillRoundRect(l, y, l + segW * f, y + 8f, 4f, ink.withAlpha(0.9f))
-        }
+        val progress = clamp01(tMs / timeline.totalMs.coerceAtLeast(1))
+        g.fillRoundRect(Safe.LEFT, y, Safe.RIGHT, y + 6f, 3f, ink.withAlpha(0.14f))
+        if (progress > 0f) g.fillRoundRect(Safe.LEFT, y, Safe.LEFT + Safe.WIDTH * progress, y + 6f, 3f, ink.withAlpha(0.9f))
         val fy = 1608f
         val play = PathData().moveTo(Safe.LEFT, fy - 26f).lineTo(Safe.LEFT, fy + 6f).lineTo(Safe.LEFT + 27f, fy - 10f).close()
         g.fillPath(play, ink.withAlpha(0.9f))
