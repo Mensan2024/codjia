@@ -22,9 +22,16 @@ La licence est GPL-3.0-or-later.
 | `demo-app` | Application de test : contenu → modèle → musique → aperçu → génération |
 | `tools/music` | Compositions musicales originales, reproductibles |
 
-## Installer l'APK
 
-Ouvre l'onglet **Actions** du dépôt, puis la dernière exécution verte. Télécharge l'artefact **CODJIA-prototype-apk** et installe le fichier `.apk` sur le téléphone.
+## Télécharger
+
+La dernière version signée est sur la page [**Releases**](https://github.com/Mensan2024/itmentor-video-prototype/releases/latest) (fichier `CODJIA-x.y.z.apk`, Android 8 ou plus). Chaque APK est accompagné de son empreinte SHA-256 et d'une attestation de provenance. La vérification est expliquée dans [docs/PUBLIER.md](docs/PUBLIER.md#5-vérifier-un-apk-téléchargé-pour-toi-et-tes-utilisateurs).
+
+Confidentialité : [PRIVACY.md](PRIVACY.md) (aucune donnée collectée). Historique : [CHANGELOG.md](CHANGELOG.md).
+
+## Version de test (développeurs)
+
+Chaque envoi sur GitHub produit une version de test, **CODJIA test**, installable à côté de la version publique. Pour la récupérer : onglet **Actions**, dernière exécution verte, artefact **CODJIA-prototype-apk**.
 
 ## Documentation
 

@@ -31,7 +31,7 @@ Le mode IA prévu (étape D8) ouvrira une troisième entrée, le réseau. Ses me
 | M8 | Rétro-ingénierie, code mort | APK de publication | R8 : réduction, obscurcissement, ressources inutiles retirées, `Log.v/d/i` supprimés | `build.gradle.kts`, `proguard-rules.pro` |
 | M9 | Chaîne d'approvisionnement | Dépendance compromise ou abandonnée, Gradle Wrapper modifié, action GitHub détournée | Dépendances maintenues uniquement (pas de FFmpegKit). Dependabot hebdomadaire. `validate-wrappers`. Jeton CI en lecture seule (`permissions: contents: read`) | `.github/` |
 | M10 | Vulnérabilités dans notre code | Erreur de programmation | CodeQL `security-extended` (Kotlin) à chaque modification de `main`, chaque PR et chaque semaine | `codeql.yml` |
-| M11 | Usurpation de mise à jour | APK modifié par un tiers | Version de test : clé de développement publique, **à ne pas diffuser hors tests**. Version publique : clé de publication hors dépôt (Play App Signing, F-Droid) | `SECURITY.md` |
+| M11 | Usurpation de mise à jour | APK modifié par un tiers | Version de test (`…codjia.dev`) : clé de développement publique, **à ne pas diffuser hors tests**. Version publique : clé de publication détenue par le seul mainteneur, injectée par secrets GitHub dans un environnement protégé, effacée après usage. Empreinte SHA-256, empreinte du certificat et attestation de provenance Sigstore publiées avec chaque version | `release.yml`, `docs/PUBLIER.md` |
 | M12 | Contenu protégé | Musique commerciale intégrée | Le catalogue ne contient que des compositions originales (GPL), documentées. La musique importée reste sous la responsabilité de l'utilisateur, ce qui est indiqué dans l'interface | `docs/MUSIQUE.md` |
 
 ## 3. Ce qui est vérifié automatiquement

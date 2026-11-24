@@ -1,14 +1,20 @@
 plugins { alias(libs.plugins.android.application) }
+
+// Clé de publication : fournie uniquement par l'environnement (secrets GitHub ou poste du mainteneur).
+// Elle n'est jamais dans le dépôt. Sans elle, la version de publication est produite non signée.
+val releaseKeystore: File? = System.getenv("CODJIA_KEYSTORE_FILE")?.let { file(it) }?.takeIf { it.isFile }
+
 android {
-    // Identifiant technique conservé : la nouvelle version s'installe par-dessus l'ancienne.
+    // Espace de noms du code Kotlin (interne, sans effet sur l'identifiant public).
     namespace = "io.github.mensan2024.itmentor.prototype"
     compileSdk = 36
     defaultConfig {
-        applicationId = "io.github.mensan2024.itmentor.prototype"
+        // Identifiant public DÉFINITIF (Google Play, F-Droid) : ne plus jamais le modifier.
+        applicationId = "io.github.mensan2024.codjia"
         minSdk = 26
         targetSdk = 36
-        versionCode = 4
-        versionName = "0.4-codjia"
+        versionCode = 100
+        versionName = "1.0.0"
     }
     signingConfigs {
         // Clé de développement FIXE, versionnée (ce n'est pas une clé de publication) :
@@ -19,16 +25,36 @@ android {
             keyAlias = "androiddebugkey"
             keyPassword = "android"
         }
+        if (releaseKeystore != null) create("release") {
+            storeFile = releaseKeystore
+            storePassword = System.getenv("CODJIA_KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("CODJIA_KEY_ALIAS")
+            keyPassword = System.getenv("CODJIA_KEY_PASSWORD")
+            enableV1Signing = false // inutile avec minSdk 26 (Android 8+)
+            enableV2Signing = true
+            enableV3Signing = true
+        }
     }
     buildTypes {
-        getByName("debug") { signingConfig = signingConfigs.getByName("debug") }
+        // Version de test : identifiant « .dev » et nom « CODJIA test », installable à côté de la version publiée.
+        getByName("debug") {
+            signingConfig = signingConfigs.getByName("debug")
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+        }
         // Version de publication : code réduit et obscurci par R8, ressources inutiles retirées.
         // Elle n'est pas signée ici : la clé de publication ne doit jamais être dans le dépôt.
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            if (releaseKeystore != null) signingConfig = signingConfigs.getByName("release")
         }
+    }
+    // Pas de bloc de métadonnées de dépendances chiffré par Google dans l'APK (exigence F-Droid, build reproductible).
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
