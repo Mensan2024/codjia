@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package io.github.mensan2024.itmentor.engine.jvm
 
-import io.github.mensan2024.itmentor.engine.FontFamily
+import io.github.mensan2024.itmentor.engine.FontCatalog
 import io.github.mensan2024.itmentor.engine.FontSpec
 import io.github.mensan2024.itmentor.engine.Gfx
 import io.github.mensan2024.itmentor.engine.Metrics
@@ -26,22 +26,13 @@ import java.awt.image.BufferedImage
 import java.io.File
 
 /** Polices chargées une fois depuis le dossier `fonts/` du projet (licence OFL). */
-class FontBank(dir: File) {
-    private val files = mapOf(
-        FontFamily.TEXT to mapOf(400 to "Inter-Regular.otf", 500 to "Inter-Medium.otf", 600 to "Inter-SemiBold.otf",
-            700 to "Inter-Bold.otf", 800 to "Inter-ExtraBold.otf"),
-        FontFamily.DISPLAY to mapOf(800 to "InterDisplay-ExtraBold.otf", 900 to "InterDisplay-Black.otf"),
-        FontFamily.MONO to mapOf(400 to "JetBrainsMono-Regular.ttf", 700 to "JetBrainsMono-Bold.ttf"),
-    )
-    private val base: Map<Pair<FontFamily, Int>, Font> = files.flatMap { (fam, byW) ->
-        byW.map { (w, name) -> (fam to w) to Font.createFont(Font.TRUETYPE_FONT, File(dir, name)) }
-    }.toMap()
+class FontBank(private val dir: File) {
+    private val base = HashMap<String, Font>()
     private val sized = HashMap<FontSpec, Font>()
 
     fun get(spec: FontSpec): Font = sized.getOrPut(spec) {
-        val weights = files.getValue(spec.family).keys
-        val w = weights.minByOrNull { kotlin.math.abs(it - spec.weight) }!!
-        base.getValue(spec.family to w).deriveFont(spec.size)
+        val name = FontCatalog.file(spec.family, spec.weight)
+        base.getOrPut(name) { Font.createFont(Font.TRUETYPE_FONT, File(dir, name)) }.deriveFont(spec.size)
     }
 }
 
@@ -97,6 +88,7 @@ class Java2DGfx(private val image: BufferedImage, private val fonts: FontBank) :
     }
     override fun rotate(degrees: Float, px: Float, py: Float) = g.rotate(Math.toRadians(degrees.toDouble()), px.toDouble(), py.toDouble())
     override fun clipRect(l: Float, t: Float, r: Float, b: Float) = g.clip(Rectangle2D.Float(l, t, r - l, b - t))
+    override fun clipPath(path: PathData) = g.clip(toAwt(path))
     override fun multiplyAlpha(a: Float) { alpha *= a; applyAlpha() }
 
     override fun beginLayer(alpha: Float) {

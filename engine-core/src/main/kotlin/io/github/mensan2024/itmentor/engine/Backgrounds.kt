@@ -6,18 +6,18 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /**
- * Fonds animés. Ils dépendent du temps GLOBAL : pendant une transition, les deux scènes
+ * Fonds animés des templates. Ils dépendent du temps GLOBAL : pendant une transition, les deux scènes
  * montrent le même décor au même endroit, ce qui rend le raccord invisible.
+ * Chaque scène reçoit une légère variation de teinte (index de scène) : le fond évolue au fil de l'histoire.
  */
 internal object Backgrounds {
     private const val W = VideoFormat.DESIGN_WIDTH
     private const val H = VideoFormat.DESIGN_HEIGHT
 
-    /** Pistes de « circuit » (coordonnées en cases de grille), calculées une fois. */
     private val traces: List<PathData> = run {
         val r = Rand(2024)
         val cell = 72f
-        List(6) {
+        List(7) {
             var x = (r.range(1f, 14f)).toInt() * cell
             var y = (r.range(2f, 25f)).toInt() * cell
             val p = PathData().moveTo(x, y)
@@ -30,78 +30,189 @@ internal object Backgrounds {
         }
     }
 
-    fun draw(g: Gfx, style: Style, sceneBg: Int?, tGlobalMs: Float) {
-        val top = sceneBg ?: style.bgTop
-        g.fillVerticalGradient(0f, 0f, W, H, top, style.bgBottom)
-
-        // Deux halos qui dérivent lentement (trajectoires de Lissajous).
+    fun draw(g: Gfx, tp: Template, sceneIndex: Int, sceneBg: Int?, tGlobalMs: Float) {
+        val s = tp.style
+        val tint = if (sceneIndex % 2 == 1) s.accent2 else s.accent
+        val top = sceneBg ?: mix(s.bgTop, tint, if (s.dark) 0.06f else 0.035f)
+        g.fillVerticalGradient(0f, 0f, W, H, top, s.bgBottom)
         val t = tGlobalMs
-        g.fillRadialGlow(540f + 230f * sin(t * 0.00021f), 560f + 150f * cos(t * 0.00017f), 640f, style.accent.withAlpha(0.15f))
-        g.fillRadialGlow(320f + 180f * cos(t * 0.00013f), 1520f + 120f * sin(t * 0.00019f), 560f, style.highlight.withAlpha(0.07f))
-
-        when (style.decor) {
-            Decor.CIRCUIT_GRID -> circuit(g, style, t)
-            Decor.PULSE -> pulse(g, style, t)
-            Decor.FIELD_ROWS -> fields(g, style, t)
+        when (tp.decor) {
+            Decor.CIRCUIT_GRID -> circuit(g, s, t)
+            Decor.CORPORATE_LINES -> corporate(g, s, t)
+            Decor.EDU_SHAPES -> education(g, s, t)
+            Decor.ORGANIC_LEAVES -> nature(g, s, t)
+            Decor.MEDICAL_PULSE -> medical(g, s, t)
+            Decor.MARKETING_BLOCKS -> marketing(g, s, t)
+            Decor.GIANT_TYPE -> giantType(g, s, t)
+            Decor.CINEMA_LIGHT -> cinema(g, s, t)
         }
     }
 
-    private fun circuit(g: Gfx, style: Style, t: Float) {
+    private fun aurora(g: Gfx, s: Style, t: Float, a1: Float, a2: Float) {
+        g.fillRadialGlow(540f + 260f * sin(t * 0.00021f), 560f + 160f * cos(t * 0.00017f), 680f, s.accent.withAlpha(a1))
+        g.fillRadialGlow(260f + 200f * cos(t * 0.00013f), 1480f + 140f * sin(t * 0.00019f), 620f, s.accent2.withAlpha(a2))
+    }
+
+    // Cyber Neon : halos néon, grille de points, pistes de circuit parcourues par des impulsions.
+    private fun circuit(g: Gfx, s: Style, t: Float) {
+        aurora(g, s, t, 0.17f, 0.15f)
         val cell = 72f
         val drift = (t * 0.010f) % cell
-        val dot = style.text.withAlpha(0.06f)
+        val dot = s.text.withAlpha(0.06f)
         var y = -drift
         while (y < H + cell) {
             var x = cell / 2
             while (x < W) { g.fillCircle(x, y, 2.4f, dot); x += cell }
             y += cell
         }
-        // Pistes fixes + une impulsion lumineuse qui les parcourt.
         for ((i, p) in traces.withIndex()) {
-            g.strokePath(p, 2.5f, style.accent.withAlpha(0.05f))
+            g.strokePath(p, 2.5f, s.accent.withAlpha(0.06f))
             val period = 5200f + i * 700f
             val phase = ((t + i * 900f) % period) / period
-            g.strokePath(p.segment(phase - 0.10f, phase), 3.5f, style.accent.withAlpha(0.32f))
+            g.strokePath(p.segment(phase - 0.10f, phase), 3.5f, (if (i % 2 == 0) s.accent else s.accent2).withAlpha(0.4f))
+        }
+        // Balayage lumineux horizontal (scanner) toutes les 6 s.
+        val sy = ((t % 6000f) / 6000f) * (H + 400f) - 200f
+        g.fillVerticalGradient(0f, sy - 120f, W, sy, s.accent.withAlpha(0f), s.accent.withAlpha(0.05f))
+    }
+
+    // Corporate Premium : fines lignes dorées qui se tracent, grand cercle, beaucoup d'air.
+    private fun corporate(g: Gfx, s: Style, t: Float) {
+        g.fillRadialGlow(880f, 260f, 620f, s.accent.withAlpha(0.10f))
+        val k = Easing.EXPO_OUT.ease(window(t % 12000f, 0f, 2400f))
+        g.line(Safe.LEFT - 30f, 220f, Safe.LEFT - 30f, 220f + 1300f * k, 1.5f, s.accent.withAlpha(0.55f))
+        g.line(Safe.LEFT - 30f, 1700f, Safe.LEFT - 30f + 400f * k, 1700f, 1.5f, s.accent.withAlpha(0.55f))
+        val rot = t * 0.004f
+        g.strokeArc(900f, 1500f, 330f, rot, 250f, 1.5f, s.accent.withAlpha(0.35f))
+        g.strokeArc(900f, 1500f, 280f, -rot * 1.3f, 120f, 1.2f, s.accent2.withAlpha(0.18f))
+        for (i in 0 until 5) g.line(860f + i * 18f, 150f, 860f + i * 18f, 190f, 1.2f, s.accent2.withAlpha(0.25f))
+    }
+
+    // Modern Education : formes géométriques colorées qui flottent doucement, grille pointillée.
+    private fun education(g: Gfx, s: Style, t: Float) {
+        val dot = s.text.withAlpha(0.07f)
+        var y = 60f
+        while (y < H) { var x = 60f; while (x < W) { g.fillCircle(x, y, 2.2f, dot); x += 60f }; y += 60f }
+        fun bob(seed: Int, amp: Float) = amp * sin(t * 0.0012f + seed)
+        // Formes en bordure de cadre, hors des zones de texte (haut ≤ 200 px, bas ≥ 1680 px).
+        g.fillCircle(1035f, 175f + bob(1, 6f), 44f, s.accent2.withAlpha(0.85f))
+        g.strokeCircle(70f, 1790f + bob(2, 10f), 58f, 10f, s.accent.withAlpha(0.8f))
+        val tri = PathData().polygon(990f, 1790f + bob(3, 10f), 54f, 3, -90f + t * 0.01f)
+        g.fillPath(tri, s.highlight)
+        g.fillRoundRect(40f, 160f + bob(4, 8f), 140f, 196f + bob(4, 8f), 18f, s.accent.withAlpha(0.85f))
+        // Gribouillis ondulé.
+        val w = PathData().moveTo(420f, 1790f)
+        for (i in 1..8) w.lineTo(420f + i * 34f, 1790f + (if (i % 2 == 0) -18f else 18f) + bob(i, 4f))
+        g.strokePath(w, 8f, s.accent2.withAlpha(0.7f))
+    }
+
+    // Green Nature : rayons de lumière, feuilles qui se balancent, particules de pollen.
+    private fun nature(g: Gfx, s: Style, t: Float) {
+        g.fillRadialGlow(860f, 220f, 720f, s.accent2.withAlpha(0.20f))
+        g.fillRadialGlow(200f, 1600f, 620f, s.accent.withAlpha(0.12f))
+        for (i in 0 until 4) {
+            val a = 0.035f + 0.02f * sin(t * 0.0008f + i)
+            val p = PathData().moveTo(760f + i * 60f, 0f).lineTo(860f + i * 70f, 0f).lineTo(260f + i * 160f, H).lineTo(120f + i * 150f, H).close()
+            g.fillPath(p, s.accent2.withAlpha(a))
+        }
+        fun leaf(cx: Float, cy: Float, size: Float, rot: Float, color: Int) {
+            g.save(); g.rotate(rot, cx, cy)
+            val p = PathData().moveTo(cx, cy - size).cubicTo(cx + size * 0.7f, cy - size * 0.5f, cx + size * 0.6f, cy + size * 0.5f, cx, cy + size)
+                .cubicTo(cx - size * 0.6f, cy + size * 0.5f, cx - size * 0.7f, cy - size * 0.5f, cx, cy - size).close()
+            g.fillPath(p, color)
+            g.line(cx, cy - size * 0.9f, cx, cy + size * 0.95f, 3f, s.bgBottom.withAlpha(0.5f))
+            g.restore()
+        }
+        leaf(980f, 1500f, 150f, -35f + 6f * sin(t * 0.0011f), s.accent.withAlpha(0.22f))
+        leaf(1040f, 1690f, 110f, 20f + 7f * sin(t * 0.0013f + 1f), s.accent.withAlpha(0.16f))
+        leaf(60f, 380f, 120f, 40f + 6f * sin(t * 0.0012f + 2f), s.accent.withAlpha(0.14f))
+        val r = Rand(7)
+        for (i in 0 until 26) {
+            val x0 = r.range(0f, W); val y0 = r.range(0f, H); val sp = r.range(0.006f, 0.02f)
+            val y = (y0 - t * sp) % H
+            g.fillCircle(x0 + 20f * sin(t * 0.001f + i), if (y < 0) y + H else y, r.range(2f, 4.5f), s.accent2.withAlpha(0.35f))
         }
     }
 
-    private fun pulse(g: Gfx, style: Style, t: Float) {
-        // Ondes concentriques qui s'élargissent.
-        for (k in 0 until 4) {
-            val ph = ((t / 4200f) + k / 4f) % 1f
-            g.strokeCircle(540f, 640f, 140f + ph * 820f, 3f, style.accent.withAlpha(0.13f * (1f - ph)))
+    // Medical Clean : ondes douces, croix discrètes, tracé cardiaque.
+    private fun medical(g: Gfx, s: Style, t: Float) {
+        g.fillRadialGlow(540f, 520f, 760f, s.accent2.withAlpha(0.12f))
+        for (k in 0 until 3) {
+            val ph = ((t / 4800f) + k / 3f) % 1f
+            g.strokeCircle(540f, 600f, 160f + ph * 760f, 3f, s.accent.withAlpha(0.12f * (1f - ph)))
         }
-        // Tracé d'électrocardiogramme qui défile.
+        fun cross(cx: Float, cy: Float, a: Float, c: Int) {
+            g.fillRoundRect(cx - a, cy - a / 3, cx + a, cy + a / 3, a / 4, c)
+            g.fillRoundRect(cx - a / 3, cy - a, cx + a / 3, cy + a, a / 4, c)
+        }
+        cross(930f, 230f + 10f * sin(t * 0.001f), 34f, s.accent.withAlpha(0.18f))
+        cross(140f, 1800f + 10f * sin(t * 0.0012f), 26f, s.accent2.withAlpha(0.3f))
         val p = PathData()
-        val baseY = 1520f
+        val baseY = 1760f
         val period = 360f
-        val off = (t * 0.12f) % period
+        val off = (t * 0.10f) % period
         var x = -period - off
         p.moveTo(x, baseY)
         while (x < W + period) {
-            p.lineTo(x + 120f, baseY); p.lineTo(x + 150f, baseY - 26f); p.lineTo(x + 175f, baseY + 34f)
-            p.lineTo(x + 200f, baseY - 120f); p.lineTo(x + 228f, baseY + 60f); p.lineTo(x + 252f, baseY); p.lineTo(x + period, baseY)
+            p.lineTo(x + 120f, baseY); p.lineTo(x + 150f, baseY - 24f); p.lineTo(x + 175f, baseY + 30f)
+            p.lineTo(x + 200f, baseY - 100f); p.lineTo(x + 228f, baseY + 50f); p.lineTo(x + 252f, baseY); p.lineTo(x + period, baseY)
             x += period
         }
-        g.strokePath(p, 3f, style.accent.withAlpha(0.16f))
+        g.strokePath(p, 3f, s.accent.withAlpha(0.22f))
     }
 
-    private fun fields(g: Gfx, style: Style, t: Float) {
-        // Sillons en perspective qui avancent vers le spectateur.
-        val vx = 540f
-        val vy = 1080f
-        for (i in -9..9) {
-            g.line(vx, vy, vx + i * 190f, H + 40f, 2.5f, style.accent.withAlpha(0.07f))
+    // Marketing Impact : grands blocs diagonaux colorés qui glissent, étoiles qui tournent.
+    private fun marketing(g: Gfx, s: Style, t: Float) {
+        aurora(g, s, t, 0.25f, 0.18f)
+        val shift = 80f * sin(t * 0.0006f)
+        g.fillPath(PathData().moveTo(W * 0.62f + shift, 0f).lineTo(W + 40f, 0f).lineTo(W + 40f, H * 0.42f).lineTo(W * 0.2f + shift, H * 0.18f).close(), s.accent.withAlpha(0.22f))
+        g.fillPath(PathData().moveTo(-40f, H * 0.78f - shift).lineTo(W * 0.7f, H * 0.95f - shift).lineTo(W * 0.5f, H + 40f).lineTo(-40f, H + 40f).close(), s.accent2.withAlpha(0.20f))
+        fun star(cx: Float, cy: Float, r: Float, rot: Float, c: Int) {
+            val p = PathData()
+            for (i in 0 until 10) {
+                val a = Math.toRadians((rot + i * 36f).toDouble())
+                val rr = if (i % 2 == 0) r else r * 0.42f
+                val x = cx + (rr * cos(a)).toFloat(); val y = cy + (rr * sin(a)).toFloat()
+                if (i == 0) p.moveTo(x, y) else p.lineTo(x, y)
+            }
+            g.fillPath(p.close(), c)
         }
-        val phase = (t / 2600f) % 1f
-        for (k in 0 until 7) {
-            val f = ((k + phase) / 7f)
-            val y = vy + (H - vy) * f * f
-            g.line(0f, y, W, y, 2f, style.accent.withAlpha(0.05f + 0.06f * f))
-        }
-        // Soleil qui monte très lentement.
-        val sy = 330f - 40f * sin((t / 40000f) * PI.toFloat())
-        g.fillRadialGlow(820f, sy, 260f, style.highlight.withAlpha(0.18f))
-        g.fillCircle(820f, sy, 62f, style.highlight.withAlpha(0.35f))
+        star(980f, 1800f, 58f, t * 0.03f, s.accent2.withAlpha(0.9f))
+        star(1010f, 175f, 30f, -t * 0.04f, s.accent.withAlpha(0.9f))
     }
+
+    // Bold Typography : mot géant qui défile en fond, bande jaune.
+    private fun giantType(g: Gfx, s: Style, t: Float) {
+        val f = FontSpec(FontFamily.HEAVY, 400, 360f)
+        val word = "SAVOIR  APPRENDRE  PARTAGER  "
+        val w = g.measureText(word, f)
+        val x = -((t * 0.08f) % w)
+        g.drawText(word + word, x, 1180f, f, s.text.withAlpha(0.03f))
+        g.drawText(word + word, x * 1.4f - 300f, 1640f, f, s.text.withAlpha(0.02f))
+        g.fillRect(0f, 1720f, W, 1740f, s.accent.withAlpha(0.9f))
+        g.fillRect(0f, 1760f, W * (0.5f + 0.5f * sin(t * 0.0008f)), 1766f, s.accent2.withAlpha(0.8f))
+    }
+
+    // Cinematic Story : lumière chaude qui traverse le cadre (fuite de lumière), vignette.
+    private fun cinema(g: Gfx, s: Style, t: Float) {
+        val lx = -200f + ((t * 0.035f) % (W + 600f))
+        g.fillRadialGlow(lx, 520f, 760f, s.accent.withAlpha(0.20f))
+        g.fillRadialGlow(W - lx * 0.6f, 1480f, 680f, s.accent2.withAlpha(0.14f))
+        g.fillVerticalGradient(0f, 0f, W, 520f, 0x8C000000.toInt(), 0x00000000)
+        g.fillVerticalGradient(0f, H - 620f, W, H, 0x00000000, 0xA6000000.toInt())
+    }
+
+    /** Effets posés au-dessus de tout (grain de pellicule, bandes cinéma). */
+    fun overlayFx(g: Gfx, tp: Template, frameIndexSeed: Int) {
+        if (tp.grain) {
+            val r = Rand(frameIndexSeed * 7919 + 13)
+            for (i in 0 until 260) g.fillCircle(r.range(0f, W), r.range(0f, H), r.range(0.8f, 1.8f), (if (i % 2 == 0) 0x14FFFFFF else 0x18000000))
+        }
+        if (tp.letterbox) {
+            g.fillRect(0f, 0f, W, 72f, 0xFF000000.toInt())
+            g.fillRect(0f, H - 140f, W, H, 0xFF000000.toInt())
+        }
+    }
+
+    @Suppress("unused") private val TAU = (2 * PI).toFloat()
 }

@@ -47,6 +47,27 @@ object Icons {
         )
         IconId.SEARCH -> listOf(Part(PathData().circle(10.5f, 10.5f, 6.5f)), Part(PathData().moveTo(15.3f, 15.3f).lineTo(20.5f, 20.5f)))
         IconId.CLOCK -> listOf(Part(PathData().circle(12f, 12f, 9f)), Part(PathData().moveTo(12f, 7f).lineTo(12f, 12f).lineTo(15.5f, 14f)))
+        IconId.DROP -> listOf(Part(PathData().moveTo(12f, 2.8f).cubicTo(15.5f, 7.5f, 18.5f, 10.8f, 18.5f, 14.5f)
+            .cubicTo(18.5f, 18.2f, 15.6f, 21f, 12f, 21f).cubicTo(8.4f, 21f, 5.5f, 18.2f, 5.5f, 14.5f).cubicTo(5.5f, 10.8f, 8.5f, 7.5f, 12f, 2.8f).close()),
+            Part(PathData().moveTo(9f, 14.5f).cubicTo(9f, 16.3f, 10.2f, 17.6f, 12f, 17.8f)))
+        IconId.HEART -> listOf(Part(PathData().moveTo(12f, 20.5f).cubicTo(5f, 15.8f, 3f, 12.2f, 3f, 9f).cubicTo(3f, 6.2f, 5.1f, 4f, 7.7f, 4f)
+            .cubicTo(9.6f, 4f, 11.1f, 5.1f, 12f, 6.6f).cubicTo(12.9f, 5.1f, 14.4f, 4f, 16.3f, 4f).cubicTo(18.9f, 4f, 21f, 6.2f, 21f, 9f)
+            .cubicTo(21f, 12.2f, 19f, 15.8f, 12f, 20.5f).close()))
+        IconId.LEAF -> listOf(Part(PathData().moveTo(5f, 19f).cubicTo(5f, 10f, 10f, 4.5f, 20f, 4f).cubicTo(19.5f, 14f, 14f, 19f, 5f, 19f).close()),
+            Part(PathData().moveTo(4f, 20f).lineTo(13f, 11f)))
+        IconId.SUN -> listOf(Part(PathData().circle(12f, 12f, 4.2f)),
+            Part(PathData().moveTo(12f, 2.5f).lineTo(12f, 4.5f).moveTo(12f, 19.5f).lineTo(12f, 21.5f).moveTo(2.5f, 12f).lineTo(4.5f, 12f)
+                .moveTo(19.5f, 12f).lineTo(21.5f, 12f).moveTo(5.3f, 5.3f).lineTo(6.7f, 6.7f).moveTo(17.3f, 17.3f).lineTo(18.7f, 18.7f)
+                .moveTo(5.3f, 18.7f).lineTo(6.7f, 17.3f).moveTo(17.3f, 6.7f).lineTo(18.7f, 5.3f)))
+        IconId.MEGAPHONE -> listOf(Part(PathData().moveTo(3.5f, 10f).lineTo(3.5f, 14f).lineTo(7f, 14f).lineTo(17f, 19f).lineTo(17f, 5f).lineTo(7f, 10f).close()),
+            Part(PathData().moveTo(7f, 14f).lineTo(8.5f, 19.5f).lineTo(11f, 19.5f).lineTo(10.2f, 15.6f)),
+            Part(PathData().moveTo(20f, 9.5f).cubicTo(21f, 10.5f, 21f, 13.5f, 20f, 14.5f)))
+        IconId.TARGET -> listOf(Part(PathData().circle(12f, 12f, 9f)), Part(PathData().circle(12f, 12f, 5.2f)), Part(PathData().circle(12f, 12f, 1.6f), filled = true))
+        IconId.BULB -> listOf(Part(PathData().moveTo(9f, 17f).cubicTo(9f, 14.5f, 6f, 13f, 6f, 9.5f).cubicTo(6f, 6.2f, 8.7f, 3.5f, 12f, 3.5f)
+            .cubicTo(15.3f, 3.5f, 18f, 6.2f, 18f, 9.5f).cubicTo(18f, 13f, 15f, 14.5f, 15f, 17f).close()),
+            Part(PathData().moveTo(9.5f, 20.5f).lineTo(14.5f, 20.5f)))
+        IconId.CHART -> listOf(Part(PathData().moveTo(4f, 20f).lineTo(20f, 20f)),
+            Part(PathData().moveTo(7f, 17f).lineTo(7f, 13f).moveTo(12f, 17f).lineTo(12f, 9f).moveTo(17f, 17f).lineTo(17f, 5f)))
     }
 
     fun roundRect(l: Float, t: Float, r: Float, b: Float, rad: Float): PathData {

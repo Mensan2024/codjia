@@ -11,28 +11,19 @@ import android.graphics.RadialGradient
 import android.graphics.Rect
 import android.graphics.Shader
 import android.graphics.Typeface
-import io.github.mensan2024.itmentor.engine.FontFamily
+import io.github.mensan2024.itmentor.engine.FontCatalog
 import io.github.mensan2024.itmentor.engine.FontSpec
 import io.github.mensan2024.itmentor.engine.Gfx
 import io.github.mensan2024.itmentor.engine.Metrics
 import io.github.mensan2024.itmentor.engine.PathData
-import kotlin.math.abs
 
 /** Polices embarquées dans les assets du module (licence OFL) : même rendu sur tous les téléphones. */
-class AndroidFonts(assets: AssetManager) {
-    private val files = mapOf(
-        FontFamily.TEXT to mapOf(400 to "Inter-Regular.otf", 500 to "Inter-Medium.otf", 600 to "Inter-SemiBold.otf",
-            700 to "Inter-Bold.otf", 800 to "Inter-ExtraBold.otf"),
-        FontFamily.DISPLAY to mapOf(800 to "InterDisplay-ExtraBold.otf", 900 to "InterDisplay-Black.otf"),
-        FontFamily.MONO to mapOf(400 to "JetBrainsMono-Regular.ttf", 700 to "JetBrainsMono-Bold.ttf"),
-    )
-    private val faces: Map<Pair<FontFamily, Int>, Typeface> = files.flatMap { (fam, byW) ->
-        byW.map { (w, name) -> (fam to w) to Typeface.createFromAsset(assets, "fonts/$name") }
-    }.toMap()
+class AndroidFonts(private val assets: AssetManager) {
+    private val faces = HashMap<String, Typeface>()
 
     fun get(spec: FontSpec): Typeface {
-        val w = files.getValue(spec.family).keys.minByOrNull { abs(it - spec.weight) }!!
-        return faces.getValue(spec.family to w)
+        val name = FontCatalog.file(spec.family, spec.weight)
+        return faces.getOrPut(name) { Typeface.createFromAsset(assets, "fonts/$name") }
     }
 }
 
@@ -79,6 +70,7 @@ class AndroidCanvasGfx(private val fonts: AndroidFonts) : Gfx {
     override fun scale(s: Float, px: Float, py: Float) = canvas.scale(s, s, px, py)
     override fun rotate(degrees: Float, px: Float, py: Float) = canvas.rotate(degrees, px, py)
     override fun clipRect(l: Float, t: Float, r: Float, b: Float) { canvas.clipRect(l, t, r, b) }
+    override fun clipPath(path: PathData) { canvas.clipPath(toAndroid(path)) }
     override fun multiplyAlpha(a: Float) { alpha *= a }
 
     override fun beginLayer(alpha: Float) {

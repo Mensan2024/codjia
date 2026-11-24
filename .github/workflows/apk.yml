@@ -1,6 +1,6 @@
 # Compile le prototype dans le cloud de GitHub et fournit l'APK à installer sur le téléphone.
 # Aucun outil à installer sur ton ordinateur.
-name: APK du prototype IT_MENTOR
+name: APK du prototype CODJIA
 
 on:
   push:
@@ -24,7 +24,7 @@ jobs:
       - name: APK à télécharger
         uses: actions/upload-artifact@v5
         with:
-          name: IT_MENTOR-prototype-apk
+          name: CODJIA-prototype-apk
           path: demo-app/build/outputs/apk/debug/*.apk
       - name: Rapports de tests (même en cas d'échec)
         if: always()

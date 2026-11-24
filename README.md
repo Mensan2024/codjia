@@ -1,4 +1,4 @@
-# IT_MENTOR — prototype du moteur vidéo
+# CODJIA — prototype du moteur vidéo
 
 Transforme un storyboard (scènes, textes, animations, transitions) en vidéo MP4 verticale H.264, 40 s au plus.
 Licence : GPL-3.0-or-later. Polices : Inter et JetBrains Mono (OFL, licences dans `engine-android/src/main/assets/fonts/`).

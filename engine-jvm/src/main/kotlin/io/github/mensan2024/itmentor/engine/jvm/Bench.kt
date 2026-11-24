@@ -1,11 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package io.github.mensan2024.itmentor.engine.jvm
 
-import io.github.mensan2024.itmentor.engine.DemoStoryboard
+import io.github.mensan2024.itmentor.engine.AudioMix
+import io.github.mensan2024.itmentor.engine.Composer
 import io.github.mensan2024.itmentor.engine.FrameRenderer
+import io.github.mensan2024.itmentor.engine.MusicCategory
+import io.github.mensan2024.itmentor.engine.MusicTrack
+import io.github.mensan2024.itmentor.engine.MusicVolume
+import io.github.mensan2024.itmentor.engine.Samples
 import io.github.mensan2024.itmentor.engine.Storyboard
-import io.github.mensan2024.itmentor.engine.Styles
+import io.github.mensan2024.itmentor.engine.Templates
 import io.github.mensan2024.itmentor.engine.VideoFormat
+import io.github.mensan2024.itmentor.engine.Wav
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferInt
 import java.io.File
@@ -16,77 +22,106 @@ import javax.imageio.ImageIO
 
 /**
  * Banc d'essai JVM. Il exécute le MÊME moteur que l'application Android, avec un rendu Java2D,
- * et encode en H.264 avec l'outil ffmpeg installé sur la machine (outil de développement,
- * jamais embarqué dans l'application).
+ * et encode avec l'outil ffmpeg installé sur la machine (outil de développement, jamais embarqué).
  *
- *   render  <sortie.mp4> [largeur] [fps]   vidéo complète + mesures JSON
- *   frames  <dossier> <t_ms>...            images PNG à des instants choisis
- *   styles  <dossier> <t_ms>               même instant dans les 3 styles
+ *   render    <sortie.mp4> <template> <musique|aucune> [largeur]   vidéo complète avec musique + mesures JSON
+ *   templates <dossier>                                           3 images clés par template
  */
 fun main(args: Array<String>) {
     val fonts = FontBank(File(System.getProperty("itm.fonts", "engine-android/src/main/assets/fonts")))
+    val musicDir = File(System.getProperty("itm.music", "engine-android/src/main/assets/music"))
     when (args.firstOrNull()) {
         "render" -> {
             val out = File(args[1])
-            val width = args.getOrNull(2)?.toInt() ?: 1080
-            val fps = args.getOrNull(3)?.toInt() ?: 30
-            val format = VideoFormat(width, width * 16 / 9, fps)
-            val stats = renderVideo(DemoStoryboard.phishing(), format, fonts, out)
+            val tp = Templates.byId(args[2])
+            val music = args.getOrNull(3)?.takeIf { it != "aucune" }?.let { readCatalog(musicDir).first { t -> t.id == it } }
+            val width = args.getOrNull(4)?.toInt() ?: 1080
+            val format = VideoFormat(width, width * 16 / 9, 30)
+            val sb = Composer.prepare(Samples.forTemplate(tp), tp, music)
+            val stats = renderVideo(sb, format, fonts, out, music?.let { File(musicDir, it.file.removePrefix("music/")) })
             File(out.path.removeSuffix(".mp4") + "-mesures.json").writeText(stats.toJson())
             println(stats.toJson())
         }
-        "frames" -> {
+        "templates" -> {
             val dir = File(args[1]).apply { mkdirs() }
-            val r = FrameRenderer(DemoStoryboard.phishing(), VideoFormat.FULL_HD)
-            for (t in args.drop(2)) savePng(r, fonts, t.toFloat(), File(dir, "frame_${t}ms.png"))
-        }
-        "styles" -> {
-            val dir = File(args[1]).apply { mkdirs() }
-            for (s in Styles.ALL) {
-                val r = FrameRenderer(DemoStoryboard.phishing(s.id), VideoFormat.FULL_HD)
-                for (t in args.drop(2)) savePng(r, fonts, t.toFloat(), File(dir, "style_${s.id}_${t}ms.png"))
+            for (tp in Templates.ALL) {
+                val sb = Composer.prepare(Samples.forTemplate(tp), tp, null)
+                val r = FrameRenderer(sb, VideoFormat.FULL_HD, tp)
+                val s = r.timeline.slots
+                // Couverture, définition, comparaison : à 75 % de chaque scène, quand tout est en place.
+                for ((name, slot) in listOf("1-couverture" to s[0], "2-definition" to s[1], "4-comparaison" to s[3], "3-etapes" to s[2], "5-chiffre" to s[4], "6-retenir" to s[5])) {
+                    savePng(r, fonts, slot.startMs + slot.durationMs * 0.78f - 300f, File(dir, "${tp.id}_$name.png"))
+                }
             }
         }
-        else -> System.err.println("Usage : render|frames|styles …")
+        else -> System.err.println("Usage : render|templates …")
     }
+}
+
+/** Lecture minimale de music.json (format connu, généré par tools/music/compose.py). */
+fun readCatalog(dir: File): List<MusicTrack> {
+    val json = File(dir, "music.json").readText()
+    return Regex("\\{[^{}]*\"id\"[^{}]*\\}").findAll(json).map { m ->
+        val o = m.value
+        fun str(k: String) = Regex("\"$k\":\\s*\"([^\"]*)\"").find(o)!!.groupValues[1]
+        fun num(k: String) = Regex("\"$k\":\\s*([0-9.]+)").find(o)!!.groupValues[1]
+        val peaks = Regex("\"peaks\":\\s*\\[([^\\]]*)\\]").find(o)?.groupValues?.get(1)?.split(",")?.map { it.trim().toFloat() } ?: emptyList()
+        MusicTrack(str("id"), str("title"), MusicCategory.valueOf(str("category")), num("bpm").toInt(), str("file"),
+            num("durationMs").toLong(), str("licence"), str("origin"), peaks)
+    }.toList()
 }
 
 fun savePng(r: FrameRenderer, fonts: FontBank, t: Float, file: File) {
     val img = BufferedImage(r.format.width, r.format.height, BufferedImage.TYPE_INT_RGB)
-    val g = Java2DGfx(img, fonts)
-    r.render(g, t)
+    r.render(Java2DGfx(img, fonts), t)
     ImageIO.write(img, "png", file)
 }
 
 data class RenderStats(
     val width: Int, val height: Int, val fps: Int, val frames: Int, val durationMs: Long,
     val renderOnlyMs: Long, val wallMs: Long, val avgFrameMs: Double, val p95FrameMs: Double, val maxFrameMs: Double,
-    val heapPeakMb: Double, val outputBytes: Long,
+    val heapPeakMb: Double, val outputBytes: Long, val template: String, val music: String?,
 ) {
-    fun toJson() = """{"width":$width,"height":$height,"fps":$fps,"frames":$frames,"durationMs":$durationMs,""" +
-        """"renderOnlyMs":$renderOnlyMs,"wallMs":$wallMs,"avgFrameMs":${"%.2f".format(java.util.Locale.ROOT, avgFrameMs)},""" +
-        """"p95FrameMs":${"%.2f".format(java.util.Locale.ROOT, p95FrameMs)},"maxFrameMs":${"%.2f".format(java.util.Locale.ROOT, maxFrameMs)},""" +
-        """"heapPeakMb":${"%.1f".format(java.util.Locale.ROOT, heapPeakMb)},"outputBytes":$outputBytes}"""
+    fun toJson() = """{"template":"$template","music":${music?.let { "\"$it\"" } ?: "null"},"width":$width,"height":$height,"fps":$fps,""" +
+        """"frames":$frames,"durationMs":$durationMs,"renderOnlyMs":$renderOnlyMs,"wallMs":$wallMs,""" +
+        """"avgFrameMs":${"%.2f".format(java.util.Locale.ROOT, avgFrameMs)},"p95FrameMs":${"%.2f".format(java.util.Locale.ROOT, p95FrameMs)},""" +
+        """"maxFrameMs":${"%.2f".format(java.util.Locale.ROOT, maxFrameMs)},"heapPeakMb":${"%.1f".format(java.util.Locale.ROOT, heapPeakMb)},"outputBytes":$outputBytes}"""
 }
 
-fun renderVideo(sb: Storyboard, format: VideoFormat, fonts: FontBank, out: File): RenderStats {
-    val renderer = FrameRenderer(sb, format)
+/** Décode un fichier audio avec ffmpeg en WAV 44,1 kHz stéréo (banc d'essai uniquement). */
+private fun decodeWithFfmpeg(src: File, dst: File) {
+    val p = ProcessBuilder("ffmpeg", "-v", "error", "-y", "-i", src.path, "-ac", "2", "-ar", "44100", "-c:a", "pcm_s16le", dst.path)
+        .redirectErrorStream(true).start()
+    check(p.waitFor() == 0) { "Décodage de ${src.name} impossible" }
+}
+
+fun renderVideo(sb: Storyboard, format: VideoFormat, fonts: FontBank, out: File, musicFile: File?): RenderStats {
+    val tp = Templates.byId(sb.templateId)
+    val renderer = FrameRenderer(sb, format, tp)
+    // Piste audio : même mixage que sur le téléphone (AudioMix.musicBed), puis encodage AAC.
+    val bed = musicFile?.let { src ->
+        val raw = File(out.parentFile, out.nameWithoutExtension + ".src.wav")
+        decodeWithFfmpeg(src, raw)
+        val mixed = AudioMix.musicBed(Wav.read(raw.readBytes()), renderer.timeline.totalMs, MusicVolume.NORMAL.gain)
+        raw.delete()
+        File(out.parentFile, out.nameWithoutExtension + ".bed.wav").apply { writeBytes(Wav.write(mixed)) }
+    }
     val img = BufferedImage(format.width, format.height, BufferedImage.TYPE_INT_RGB)
     val pixels = (img.raster.dataBuffer as DataBufferInt).data
-    val g = Java2DGfx(img, fonts)
     val bytes = ByteBuffer.allocate(pixels.size * 4).order(ByteOrder.LITTLE_ENDIAN)
     val tmp = File(out.parentFile, out.nameWithoutExtension + ".tmp.mp4")
-    val cmd = listOf(
-        "ffmpeg", "-y", "-loglevel", "error",
-        "-f", "rawvideo", "-pix_fmt", "bgr0", "-s", "${format.width}x${format.height}", "-r", "${format.fps}", "-i", "-",
-        "-c:v", "libx264", "-preset", "medium", "-crf", "17", "-profile:v", "high", "-pix_fmt", "yuv420p",
-        "-r", "${format.fps}", "-movflags", "+faststart", tmp.path,
-    )
+    val cmd = mutableListOf("ffmpeg", "-y", "-loglevel", "error",
+        "-f", "rawvideo", "-pix_fmt", "bgr0", "-s", "${format.width}x${format.height}", "-r", "${format.fps}", "-i", "-")
+    if (bed != null) cmd += listOf("-i", bed.path)
+    cmd += listOf("-c:v", "libx264", "-preset", "medium", "-crf", "17", "-profile:v", "high", "-pix_fmt", "yuv420p", "-r", "${format.fps}")
+    if (bed != null) cmd += listOf("-c:a", "aac", "-b:a", "160k", "-shortest")
+    cmd += listOf("-metadata", "title=${sb.title} — CODJIA", "-metadata", "comment=Créé avec CODJIA", "-movflags", "+faststart", tmp.path)
     val proc = ProcessBuilder(cmd).redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.INHERIT).start()
     val sink = proc.outputStream.buffered(1 shl 20)
     val mem = ManagementFactory.getMemoryMXBean()
     var heapPeak = 0L
     val times = DoubleArray(renderer.frameCount)
+    val g = Java2DGfx(img, fonts)
     val wall0 = System.nanoTime()
     var renderNs = 0L
     for (i in 0 until renderer.frameCount) {
@@ -101,14 +136,12 @@ fun renderVideo(sb: Storyboard, format: VideoFormat, fonts: FontBank, out: File)
         if (i % 15 == 0) heapPeak = maxOf(heapPeak, mem.heapMemoryUsage.used)
     }
     sink.close()
-    val code = proc.waitFor()
-    check(code == 0) { "ffmpeg a échoué (code $code)" }
+    check(proc.waitFor() == 0) { "ffmpeg a échoué" }
+    bed?.delete()
     check(tmp.renameTo(out)) { "Impossible de renommer ${tmp.path}" }
     val wall = (System.nanoTime() - wall0) / 1_000_000
     val sorted = times.sorted()
-    return RenderStats(
-        format.width, format.height, format.fps, renderer.frameCount, renderer.timeline.totalMs,
+    return RenderStats(format.width, format.height, format.fps, renderer.frameCount, renderer.timeline.totalMs,
         renderNs / 1_000_000, wall, times.average(), sorted[(sorted.size * 0.95).toInt().coerceAtMost(sorted.lastIndex)], sorted.last(),
-        heapPeak / 1048576.0, out.length(),
-    )
+        heapPeak / 1048576.0, out.length(), tp.id, musicFile?.nameWithoutExtension)
 }

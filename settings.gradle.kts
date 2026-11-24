@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "itmentor-video-prototype"
+rootProject.name = "codjia-video-prototype"
 include(":engine-core", ":engine-jvm", ":engine-android", ":demo-app")

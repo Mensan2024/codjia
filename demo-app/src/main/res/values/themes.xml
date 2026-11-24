@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Codjia" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/codjia_bg</item>
+        <item name="android:statusBarColor">@color/codjia_bg</item>
+        <item name="android:navigationBarColor">@color/codjia_bg</item>
+        <item name="android:colorAccent">@color/codjia_saffron</item>
+    </style>
+</resources>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Marque CODJIA « ▶_ » : triangle de lecture + curseur safran, dans la zone sûre de l'icône adaptative. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#FFFFFF" android:strokeColor="#FFFFFF" android:strokeWidth="6.8"
+        android:strokeLineJoin="round" android:strokeLineCap="round"
+        android:pathData="M41.25,33.4 L41.25,62.7 L66.75,48.05 Z" />
+    <path android:fillColor="#F5B301"
+        android:pathData="M41.25,71.2 L56.2,71.2 A3.4,3.4 0 0 1 59.6,74.6 L59.6,74.6 A3.4,3.4 0 0 1 56.2,78 L41.25,78 A3.4,3.4 0 0 1 37.85,74.6 L37.85,74.6 A3.4,3.4 0 0 1 41.25,71.2 Z" />
+</vector>

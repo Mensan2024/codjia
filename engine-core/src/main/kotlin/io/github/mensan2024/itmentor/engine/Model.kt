@@ -29,9 +29,9 @@ data class VideoFormat(val width: Int = 1080, val height: Int = 1920, val fps: I
 /** Les compositions graphiques disponibles. Chacune est une mise en page différente. */
 enum class Layout { HERO, DEFINITION, STEPS, COMPARE, STAT, CHECKLIST }
 
-enum class IconId { SHIELD, LOCK, MAIL, WARNING, CHECK, CROSS, KEY, EYE, USER, HOOK, SEARCH, CLOCK }
+enum class IconId { SHIELD, LOCK, MAIL, WARNING, CHECK, CROSS, KEY, EYE, USER, HOOK, SEARCH, CLOCK, DROP, HEART, LEAF, SUN, MEGAPHONE, TARGET, BULB, CHART }
 
-enum class IllustrationId { NONE, PHISHING_MAIL, SHIELD_CHECK, TIMER_RING }
+enum class IllustrationId { NONE, PHISHING_MAIL, SHIELD_CHECK, WATER_DROP, PLANT_GROWTH, CHART_GROWTH, CHECK_CIRCLE }
 
 enum class ShapeKind { RING, HEXAGON, DIAMOND }
 
@@ -63,7 +63,8 @@ data class AnimSpec(
     }
 }
 
-enum class TransitionType { CUT, FADE, SLIDE, ZOOM }
+/** WIPE = volets de couleur ; CIRCLE = ouverture circulaire ; DIP = passage par le noir (cinéma). */
+enum class TransitionType { CUT, FADE, SLIDE, ZOOM, WIPE, CIRCLE, DIP }
 
 data class Transition(val type: TransitionType, val durationMs: Int = 500) {
     init { require(durationMs >= 0) }
@@ -94,8 +95,6 @@ data class Scene(
     val items: List<String> = emptyList(),
     val compare: Compare? = null,
     val statValue: String? = null,
-    /** Phrase lue par la voix off (texte oral, distinct du texte affiché). `null` = scène muette. */
-    val narration: String? = null,
     val enter: AnimSpec = AnimSpec(AnimType.SLIDE_UP),
     val exit: AnimSpec = AnimSpec(AnimType.FADE_OUT, durationMs = 350, easing = Easing.EASE_IN),
     /** Transition vers la scène suivante (ignorée pour la dernière scène). */
@@ -110,9 +109,9 @@ data class Scene(
 data class Storyboard(
     val id: String,
     val title: String,
-    val styleId: String,
+    val templateId: String,
     val scenes: List<Scene>,
-    val footer: String = "IT_MENTOR",
+    val footer: String = "CODJIA",
     val hashtag: String? = null,
 ) {
     init {

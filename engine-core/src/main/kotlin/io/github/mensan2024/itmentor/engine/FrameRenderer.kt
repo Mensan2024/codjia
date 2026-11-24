@@ -3,14 +3,17 @@ package io.github.mensan2024.itmentor.engine
 
 /**
  * Point d'entrée du moteur : `render(g, tMs)` dessine l'image complète de l'instant tMs.
- * Fonction déterministe : même storyboard, même format, même t ⇒ même image.
+ * Fonction déterministe : même storyboard, même template, même format, même t ⇒ même image.
  * Aucune dépendance à Android, à l'interface ou à une horloge.
+ *
+ * Le storyboard doit déjà être habillé (`Templates.apply`) et, s'il y a une musique, calé sur son tempo
+ * (`Rhythm.align`) : voir [Composer].
  */
-class FrameRenderer(val storyboard: Storyboard, val format: VideoFormat) {
+class FrameRenderer(val storyboard: Storyboard, val format: VideoFormat, val template: Template = Templates.byId(storyboard.templateId)) {
 
     val timeline: Timeline = Timeline.build(storyboard)
-    val style: Style = Styles.byId(storyboard.styleId)
-    private val scenes = SceneRenderer(style)
+    private val style = template.style
+    private val scenes = SceneRenderer(template)
 
     private val W = VideoFormat.DESIGN_WIDTH
     private val H = VideoFormat.DESIGN_HEIGHT
@@ -29,12 +32,13 @@ class FrameRenderer(val storyboard: Storyboard, val format: VideoFormat) {
             is Moment.Single -> scene(g, m.slot, m.localMs, tMs)
             is Moment.Blend -> transition(g, m, tMs)
         }
+        Backgrounds.overlayFx(g, template, (tMs / 33.333f).toInt())
         overlay(g, tMs)
         g.restore()
     }
 
     private fun scene(g: Gfx, slot: Slot, local: Float, tGlobal: Float) {
-        Backgrounds.draw(g, style, slot.scene.background, tGlobal)
+        Backgrounds.draw(g, template, slot.index, slot.scene.background, tGlobal)
         scenes.draw(g, slot.scene, local, tGlobal)
     }
 
@@ -44,15 +48,12 @@ class FrameRenderer(val storyboard: Storyboard, val format: VideoFormat) {
             TransitionType.CUT -> scene(g, m.to, m.toLocalMs, tGlobal)
             TransitionType.FADE -> {
                 scene(g, m.from, m.fromLocalMs, tGlobal)
-                g.beginLayer(e)
-                scene(g, m.to, m.toLocalMs, tGlobal)
-                g.endLayer()
+                g.beginLayer(e); scene(g, m.to, m.toLocalMs, tGlobal); g.endLayer()
             }
             TransitionType.SLIDE -> {
                 // « Pousser » : la scène suivante entre par la droite et chasse la précédente.
                 g.save(); g.translate(-W * e, 0f); scene(g, m.from, m.fromLocalMs, tGlobal); g.restore()
                 g.save(); g.translate(W * (1f - e), 0f); scene(g, m.to, m.toLocalMs, tGlobal); g.restore()
-                // Fine ombre portée sur le bord d'attaque.
                 val edge = W * (1f - e)
                 g.fillRect(edge - 18f, 0f, edge, H, 0x33000000)
             }
@@ -62,7 +63,45 @@ class FrameRenderer(val storyboard: Storyboard, val format: VideoFormat) {
                 g.save(); g.scale(lerp(0.86f, 1f, e), W / 2, H / 2); scene(g, m.to, m.toLocalMs, tGlobal); g.restore()
                 g.endLayer()
             }
+            TransitionType.WIPE -> {
+                // Volets de couleur en diagonale : ils couvrent l'écran à mi-parcours, la scène change dessous.
+                if (m.progress < 0.5f) scene(g, m.from, m.fromLocalMs, tGlobal) else scene(g, m.to, m.toLocalMs, tGlobal)
+                panel(g, m.progress, 0.00f, style.accent2, 1.9f)
+                panel(g, m.progress, 0.07f, style.accent, 1.9f)
+                panel(g, m.progress, 0.12f, style.text.withAlpha(0.9f), 0.10f)
+            }
+            TransitionType.CIRCLE -> {
+                // Ouverture circulaire depuis le centre, avec un anneau d'accent sur le bord.
+                scene(g, m.from, m.fromLocalMs, tGlobal)
+                val r = 1150f * e
+                if (r > 1f) {
+                    g.save()
+                    g.clipPath(PathData().circle(W / 2, H / 2, r))
+                    scene(g, m.to, m.toLocalMs, tGlobal)
+                    g.restore()
+                    g.strokeCircle(W / 2, H / 2, r, 14f * (1f - e) + 2f, style.accent)
+                }
+            }
+            TransitionType.DIP -> {
+                // Passage par le noir, comme au cinéma.
+                if (m.progress < 0.5f) {
+                    scene(g, m.from, m.fromLocalMs, tGlobal)
+                    g.fillRect(0f, 0f, W, H, (0xFF000000.toInt()).withAlpha(Easing.EASE_IN_OUT.ease(m.progress * 2f)))
+                } else {
+                    scene(g, m.to, m.toLocalMs, tGlobal)
+                    g.fillRect(0f, 0f, W, H, (0xFF000000.toInt()).withAlpha(1f - Easing.EASE_IN_OUT.ease(m.progress * 2f - 1f)))
+                }
+            }
         }
+    }
+
+    /** Volet en parallélogramme qui traverse l'écran de gauche à droite. `width` en largeurs d'écran. */
+    private fun panel(g: Gfx, progress: Float, delay: Float, color: Int, width: Float) {
+        val u = Easing.EASE_IN_OUT.ease(clamp01((progress - delay) / (1f - 0.12f)))
+        val left = lerp(-2.3f * W, 1.35f * W, u)
+        val skew = 0.35f * W
+        val p = PathData().moveTo(left + skew, 0f).lineTo(left + skew + width * W, 0f).lineTo(left + width * W, H).lineTo(left, H).close()
+        g.fillPath(p, color)
     }
 
     /** Éléments fixes : indicateur de progression par scène et pied de page. */
@@ -77,16 +116,26 @@ class FrameRenderer(val storyboard: Storyboard, val format: VideoFormat) {
             val f = window(tMs, s.startMs.toFloat(), s.durationMs.toFloat())
             if (f > 0f) g.fillRoundRect(l, y, l + segW * f, y + 8f, 4f, style.text.withAlpha(0.9f))
         }
-        // Pied de page : marque ▶_ + nom + compteur de scène.
         val fy = 1608f
         val play = PathData().moveTo(Safe.LEFT, fy - 26f).lineTo(Safe.LEFT, fy + 6f).lineTo(Safe.LEFT + 27f, fy - 10f).close()
         g.fillPath(play, style.text.withAlpha(0.9f))
-        g.fillRoundRect(Safe.LEFT + 32f, fy + 2f, Safe.LEFT + 50f, fy + 8f, 3f, style.highlight)
-        val f = FontSpec(FontFamily.TEXT, 700, 28f)
-        g.drawText(storyboard.footer, Safe.LEFT + 66f, fy, f, style.text.withAlpha(0.9f))
+        g.fillRoundRect(Safe.LEFT + 32f, fy + 2f, Safe.LEFT + 50f, fy + 8f, 3f, rgb(0xF5B301))
+        val f = FontSpec(FontFamily.TEXT, 800, 28f)
+        g.drawTracked(storyboard.footer, Safe.LEFT + 66f, fy, f, style.text.withAlpha(0.9f), 2f)
         storyboard.hashtag?.let { h ->
             val hf = FontSpec(FontFamily.TEXT, 500, 26f)
             g.drawText(h, Safe.RIGHT - g.measureText(h, hf), fy, hf, style.textMuted)
         }
+    }
+}
+
+/**
+ * Prépare un storyboard pour le rendu : habillage par le template, puis calage sur le tempo de la musique.
+ * C'est la seule porte d'entrée de l'application : l'aperçu et l'export passent tous deux par ici.
+ */
+object Composer {
+    fun prepare(content: Storyboard, template: Template, music: MusicTrack?): Storyboard {
+        val dressed = Templates.apply(content, template)
+        return if (music != null) Rhythm.align(dressed, music.beatMs) else dressed
     }
 }

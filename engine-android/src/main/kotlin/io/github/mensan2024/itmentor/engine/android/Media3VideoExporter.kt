@@ -124,7 +124,7 @@ class Media3VideoExporter(private val context: Context) {
     @MainThread
     suspend fun export(
         storyboard: Storyboard, format: VideoFormat, output: File,
-        /** Piste de voix off (WAV) de la durée de la vidéo, ou `null` pour une vidéo muette. */
+        /** Piste musicale (WAV) déjà à la durée exacte de la vidéo, ou `null` pour une vidéo muette. */
         audio: File? = null,
         onProgress: (Int) -> Unit = {},
     ): ExportStats = coroutineScope {
@@ -148,7 +148,7 @@ class Media3VideoExporter(private val context: Context) {
             .setFrameRate(format.fps)
             .setEffects(effects)
             .build()
-        // Deux séquences en parallèle : l'image animée et la voix off. Media3 encode la voix en AAC.
+        // Deux séquences en parallèle : l'image animée et la musique. Media3 encode la musique en AAC.
         val composition = Composition.Builder(
             EditedMediaItemSequence.withVideoFrom(listOf(edited)),
             *listOfNotNull(audio?.let { wav ->

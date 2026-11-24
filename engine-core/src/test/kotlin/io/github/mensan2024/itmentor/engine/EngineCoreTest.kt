@@ -15,6 +15,7 @@ private class FakeGfx : Gfx {
     override fun scale(s: Float, px: Float, py: Float) {}
     override fun rotate(degrees: Float, px: Float, py: Float) {}
     override fun clipRect(l: Float, t: Float, r: Float, b: Float) {}
+    override fun clipPath(path: PathData) {}
     override fun multiplyAlpha(a: Float) {}
     override fun beginLayer(alpha: Float) {}
     override fun endLayer() {}
@@ -38,15 +39,16 @@ class TimelineTest {
     private fun scene(id: String, ms: Int, tr: Transition = Transition(TransitionType.FADE, 500)) =
         Scene(id = id, layout = Layout.HERO, title = id, durationMs = ms, transitionOut = tr)
 
-    @Test fun demoDureEnviron32Secondes() {
-        val tl = Timeline.build(DemoStoryboard.phishing())
-        assertEquals(31_800L, tl.totalMs)
-        assertEquals(954, tl.frameCount(30))
-        assertTrue(DemoStoryboard.phishing().scenes.size >= 5)
+    @Test fun lesDemosDurentEntre25Et40Secondes() {
+        for (sb in Samples.ALL) for (tp in Templates.ALL) {
+            val tl = Timeline.build(Templates.apply(sb, tp))
+            assertTrue("${sb.id} / ${tp.id} : ${tl.totalMs} ms", tl.totalMs in 25_000L..40_000L)
+            assertTrue(sb.scenes.size >= 5)
+        }
     }
 
     @Test fun lesTransitionsSeChevauchent() {
-        val sb = Storyboard("t", "t", "cyber", listOf(scene("a", 4000), scene("b", 4000, Transition.CUT), scene("c", 3000)))
+        val sb = Storyboard("t", "t", "cyber-neon", listOf(scene("a", 4000), scene("b", 4000, Transition.CUT), scene("c", 3000)))
         val tl = Timeline.build(sb)
         assertEquals(listOf(0L, 3500L, 7500L), tl.slots.map { it.startMs })
         assertEquals(10_500L, tl.totalMs)
@@ -57,7 +59,7 @@ class TimelineTest {
     }
 
     @Test fun refuseUneVideoDePlusDe40Secondes() {
-        val sb = Storyboard("t", "t", "cyber", List(9) { scene("s$it", 5000) })
+        val sb = Storyboard("t", "t", "cyber-neon", List(9) { scene("s$it", 5000) })
         try {
             Timeline.build(sb); fail("Une vidéo de plus de 40 s doit être refusée")
         } catch (e: StoryboardException) {
@@ -66,16 +68,16 @@ class TimelineTest {
     }
 
     @Test fun refuseUneTransitionTropLongue() {
-        val sb = Storyboard("t", "t", "cyber", listOf(scene("a", 1000, Transition(TransitionType.SLIDE, 800)), scene("b", 3000)))
+        val sb = Storyboard("t", "t", "cyber-neon", listOf(scene("a", 1000, Transition(TransitionType.SLIDE, 800)), scene("b", 3000)))
         try { Timeline.build(sb); fail() } catch (_: StoryboardException) {}
     }
 
     @Test fun refuseLesIdentifiantsEnDouble() {
-        try { Storyboard("t", "t", "cyber", listOf(scene("a", 1000), scene("a", 1000))); fail() } catch (_: IllegalArgumentException) {}
+        try { Storyboard("t", "t", "cyber-neon", listOf(scene("a", 1000), scene("a", 1000))); fail() } catch (_: IllegalArgumentException) {}
     }
 
     @Test fun pasDeDeriveDeTemps() {
-        val tl = Timeline.build(DemoStoryboard.phishing())
+        val tl = Timeline.build(Templates.apply(Samples.CYBER, Templates.CYBER_NEON))
         assertEquals(31_766.666f, tl.frameTimeMs(953, 30), 0.01f)
     }
 }

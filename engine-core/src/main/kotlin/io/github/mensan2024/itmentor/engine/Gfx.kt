@@ -5,7 +5,43 @@ import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.sin
 
-enum class FontFamily { TEXT, DISPLAY, MONO }
+/** Familles de polices embarquées (toutes sous licence OFL, fichiers dans assets/fonts). */
+enum class FontFamily {
+    TEXT, DISPLAY, MONO,
+    SERIF,      // Gloock : élégance éditoriale (Corporate Premium)
+    ROUNDED,    // Outfit : géométrique et amicale (Modern Education)
+    GROTESK,    // Bricolage Grotesque : organique (Green Nature)
+    CLEAN,      // Instrument Sans : nette et rassurante (Medical Clean)
+    CONDENSED,  // Big Shoulders : condensée et percutante (Marketing Impact)
+    HEAVY,      // Boldonse : très grasse, expressive (Bold Typography)
+    CINEMA,     // Instrument Serif : titres de film (Cinematic Story)
+    CINEMA_ITALIC,
+    TECH,       // Tektur : technique (étiquettes Cyber Neon)
+}
+
+/** Fichier à utiliser pour chaque famille et graisse. Partagé par les rendus Android et JVM. */
+object FontCatalog {
+    val FILES: Map<FontFamily, Map<Int, String>> = mapOf(
+        FontFamily.TEXT to mapOf(400 to "Inter-Regular.otf", 500 to "Inter-Medium.otf", 600 to "Inter-SemiBold.otf",
+            700 to "Inter-Bold.otf", 800 to "Inter-ExtraBold.otf"),
+        FontFamily.DISPLAY to mapOf(800 to "InterDisplay-ExtraBold.otf", 900 to "InterDisplay-Black.otf"),
+        FontFamily.MONO to mapOf(400 to "JetBrainsMono-Regular.ttf", 700 to "JetBrainsMono-Bold.ttf"),
+        FontFamily.SERIF to mapOf(400 to "Gloock-Regular.ttf"),
+        FontFamily.ROUNDED to mapOf(700 to "Outfit-Bold.ttf"),
+        FontFamily.GROTESK to mapOf(700 to "BricolageGrotesque-Bold.ttf"),
+        FontFamily.CLEAN to mapOf(700 to "InstrumentSans-Bold.ttf"),
+        FontFamily.CONDENSED to mapOf(700 to "BigShoulders-Bold.ttf"),
+        FontFamily.HEAVY to mapOf(400 to "Boldonse-Regular.ttf"),
+        FontFamily.CINEMA to mapOf(400 to "InstrumentSerif-Regular.ttf"),
+        FontFamily.CINEMA_ITALIC to mapOf(400 to "InstrumentSerif-Italic.ttf"),
+        FontFamily.TECH to mapOf(500 to "Tektur-Medium.ttf"),
+    )
+
+    fun file(family: FontFamily, weight: Int): String {
+        val byWeight = FILES.getValue(family)
+        return byWeight.getValue(byWeight.keys.minByOrNull { kotlin.math.abs(it - weight) }!!)
+    }
+}
 
 /** Police demandée par le moteur. `weight` suit l'échelle CSS (400 = normal, 800 = extra-gras). */
 data class FontSpec(val family: FontFamily, val weight: Int, val size: Float) {
@@ -34,6 +70,9 @@ interface Gfx {
     /** Calque hors écran composé avec une opacité (fondus entre scènes). */
     fun beginLayer(alpha: Float)
     fun endLayer()
+
+    /** Découpe selon un chemin (masques circulaires des transitions). */
+    fun clipPath(path: PathData)
 
     fun fillRect(l: Float, t: Float, r: Float, b: Float, color: Int)
     fun fillVerticalGradient(l: Float, t: Float, r: Float, b: Float, top: Int, bottom: Int)

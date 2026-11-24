@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Écran de démarrage d'Android 12+ : fond encre et marque CODJIA. -->
+    <style name="Theme.Codjia" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/codjia_bg</item>
+        <item name="android:statusBarColor">@color/codjia_bg</item>
+        <item name="android:navigationBarColor">@color/codjia_bg</item>
+        <item name="android:colorAccent">@color/codjia_saffron</item>
+        <item name="android:windowSplashScreenBackground">@color/codjia_ink</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+    </style>
+</resources>

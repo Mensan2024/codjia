@@ -1,4 +1,4 @@
-# IT_MENTOR — Rapport de validation du prototype de moteur vidéo
+# CODJIA — Rapport de validation du prototype de moteur vidéo
 
 Date : 23 novembre 2026 · Version : 0.1-prototype · Licence : GPL-3.0-or-later
 
@@ -24,14 +24,14 @@ Les 26 tests automatiques passent.
 | Retours à la ligne et textes trop longs | ✅ coupure, réduction de la taille, « … », pas de mot seul en dernière ligne | 7 tests `TextLayoutTest` |
 | Marges de sécurité | ✅ 197 textes vérifiés, tous dans la zone sûre | `toutLeTexteResteDansLaZoneSure` |
 | Rendu déterministe | ✅ même instant = mêmes pixels | `rendreDeuxFoisLeMemeInstantDonneLaMemeImage` |
-| 3 styles graphiques | ✅ Cyber, Santé, Agro | `IT_MENTOR_3_styles.png` |
-| Export réel sur le stockage du téléphone | ⏳ code écrit (MediaStore › Movies/IT_MENTOR), pas encore exécuté | section 7 |
+| 3 styles graphiques | ✅ Cyber, Santé, Agro | `CODJIA_3_styles.png` |
+| Export réel sur le stockage du téléphone | ⏳ code écrit (MediaStore › Movies/CODJIA), pas encore exécuté | section 7 |
 
 ## 2. Vidéo produite (mesurée avec ffprobe)
 
 | Mesure | 1080p (livrable) | 720p (format de repli) |
 | --- | --- | --- |
-| Fichier | `IT_MENTOR_prototype_phishing_1080p.mp4` | `IT_MENTOR_prototype_phishing_720p.mp4` |
+| Fichier | `CODJIA_prototype_phishing_1080p.mp4` | `CODJIA_prototype_phishing_720p.mp4` |
 | Codec | H.264, profil High, niveau 4.0, yuv420p | H.264, profil High |
 | Résolution | 1080 × 1920 | 720 × 1280 |
 | Fréquence | 30/1 (constante) | 30/1 |
@@ -86,7 +86,7 @@ Ils ont été lancés avec `./test.sh` : compilateur Kotlin 2.0.21 et JUnit 4.13
 | Encodage sur Android | **Media3 Transformer** : image de fond + `OverlayEffect` + `BitmapOverlay`, export H.264 | Bibliothèque officielle de Google, activement maintenue (1.10 en mars 2026, 1.11 en août 2026), licence Apache 2.0. Elle gère l'horodatage exact, l'encodeur matériel, le repli de résolution et le MP4 | **MediaCodec + `lockHardwareCanvas`** : l'horodatage des images y suit l'horloge murale et non le temps de la vidéo, il faudrait donc passer par EGL. Ce chemin reste le plan B |
 | Encodage dans le banc d'essai | ffmpeg (x264) du poste, appelé comme programme externe | Outil de développement uniquement, jamais livré | **FFmpegKit** : abandonné, exclu comme demandé |
 | Polices | Inter et JetBrains Mono, embarquées | Licence OFL, couverture complète du français, rendu identique sur tous les téléphones | Polices du système : différentes d'un téléphone à l'autre |
-| Fichiers de sortie | MediaStore › Movies/IT_MENTOR (Android 10+), dossier de l'appli (Android 8–9) | Aucune permission demandée | Permission de stockage : refusée par Google Play pour ce cas d'usage |
+| Fichiers de sortie | MediaStore › Movies/CODJIA (Android 10+), dossier de l'appli (Android 8–9) | Aucune permission demandée | Permission de stockage : refusée par Google Play pour ce cas d'usage |
 
 **Point de vigilance (D4) :** ton dossier prévoyait « Media3 Transformer + moteur maison ». C'est exactement ce que fait le prototype. La seule différence avec le dossier : MediaCodec seul n'est plus le chemin principal, il devient le plan B, pour la raison d'horodatage donnée dans le tableau.
 
