@@ -14,8 +14,13 @@ import java.io.File
 /** Ce que contient réellement le fichier produit, lu sur le téléphone (équivalent de ffprobe). */
 data class Mp4Report(
     val mime: String, val width: Int, val height: Int, val durationMs: Long, val sampleCount: Int, val measuredFps: Double,
+    /** Rotation inscrite dans le fichier : certains encodeurs n'acceptent que le paysage, Media3 encode alors
+     *  en 1920 × 1080 et demande au lecteur de pivoter de 90°. */
+    val rotationDegrees: Int = 0,
 ) {
     val isH264 get() = mime == MediaFormat.MIMETYPE_VIDEO_AVC
+    val displayWidth get() = if (rotationDegrees % 180 != 0) height else width
+    val displayHeight get() = if (rotationDegrees % 180 != 0) width else height
 }
 
 object Mp4Inspector {
@@ -31,9 +36,10 @@ object Mp4Inspector {
                 var n = 0
                 while (ex.sampleTime >= 0) { n++; ex.advance() }
                 val durUs = if (f.containsKey(MediaFormat.KEY_DURATION)) f.getLong(MediaFormat.KEY_DURATION) else 0L
+                val rotation = if (f.containsKey(MediaFormat.KEY_ROTATION)) f.getInteger(MediaFormat.KEY_ROTATION) else 0
                 return Mp4Report(
                     mime, f.getInteger(MediaFormat.KEY_WIDTH), f.getInteger(MediaFormat.KEY_HEIGHT),
-                    durUs / 1000, n, if (durUs > 0) n / (durUs / 1e6) else 0.0,
+                    durUs / 1000, n, if (durUs > 0) n / (durUs / 1e6) else 0.0, rotation,
                 )
             }
             error("Aucune piste vidéo dans ${file.name}")

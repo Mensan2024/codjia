@@ -80,7 +80,8 @@ class MainActivity : ComponentActivity() {
                 say("")
                 say("── Fichier produit (relu avec MediaExtractor)")
                 say("Codec         : ${probe.mime} ${if (probe.isH264) "✓" else "✗"}")
-                say("Résolution    : ${probe.width}×${probe.height}")
+                say("Affichage     : ${probe.displayWidth}×${probe.displayHeight}" +
+                    if (probe.rotationDegrees != 0) " (encodée ${probe.width}×${probe.height}, rotation ${probe.rotationDegrees}°)" else "")
                 say("Durée         : ${probe.durationMs} ms · ${probe.sampleCount} images · %.2f i/s".format(probe.measuredFps))
                 say("Taille        : %.1f Mo".format(stats.fileBytes / 1048576.0))
                 say("Encodeur      : ${stats.encoderName}")
