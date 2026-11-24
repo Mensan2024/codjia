@@ -425,11 +425,15 @@ object StoryboardPlanner {
         fun total(sc: List<Scene>) = sc.sumOf { it.durationMs } - overlap * (sc.size - 1)
         var scenes = sb.scenes
         val dropOrder = listOf("s-steps1", "s-stat", "s-cmp", "s-def")
-        for (id in dropOrder) { if (total(scenes) <= 38_500) break; scenes = scenes.filter { it.id != id } }
+        for (id in dropOrder) { if (total(scenes) <= 42_000) break; scenes = scenes.filter { it.id != id } }
         val t = total(scenes)
-        if (t > 38_500) {
-            val k = (38_500.0 + overlap * (scenes.size - 1)) / scenes.sumOf { it.durationMs }
+        if (t > 42_000) {
+            val k = (42_000.0 + overlap * (scenes.size - 1)) / scenes.sumOf { it.durationMs }
             scenes = scenes.map { it.copy(durationMs = max(3_600, (it.durationMs * k).toInt())) }
+        } else if (t < 35_000) {
+            // Cible 35-45 s : on laisse plus de temps à chaque scène (écriture, explication), sans dépasser ×1,6.
+            val k = ((36_000.0 + overlap * (scenes.size - 1)) / scenes.sumOf { it.durationMs }).coerceAtMost(1.6)
+            scenes = scenes.map { it.copy(durationMs = (it.durationMs * k).toInt()) }
         }
         return sb.copy(scenes = scenes)
     }

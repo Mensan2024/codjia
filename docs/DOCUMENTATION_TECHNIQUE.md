@@ -1,4 +1,4 @@
-# CODJIA — Documentation technique du moteur vidéo (version 0.4)
+# CODJIA — Documentation technique du moteur vidéo (version 1.1)
 
 ## 1. Vue d'ensemble
 
@@ -103,6 +103,36 @@ Chaque génération reçoit une **graine** de 64 bits tirée par `SecureRandom`.
 
 Le test `VariationTest` exige au moins 6 rendus distincts sur 8 graines, et jamais deux fois de suite le même template. Avec la même graine, on obtient exactement la même vidéo, ce qui rend les rendus reproductibles. La graine 0 donne le rendu de référence sans variation, utilisé pour les captures.
 
+## 6 bis. Cinq formats de réalisation (`Looks.kt`)
+
+Le même storyboard peut être mis en scène de cinq façons très différentes. `CreativeDirector` choisit le format à chaque génération en évitant les deux derniers. L'utilisateur peut aussi l'imposer.
+
+| Format | Fichier | Mise en scène |
+| --- | --- | --- |
+| Motion design | `SceneRenderer.kt` | Cartes animées, typographie cinétique, 10 modèles de couleurs |
+| Tableau blanc | `WhiteboardLook.kt` | Une main (illustration originale, 4 teintes de peau) tient un feutre. Elle écrit le texte (police Kalam, OFL) et dessine des croquis tracés trait par trait : icônes, cercles, flèches, cases cochées, ratures. Le contenu est centré verticalement en deux passes |
+| Démo à l'écran | `DemoLook.kt` | Fenêtres de terminal ou de réglages, frappe au clavier, curseur et clics, interrupteurs. Réservé aux domaines informatiques |
+| Personnage animé | `MascotLook.kt` | Codi, robot original : clignement des yeux, regard, bouche synchronisée sur le texte, bras qui pointe ou salue, humeurs (neutre, inquiet, content), bulles |
+| Éditorial chic | `EditorialLook.kt` | Mise en page de magazine : serif, italique d'accent, lettrine, filets animés, zoom lent, grain. Palettes ivoire, noir ou marine |
+
+Toutes les mises en page de tous les formats sont vérifiées par `RenderTest` (15 textes × 3 graines × 5 formats) : aucun texte hors de la zone sûre, aucun chevauchement.
+
+## 6 ter. Démonstrations sur écran simulé (`Simulator.kt`, `Procedures.kt`)
+
+Quand le texte parle d'un sujet de la bibliothèque, la vidéo contient une **vraie démonstration pas à pas**. Les sujets actuels sont le Bureau à distance (RDP), le pare-feu, les mises à jour et les VLAN.
+
+- **Systèmes simulés.** Bureaux Windows 11, macOS et Ubuntu 24.04, plus une console Cisco IOS, dessinés en vectoriel dans un espace de 1600 × 1000, sans logo de marque. On y trouve :
+  - le menu Démarrer, Spotlight ou Activités, avec la recherche tapée ;
+  - les fenêtres Paramètres, Sécurité Windows, Réglages Système et Paramètres GNOME ;
+  - le terminal.
+- **Caméra.** Elle zoome sur la zone utile et reste continue d'une étape à l'autre : coupes franches, sans fondu entre les étapes. Le curseur se déplace et clique, avec une onde de clic, et les interrupteurs basculent.
+- **Libellés.** Les noms des menus et des réglages reprennent ceux des interfaces françaises.
+- **Commandes.** Les sorties sont celles des outils réels (ufw, apt, IOS). Les compteurs, comme le nombre de paquets, sont des exemples réalistes. Aucune sortie n'est fabriquée à partir du texte de l'utilisateur.
+- **Choix du système.** C'est celui que nomme le texte. Sinon, la graine en choisit un, ce qui fait qu'une autre version peut montrer Linux au lieu de Windows.
+- **Durée.** Couverture, puis (définition), étapes de la démo, (comparaison) et « à retenir », entre 35 et 45 s. Les démos des textes courts sont un peu ralenties pour atteindre 35 s.
+
+Ajouter un sujet revient à écrire un `Topic` dans `Procedures.kt` : mots-clés, puis, pour chaque système, des étapes (titre, légende, écran, action).
+
 ## 7. Musique
 
 | Étape | Où | Détail |
@@ -127,7 +157,7 @@ La sécurité est décrite dans [SECURITE.md](SECURITE.md) : modèle de menaces,
 ## 9. Compiler et tester
 
 ```
-./test.sh                                    # 54 tests, sans réseau (compilateur Kotlin de Gradle)
+./test.sh                                    # 56 tests, sans réseau (compilateur Kotlin de Gradle)
 ./gradlew :engine-core:test :engine-jvm:test :demo-app:assembleDebug
 ./gradlew :engine-jvm:run --args="templates out/captures"
 ./gradlew :engine-jvm:run --args="render out/demo.mp4 cyber-neon pulse 1080"
