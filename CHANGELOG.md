@@ -2,6 +2,12 @@
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [1.3.0] — 2026-11-24
+- Voix off de retour, en français et en anglais, **avec la musique** : la musique baisse automatiquement sous la voix puis remonte.
+- Mode « Auto FR/EN » : la langue est choisie phrase par phrase (une leçon d'anglais lit les exemples en anglais et les explications en français). Modes Français, Anglais ou Sans voix.
+- Voix de synthèse du téléphone, hors ligne uniquement (aucun accès réseau). Les scènes s'allongent pour la voix ; lecture accélérée jusqu'à 1,3× si la vidéo dépasse 38 s.
+- Aperçu avec la voix et la musique mélangées.
+
 ## [1.2.0] — 2026-11-24
 - 3 nouveaux formats au rythme des vidéos explicatives des réseaux sociaux : **Explicatif néon** (titres condensés, fenêtres, terminal), **Collage** (fond bleu, cartes en papier épinglées, étiquettes, lettres découpées), **Cinéma** (ambiance nocturne, serif italique, téléphone réaliste).
 - Grammaire commune : temps forts de 2 à 4 s, titre court et percutant, visuel concret (téléphone avec écran de réglages, de verrouillage ou de code, fenêtre, terminal, chiffre, verdict), sous-titres mot à mot avec mot clé coloré, icônes choisies selon le sens.

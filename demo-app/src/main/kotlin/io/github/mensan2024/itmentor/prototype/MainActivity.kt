@@ -40,6 +40,10 @@ import io.github.mensan2024.itmentor.engine.DomainDetector
 import io.github.mensan2024.itmentor.engine.FrameRenderer
 import io.github.mensan2024.itmentor.engine.ImportPolicy
 import io.github.mensan2024.itmentor.engine.Look
+import io.github.mensan2024.itmentor.engine.VoiceMode
+import io.github.mensan2024.itmentor.engine.android.Narrator
+import io.github.mensan2024.itmentor.engine.android.OfflineVoices
+import io.github.mensan2024.itmentor.engine.android.VoicedResult
 import io.github.mensan2024.itmentor.engine.Layout
 import io.github.mensan2024.itmentor.engine.MusicCategory
 import io.github.mensan2024.itmentor.engine.MusicChoice
@@ -105,6 +109,41 @@ class MainActivity : ComponentActivity() {
     private val imported = ArrayList<MusicTrack>()
     private var step = Step.CONTENT
     private var exporting = false
+
+    // ── Voix off (synthèse vocale hors ligne du téléphone), mélangée à la musique
+    private var voiceMode = VoiceMode.AUTO
+    private var voices: OfflineVoices? = null
+    private var voicesChecked = false
+    private var voiced: Pair<String, VoicedResult>? = null
+
+    private fun audioKey() = "${content.id}|$seed|${content.look}|${template.id}|${choice.track?.id}|${choice.volume}|$voiceMode|$generation|${content.scenes.size}"
+
+    /**
+     * Storyboard final et piste audio : avec voix off, les scènes s'allongent pour la voix et la musique
+     * baisse sous la voix ; sans voix, la musique seule (préparée à l'export).
+     */
+    private suspend fun audioPlan(onStatus: (String) -> Unit = {}): Pair<Storyboard, File?> {
+        val base = Composer.prepare(content, template, choice.track?.takeIf { it.bpm > 0 })
+        if (voiceMode == VoiceMode.NONE) return base to null
+        val key = audioKey()
+        voiced?.takeIf { it.first == key && it.second.audio.isFile }?.let { return it.second.storyboard to it.second.audio }
+        if (!voicesChecked) {
+            onStatus("Ouverture de la voix…")
+            voices = runCatching { OfflineVoices.open(this) }.getOrNull()
+            voicesChecked = true
+        }
+        val v = voices ?: run {
+            Toast.makeText(this, "Aucune voix française ou anglaise hors ligne n'est installée : vidéo sans voix.", Toast.LENGTH_LONG).show()
+            runCatching { startActivity(OfflineVoices.installIntent()) }
+            return base to null
+        }
+        onStatus("Préparation de la voix off…")
+        val res = Narrator.prepare(v, base, voiceMode, File(cacheDir, "voix")) { total ->
+            withContext(Dispatchers.IO) { AudioDecoder.bedPcm(this@MainActivity, choice, total) }
+        }
+        voiced = key to res
+        return res.storyboard to res.audio
+    }
 
     // ── Rendu sur un fil dédié (le moteur n'est pas partagé entre fils)
     private val renderThread = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
@@ -175,6 +214,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        voices?.shutdown()
         player?.release()
         renderThread.close()
     }
@@ -304,10 +344,9 @@ class MainActivity : ComponentActivity() {
 
     private fun previewPage(): View {
         val page = vbox()
-        val sb = Composer.prepare(content, template, choice.track?.takeIf { it.bpm > 0 })
         val music = choice.track?.let { if (choice.hasAudio) it.title else "${it.title} (coupée)" } ?: "Sans musique"
-        val secs = (FrameRenderer(sb, VideoFormat(360, 640, 30), template).timeline.totalMs + 500) / 1000
-        page.addView(label("Version $generation · ${look.label}${if (hasDemo) " + démo à l'écran" else ""} · $music · $secs s", 13f, Brand.MUTED))
+        val info = label("Version $generation · ${look.label}${if (hasDemo) " + démo à l'écran" else ""} · $music · voix ${voiceMode.label}", 13f, Brand.MUTED)
+        page.addView(info)
         val img = ImageView(this).apply {
             scaleType = ImageView.ScaleType.FIT_CENTER
             clipToOutline = true
@@ -336,14 +375,25 @@ class MainActivity : ComponentActivity() {
         page.addView(actions, lp(MATCH, WRAP, top = dp(10f)))
         page.addView(button("Générer la vidéo") { show(Step.EXPORT) }, lp(MATCH, WRAP, top = dp(10f)))
         previewPaused = false
-        startPreview(sb, img)
+        if (voiceMode != VoiceMode.NONE) hint.text = "Préparation de la voix off…"
+        previewJob = lifecycleScope.launch {
+            val (sb, audio) = runCatching { audioPlan { hint.text = it } }.getOrElse { e ->
+                Toast.makeText(this@MainActivity, "Voix off impossible : ${e.message}", Toast.LENGTH_LONG).show()
+                Composer.prepare(content, template, choice.track?.takeIf { it.bpm > 0 }) to null
+            }
+            val secs = (FrameRenderer(sb, VideoFormat(360, 640, 30), template).timeline.totalMs + 500) / 1000
+            info.text = "${info.text} · $secs s"
+            hint.text = "Touche pour mettre en pause"
+            startPreview(sb, img, audio)
+        }
         return page
     }
 
     /** Aperçu animé en direct (360 × 640), musique synchronisée sur le temps de lecture. */
-    private fun startPreview(sb: Storyboard, view: ImageView) {
-        val mp = choice.track?.takeIf { choice.hasAudio }?.let { runCatching { openPlayer(it) }.getOrNull() }
-        mp?.setVolume(choice.volume.gain, choice.volume.gain)
+    private fun startPreview(sb: Storyboard, view: ImageView, mixed: File? = null) {
+        val mp = if (mixed != null) runCatching { MediaPlayer().apply { setDataSource(mixed.absolutePath); prepare() } }.getOrNull()
+            else choice.track?.takeIf { choice.hasAudio }?.let { runCatching { openPlayer(it) }.getOrNull() }
+        if (mixed == null) mp?.setVolume(choice.volume.gain, choice.volume.gain)
         player = mp
         previewJob = lifecycleScope.launch {
             val renderer = withContext(renderThread) { FrameRenderer(sb, VideoFormat(360, 640, 30), template) }
@@ -513,6 +563,15 @@ class MainActivity : ComponentActivity() {
             vol.addView(c, lp(WRAP, WRAP, end = dp(8f)))
         }
         page.addView(vol, lp(MATCH, WRAP, top = dp(10f)))
+        val vrow = hbox()
+        vrow.addView(label("Voix off", 14f, Brand.MUTED), lp(WRAP, WRAP, end = dp(12f)))
+        val vChips = ArrayList<Pair<VoiceMode, TextView>>()
+        for (m in VoiceMode.entries) {
+            val c = chip(m.label, voiceMode == m) { voiceMode = m; for ((k, cv) in vChips) cv.setChipSelected(k == voiceMode) }
+            vChips += m to c
+            vrow.addView(c, lp(WRAP, WRAP, end = dp(8f)))
+        }
+        page.addView(HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(vrow) }, lp(MATCH, WRAP, top = dp(8f)))
         page.addView(button("Voir l'aperçu") { show(Step.PREVIEW, forward = false) }, lp(MATCH, WRAP, top = dp(12f)))
         return page
     }
@@ -617,19 +676,20 @@ class MainActivity : ComponentActivity() {
             try {
                 val format = withContext(Dispatchers.Default) { DeviceProfile.pickFormat() }
                 val music = choice.track
-                val sb = Composer.prepare(content, template, music?.takeIf { it.bpm > 0 })
+                val (sb, voicedAudio) = audioPlan { status.text = it }
                 val total = FrameRenderer(sb, format, template).timeline.totalMs
                 say("Appareil      : ${Build.MANUFACTURER} ${Build.MODEL} · Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
                 say("Format vidéo  : ${look.label}${if (hasDemo) " + démo à l'écran" else ""} · modèle ${template.name}")
                 say("Musique       : ${music?.let { "${it.title} · volume ${choice.volume.label}" } ?: "sans musique"}")
+                say("Voix off      : ${voiceMode.label}" + (voiced?.second?.let { " · ${it.languages.joinToString("+")} · vitesse ${it.speechRate}×" } ?: ""))
                 say("Sortie        : ${format.width}×${format.height} à ${format.fps} i/s · ${total} ms")
                 say("Thermique     : ${thermal()} au départ")
 
                 status.text = if (music != null) "Préparation de la musique…" else "Préparation…"
                 val t0 = SystemClock.elapsedRealtime()
                 val workDir = File(cacheDir, "audio")
-                val bed = withContext(Dispatchers.IO) { AudioDecoder.prepareBed(this@MainActivity, choice, total, workDir) }
-                tmpBed = bed
+                val bed = voicedAudio ?: withContext(Dispatchers.IO) { AudioDecoder.prepareBed(this@MainActivity, choice, total, workDir) }
+                if (voicedAudio == null) tmpBed = bed
                 if (bed != null) say("Musique prête : ${(SystemClock.elapsedRealtime() - t0)} ms")
 
                 val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.ROOT).format(Date())
@@ -650,7 +710,7 @@ class MainActivity : ComponentActivity() {
                 status.text = "Vérification du fichier…"
                 val probe = withContext(Dispatchers.IO) { Mp4Inspector.inspect(out) }
                 // Règle : jamais de vidéo muette si une musique a été choisie.
-                if (choice.hasAudio && probe.audioMime == null) error("La piste audio est absente du fichier : export refusé")
+                if ((choice.hasAudio || voicedAudio != null) && probe.audioMime == null) error("La piste audio est absente du fichier : export refusé")
 
                 status.text = "Enregistrement dans la Galerie…"
                 val uri = withContext(Dispatchers.IO) { GalleryExport.publish(this@MainActivity, out, ImportPolicy.displayName("${sb.title} — CODJIA.mp4")) }

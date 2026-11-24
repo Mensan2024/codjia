@@ -172,6 +172,13 @@ object AudioDecoder {
     }
 
     /** Prépare la piste finale (fondus, volume, durée exacte de la vidéo) dans un WAV. `null` si la vidéo doit être muette. */
+    /** Fond musical en mémoire (pour le mélange avec la voix off), ou `null` sans musique. */
+    fun bedPcm(context: Context, choice: MusicChoice, totalMs: Long): Pcm? {
+        val track = choice.track ?: return null
+        if (!choice.hasAudio) return null
+        return AudioMix.musicBed(decode(context, track, totalMs), totalMs, choice.volume.gain)
+    }
+
     fun prepareBed(context: Context, choice: MusicChoice, totalMs: Long, workDir: File): File? {
         val track = choice.track ?: return null
         if (!choice.hasAudio) return null
