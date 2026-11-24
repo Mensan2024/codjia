@@ -56,3 +56,38 @@ jobs:
         with:
           name: rapports-tests
           path: "**/build/reports/tests/"
+
+  # Version de test téléchargeable directement depuis le téléphone (page Releases, sans compte GitHub ni zip).
+  # Signée avec la clé de développement publique : réservée aux tests, elle s'appelle « CODJIA test ».
+  version-de-test:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          name: CODJIA-prototype-apk
+          path: apk
+      - name: Publier la version de test
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          APK=$(ls apk/*.apk | head -1)
+          cp "$APK" CODJIA-test.apk
+          sha256sum CODJIA-test.apk > SHA256SUMS.txt
+          gh release delete version-de-test --yes --cleanup-tag || true
+          {
+            echo "Dernière version de test de CODJIA, construite automatiquement depuis \`main\` (commit ${GITHUB_SHA::7})."
+            echo
+            echo "**Installation :** télécharge \`CODJIA-test.apk\` depuis le téléphone, puis autorise l'installation quand Android le demande."
+            echo "L'appli s'appelle **CODJIA test** et s'installe à côté de toute autre version."
+            echo
+            echo "Signée avec la clé de développement publique du dépôt : à utiliser pour les tests uniquement."
+            echo
+            echo '```'; cat SHA256SUMS.txt; echo '```'
+          } > notes.md
+          gh release create version-de-test CODJIA-test.apk SHA256SUMS.txt --prerelease \
+            --target "$GITHUB_SHA" --title "CODJIA — version de test" --notes-file notes.md
