@@ -1,7 +1,7 @@
 # Versions vérifiées en novembre 2026 dans la documentation officielle quand c'était possible ;
 # à confirmer à l'ouverture dans Android Studio (l'assistant de mise à jour propose les dernières).
 [versions]
-agp = "9.2.1"                 # AGP 9 : Kotlin intégré, Gradle 9.4.1 minimum
+agp = "9.5.2"                 # AGP 9 : Kotlin intégré, Gradle 9.4.1 minimum
 kotlin = "2.2.21"             # pour le module JVM pur (engine-core, engine-jvm)
 media3 = "1.11.1"
 coroutines = "1.10.2"
