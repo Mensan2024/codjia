@@ -33,6 +33,7 @@ import androidx.media3.common.util.UnstableApi
 import io.github.mensan2024.itmentor.engine.Composer
 import io.github.mensan2024.itmentor.engine.DomainDetector
 import io.github.mensan2024.itmentor.engine.FrameRenderer
+import io.github.mensan2024.itmentor.engine.ImportPolicy
 import io.github.mensan2024.itmentor.engine.MusicCategory
 import io.github.mensan2024.itmentor.engine.MusicChoice
 import io.github.mensan2024.itmentor.engine.MusicSource
@@ -54,6 +55,7 @@ import io.github.mensan2024.itmentor.engine.android.MusicCatalog
 import io.github.mensan2024.itmentor.engine.android.Mp4Inspector
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -109,9 +111,15 @@ class MainActivity : ComponentActivity() {
 
     private val pickAudio = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
         if (uri == null) return@registerForActivityResult
-        runCatching { MusicCatalog.fromUserFile(this, uri) }
-            .onSuccess { t -> imported.add(0, t); choice = choice.copy(track = t); category = null; show(Step.MUSIC) }
-            .onFailure { Toast.makeText(this, it.message ?: "Fichier illisible", Toast.LENGTH_LONG).show() }
+        // Analyse hors du fil d'interface : un fichier lourd ou piégé ne doit pas figer l'appli.
+        lifecycleScope.launch {
+            runCatching { withContext(Dispatchers.IO) { MusicCatalog.fromUserFile(this@MainActivity, uri) } }
+                .onSuccess { t -> imported.removeAll { it.id == t.id }; imported.add(0, t); choice = choice.copy(track = t); category = null; show(Step.MUSIC) }
+                .onFailure { e ->
+                    val msg = (e as? IllegalArgumentException)?.message ?: "Fichier audio illisible"
+                    Toast.makeText(this@MainActivity, msg, Toast.LENGTH_LONG).show()
+                }
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -464,6 +472,8 @@ class MainActivity : ComponentActivity() {
     private fun generate(bar: ProgressBar, open: TextView, share: TextView) {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         lifecycleScope.launch {
+            var tmpBed: File? = null
+            var tmpOut: File? = null
             try {
                 val format = withContext(Dispatchers.Default) { DeviceProfile.pickFormat() }
                 val music = choice.track
@@ -477,11 +487,15 @@ class MainActivity : ComponentActivity() {
                 say("Thermique     : ${thermal()} au départ")
 
                 val t0 = SystemClock.elapsedRealtime()
-                val bed = withContext(Dispatchers.IO) { AudioDecoder.prepareBed(this@MainActivity, choice, total, File(cacheDir, "audio")) }
+                val workDir = File(cacheDir, "audio")
+                val bed = withContext(Dispatchers.IO) { AudioDecoder.prepareBed(this@MainActivity, choice, total, workDir) }
+                tmpBed = bed
                 if (bed != null) say("Musique prête : décodage + fondus en ${(SystemClock.elapsedRealtime() - t0)} ms")
 
                 val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.ROOT).format(Date())
-                val out = File(getExternalFilesDir(null) ?: filesDir, "CODJIA_${sb.id.removePrefix("demo-")}_$stamp.mp4")
+                // Fichier de travail dans l'espace privé de l'appli (jamais lisible par les autres applis).
+                val out = File(File(filesDir, "export").apply { mkdirs() }, "CODJIA_${ImportPolicy.safeFileStem(sb.id.removePrefix("demo-"))}_$stamp.mp4")
+                tmpOut = out
                 val stats = Media3VideoExporter(this@MainActivity).export(sb, format, out, bed) { bar.progress = it }
                 bar.progress = 100
                 val probe = withContext(Dispatchers.IO) { Mp4Inspector.inspect(out) }
@@ -489,7 +503,7 @@ class MainActivity : ComponentActivity() {
                 // Règle : jamais de vidéo muette si une musique a été choisie.
                 if (choice.hasAudio && probe.audioMime == null) error("La piste audio est absente du fichier : export refusé")
 
-                val uri = withContext(Dispatchers.IO) { GalleryExport.publish(this@MainActivity, out, "${sb.title} — CODJIA") }
+                val uri = withContext(Dispatchers.IO) { GalleryExport.publish(this@MainActivity, out, ImportPolicy.displayName("${sb.title} — CODJIA.mp4")) }
                 say("")
                 say("── Fichier produit (relu avec MediaExtractor)")
                 say("Vidéo         : ${probe.mime} ${if (probe.isH264) "✓" else "✗"} · ${probe.displayWidth}×${probe.displayHeight}" +
@@ -523,6 +537,11 @@ class MainActivity : ComponentActivity() {
                 say("ÉCHEC : ${e::class.simpleName} — ${e.message}")
                 e.cause?.let { say("Cause : ${it::class.simpleName} — ${it.message}") }
             } finally {
+                // Nettoyage : la piste WAV intermédiaire et la copie privée (la vidéo est dans la Galerie).
+                withContext(NonCancellable + Dispatchers.IO) {
+                    tmpBed?.delete()
+                    tmpOut?.let { f -> f.delete(); File(f.parentFile, f.nameWithoutExtension + ".part.mp4").delete() }
+                }
                 window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             }
         }

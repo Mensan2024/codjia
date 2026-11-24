@@ -4,7 +4,16 @@ name: APK du prototype CODJIA
 
 on:
   push:
+  pull_request:
   workflow_dispatch:
+
+# Moindre privilège : le jeton du workflow ne peut que lire le dépôt.
+permissions:
+  contents: read
+
+concurrency:
+  group: apk-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -17,15 +26,30 @@ jobs:
           distribution: temurin
           java-version: 17
       - uses: gradle/actions/setup-gradle@v5
+        with:
+          # Vérifie que gradle-wrapper.jar est bien celui publié par Gradle (anti-substitution).
+          validate-wrappers: true
       - name: Tests du moteur puis compilation de l'application
         run: |
           chmod +x gradlew
-          ./gradlew :engine-core:test :engine-jvm:test :demo-app:assembleDebug --stacktrace
+          ./gradlew :engine-core:test :engine-jvm:test :demo-app:assembleDebug :demo-app:assembleRelease --stacktrace
       - name: APK à télécharger
         uses: actions/upload-artifact@v5
         with:
           name: CODJIA-prototype-apk
           path: demo-app/build/outputs/apk/debug/*.apk
+      - name: Contrôle de l'APK (aucune permission réseau)
+        run: |
+          AAPT=$(ls "$ANDROID_HOME"/build-tools/*/aapt2 | sort -V | tail -1)
+          for apk in demo-app/build/outputs/apk/debug/*.apk demo-app/build/outputs/apk/release/*.apk; do
+            echo "== $apk"; "$AAPT" dump permissions "$apk" | tee perms.txt
+            if grep -E "INTERNET|ACCESS_NETWORK_STATE|EXTERNAL_STORAGE" perms.txt; then echo "Permission interdite"; exit 1; fi
+          done
+      - name: APK de publication (non signé, R8)
+        uses: actions/upload-artifact@v5
+        with:
+          name: CODJIA-release-non-signe
+          path: demo-app/build/outputs/apk/release/*.apk
       - name: Rapports de tests (même en cas d'échec)
         if: always()
         uses: actions/upload-artifact@v5

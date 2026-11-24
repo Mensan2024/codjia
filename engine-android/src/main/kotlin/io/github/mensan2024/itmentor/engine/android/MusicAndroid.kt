@@ -9,6 +9,7 @@ import android.media.MediaFormat
 import android.net.Uri
 import android.provider.OpenableColumns
 import io.github.mensan2024.itmentor.engine.AudioMix
+import io.github.mensan2024.itmentor.engine.ImportPolicy
 import io.github.mensan2024.itmentor.engine.MusicCategory
 import io.github.mensan2024.itmentor.engine.MusicChoice
 import io.github.mensan2024.itmentor.engine.MusicSource
@@ -47,48 +48,67 @@ object MusicCatalog {
      * L'URI est gardé dans `file` avec le préfixe « content: ».
      */
     fun fromUserFile(context: Context, uri: Uri): MusicTrack {
-        var name = "Ma musique"
-        context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
-            if (c.moveToFirst()) name = c.getString(0).substringBeforeLast('.')
+        require(uri.scheme == "content") { "Source non autorisée" }
+        var name: String? = null
+        var size: Long? = null
+        context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)?.use { c ->
+            if (c.moveToFirst()) {
+                if (!c.isNull(0)) name = c.getString(0)
+                if (!c.isNull(1)) size = c.getLong(1)
+            }
         }
         val ex = MediaExtractor()
-        var duration = 0L
+        var duration = 0L; var rate = 0; var channels = 0; var mime: String? = null
         try {
             ex.setDataSource(context, uri, null)
             for (i in 0 until ex.trackCount) {
                 val f = ex.getTrackFormat(i)
-                if (f.getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true && f.containsKey(MediaFormat.KEY_DURATION)) {
-                    duration = f.getLong(MediaFormat.KEY_DURATION) / 1000
+                val m = f.getString(MediaFormat.KEY_MIME)
+                if (m?.startsWith("audio/") == true) {
+                    mime = m
+                    if (f.containsKey(MediaFormat.KEY_DURATION)) duration = f.getLong(MediaFormat.KEY_DURATION) / 1000
+                    if (f.containsKey(MediaFormat.KEY_SAMPLE_RATE)) rate = f.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+                    if (f.containsKey(MediaFormat.KEY_CHANNEL_COUNT)) channels = f.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+                    break
                 }
             }
+        } catch (e: Exception) {
+            throw IllegalArgumentException("Ce fichier ne contient pas de piste audio lisible", e)
         } finally { ex.release() }
-        require(duration > 0) { "Ce fichier ne contient pas de piste audio lisible" }
-        return MusicTrack("import:${uri.hashCode()}", name, MusicCategory.DOUCE, 0, uri.toString(), duration,
+        ImportPolicy.checkAudio(size, duration, rate, channels, mime)?.let { throw IllegalArgumentException(it) }
+        // Identifiant stable sans exposer l'URI (qui peut contenir un chemin).
+        val id = "import:" + Integer.toHexString(uri.toString().hashCode())
+        return MusicTrack(id, ImportPolicy.displayName(name), MusicCategory.DOUCE, 0, uri.toString(), duration,
             "Fichier de l'utilisateur", "Importé par l'utilisateur, sous sa responsabilité", source = MusicSource.USER_IMPORT)
     }
 }
 
 /** Décodage d'une piste (AAC, MP3, OGG… selon le téléphone) en PCM 16 bits, avec les codecs d'Android. */
 object AudioDecoder {
-    fun decode(context: Context, track: MusicTrack): Pcm {
+    /** `maxMs` : durée utile ; le décodage s'arrête au-delà (mémoire bornée même pour un fichier de 30 min). */
+    fun decode(context: Context, track: MusicTrack, maxMs: Long = 60_000): Pcm {
         val ex = MediaExtractor()
         try {
             if (track.source == MusicSource.USER_IMPORT) ex.setDataSource(context, Uri.parse(track.file), null)
             else context.assets.openFd(track.file).use { fd -> ex.setDataSource(fd.fileDescriptor, fd.startOffset, fd.length) }
-            return decode(ex)
+            return decode(ex, maxMs)
         } finally {
             ex.release()
         }
     }
 
-    private fun decode(ex: MediaExtractor): Pcm {
+    private fun decode(ex: MediaExtractor, maxMs: Long): Pcm {
         val trackIndex = (0 until ex.trackCount).firstOrNull { ex.getTrackFormat(it).getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true }
             ?: error("Aucune piste audio")
         ex.selectTrack(trackIndex)
         val inFormat = ex.getTrackFormat(trackIndex)
-        val codec = MediaCodec.createDecoderByType(inFormat.getString(MediaFormat.KEY_MIME)!!)
+        val mime = inFormat.getString(MediaFormat.KEY_MIME)!!
         var rate = inFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE)
         var channels = inFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+        require(rate in ImportPolicy.SAMPLE_RATES && channels in ImportPolicy.CHANNELS) { "Format audio non pris en charge" }
+        var budget = ImportPolicy.pcmByteBudget(maxMs, rate, channels)
+        val deadline = android.os.SystemClock.elapsedRealtime() + ImportPolicy.DECODE_TIMEOUT_MS
+        val codec = MediaCodec.createDecoderByType(mime)
         val out = ByteArrayOutputStream()
         try {
             codec.configure(inFormat, null, null, 0)
@@ -97,6 +117,7 @@ object AudioDecoder {
             var inputDone = false
             var outputDone = false
             while (!outputDone) {
+                check(android.os.SystemClock.elapsedRealtime() < deadline) { "Décodage audio trop long : fichier refusé" }
                 if (!inputDone) {
                     val ii = codec.dequeueInputBuffer(10_000)
                     if (ii >= 0) {
@@ -120,12 +141,16 @@ object AudioDecoder {
                         ob.get(chunk)
                         out.write(chunk)
                     }
+                    // Assez de son pour couvrir la vidéo : on arrête là.
+                    if (out.size() >= budget) outputDone = true
                     codec.releaseOutputBuffer(oi, false)
                     if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) outputDone = true
                 } else if (oi == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                     val f = codec.outputFormat
                     rate = f.getInteger(MediaFormat.KEY_SAMPLE_RATE)
                     channels = f.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+                    require(rate in ImportPolicy.SAMPLE_RATES && channels in ImportPolicy.CHANNELS) { "Format audio non pris en charge" }
+                    budget = ImportPolicy.pcmByteBudget(maxMs, rate, channels)
                     if (f.containsKey(MediaFormat.KEY_PCM_ENCODING)) {
                         check(f.getInteger(MediaFormat.KEY_PCM_ENCODING) == AudioFormat.ENCODING_PCM_16BIT) { "Format PCM non pris en charge" }
                     }
@@ -135,7 +160,7 @@ object AudioDecoder {
             runCatching { codec.stop() }
             codec.release()
         }
-        val bytes = out.toByteArray()
+        val bytes = out.toByteArray().let { if (it.size > budget) it.copyOf(budget.toInt()) else it }
         val shorts = ShortArray(bytes.size / 2)
         ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(shorts)
         // Au-delà de la stéréo : on garde les deux premiers canaux.
@@ -150,7 +175,7 @@ object AudioDecoder {
     fun prepareBed(context: Context, choice: MusicChoice, totalMs: Long, workDir: File): File? {
         val track = choice.track ?: return null
         if (!choice.hasAudio) return null
-        val bed = AudioMix.musicBed(decode(context, track), totalMs, choice.volume.gain)
+        val bed = AudioMix.musicBed(decode(context, track, totalMs), totalMs, choice.volume.gain)
         workDir.mkdirs()
         return File(workDir, "musique_video.wav").apply { writeBytes(Wav.write(bed)) }
     }

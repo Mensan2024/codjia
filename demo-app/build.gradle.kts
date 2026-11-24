@@ -7,8 +7,8 @@ android {
         applicationId = "io.github.mensan2024.itmentor.prototype"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
-        versionName = "0.3-codjia"
+        versionCode = 4
+        versionName = "0.4-codjia"
     }
     signingConfigs {
         // Clé de développement FIXE, versionnée (ce n'est pas une clé de publication) :
@@ -22,7 +22,13 @@ android {
     }
     buildTypes {
         getByName("debug") { signingConfig = signingConfigs.getByName("debug") }
-        release { isMinifyEnabled = false }
+        // Version de publication : code réduit et obscurci par R8, ressources inutiles retirées.
+        // Elle n'est pas signée ici : la clé de publication ne doit jamais être dans le dépôt.
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
