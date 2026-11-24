@@ -12,12 +12,14 @@ import android.net.Uri
 import android.os.Debug
 import android.os.SystemClock
 import androidx.annotation.MainThread
+import androidx.media3.common.Effect
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.effect.BitmapOverlay
 import androidx.media3.effect.OverlayEffect
 import androidx.media3.effect.Presentation
+import androidx.media3.effect.TextureOverlay
 import androidx.media3.transformer.Composition
 import androidx.media3.transformer.DefaultEncoderFactory
 import androidx.media3.transformer.EditedMediaItem
@@ -129,9 +131,9 @@ class Media3VideoExporter(private val context: Context) {
 
         val effects = Effects(
             /* audioProcessors = */ ImmutableList.of(),
-            /* videoEffects = */ ImmutableList.of(
+            /* videoEffects = */ ImmutableList.of<Effect>(
                 Presentation.createForWidthAndHeight(format.width, format.height, Presentation.LAYOUT_SCALE_TO_FIT),
-                OverlayEffect(ImmutableList.of(overlay)),
+                OverlayEffect(ImmutableList.of<TextureOverlay>(overlay)),
             ),
         )
         val item = MediaItem.Builder()
