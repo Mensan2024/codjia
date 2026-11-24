@@ -1,0 +1,26 @@
+# Versions vérifiées en novembre 2026 dans la documentation officielle quand c'était possible ;
+# à confirmer à l'ouverture dans Android Studio (l'assistant de mise à jour propose les dernières).
+[versions]
+agp = "9.2.1"                 # AGP 9 : Kotlin intégré, Gradle 9.4.1 minimum
+kotlin = "2.2.21"             # pour le module JVM pur (engine-core, engine-jvm)
+media3 = "1.11.1"
+coroutines = "1.10.2"
+activity = "1.10.1"
+lifecycle = "2.8.7"
+annotation = "1.9.1"
+junit = "4.13.2"
+
+[libraries]
+media3-transformer = { module = "androidx.media3:media3-transformer", version.ref = "media3" }
+media3-effect = { module = "androidx.media3:media3-effect", version.ref = "media3" }
+media3-common = { module = "androidx.media3:media3-common", version.ref = "media3" }
+coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
+activity = { module = "androidx.activity:activity-ktx", version.ref = "activity" }
+lifecycle-runtime = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "lifecycle" }
+annotation = { module = "androidx.annotation:annotation", version.ref = "annotation" }
+junit = { module = "junit:junit", version.ref = "junit" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+android-library = { id = "com.android.library", version.ref = "agp" }
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
