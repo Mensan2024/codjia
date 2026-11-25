@@ -36,7 +36,7 @@ jobs:
           chmod +x gradlew
           ./gradlew :engine-core:test :engine-jvm:test :demo-app:assembleDebug :demo-app:assembleRelease --stacktrace
       - name: APK à télécharger
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: CODJIA-prototype-apk
           path: demo-app/build/outputs/apk/debug/*.apk
@@ -48,13 +48,13 @@ jobs:
             if grep -E "INTERNET|ACCESS_NETWORK_STATE|EXTERNAL_STORAGE" perms.txt; then echo "Permission interdite"; exit 1; fi
           done
       - name: APK de publication (non signé, R8)
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: CODJIA-release-non-signe
           path: demo-app/build/outputs/apk/release/*.apk
       - name: Rapports de tests (même en cas d'échec)
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: rapports-tests
           path: "**/build/reports/tests/"

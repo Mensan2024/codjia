@@ -42,7 +42,7 @@ jobs:
       - uses: actions/upload-pages-artifact@v4
         with:
           path: site
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: codjia-web
           path: codjia-web.zip
