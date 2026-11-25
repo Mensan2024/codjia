@@ -2,6 +2,26 @@
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [2.0.0] — 2026-11-25
+### Voix off dans la version web
+- **Voix off : oui / non** sur l'aperçu, comme dans l'application Android, avec choix de la langue (auto, français, anglais).
+- **Voix neuronales Piper** (français « siwis », anglais « alba », CC BY 4.0) exécutées dans le navigateur avec ONNX Runtime Web : rien n'est envoyé. La voix (≈ 63 Mo) se télécharge une seule fois et reste dans le cache du navigateur. Versions et empreintes figées dans `tools/voice/prepare_web_voice.sh`.
+- La musique baisse sous la voix ; le scénario s'allonge si la phrase le demande (plafond 59 s, lecture un peu accélérée si besoin). Même logique pour Android et le web (`Narration.prepare`, testée).
+
+### Ta propre musique
+- **Importer ma musique** (web et Android) : MP3, M4A, WAV, OGG… Le fichier reste sur l'appareil et réapparaît dans « Mes musiques » à la visite suivante ; une corbeille permet de le retirer.
+
+### Durée selon le texte
+- La durée suit la longueur du texte (≈ 5 s + 0,33 s par mot affiché, 12 à 59 s) au lieu de tendre vers la même valeur. Le message n'est jamais coupé.
+
+### Styles
+- **Infographie stylable** : palettes, fonds, polices, cadres, en-têtes, effets de titre et animations d'entrée viennent du moteur de styles (3 palettes et un fond de plus). La mention « Sécurité informatique pour tous » n'apparaît plus dans l'en-tête : CODJIA convient à tous les sujets.
+- Les décors partagés sont dans `KitDecor` (même rendu pour « Style unique », « Montage dynamique » et « Infographie »).
+
+### Interface web
+- Refonte : étapes Texte → Aperçu → Vidéo, estimation de durée pendant la saisie, aperçu avec pause, anneau de progression, boutons et cartes plus lisibles, mêmes polices que les vidéos.
+- **Mises à jour automatiques** : la page vérifie la version au lancement, au retour sur l'appli et toutes les 20 minutes, puis se recharge d'elle-même (jamais pendant la fabrication d'une vidéo).
+
 ## [1.9.0] — 2026-11-25
 ### Format « Infographie » enrichi (style des astuces cybersécurité)
 - **Schémas animés par étape**, choisis selon le contenu : attaque en direct (essais de mots de passe, cadenas forcé), barres de combinaisons (26⁶ → 309 millions, phrase de passe → milliards de milliards), chaîne MFA (code à 6 chiffres bloqué), compteur de tentatives et bannissement d'IP avec un terminal fail2ban, graphique des échecs d'authentification avec seuil d'alerte et commande `grep … /var/log/auth.log`.

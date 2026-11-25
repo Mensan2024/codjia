@@ -1,11 +1,12 @@
 # Politique de confidentialité de CODJIA
 
-*Dernière mise à jour : 24 novembre 2026. Éditeur : Mensan Moréno CODJIA (Ouagadougou, Burkina Faso), via le dépôt GitHub Mensan2024/codjia.*
+*Dernière mise à jour : 25 novembre 2026. Éditeur : Mensan Moréno CODJIA (Ouagadougou, Burkina Faso), via le dépôt GitHub Mensan2024/codjia.*
 
 **En résumé : CODJIA ne collecte, ne transmet et ne vend aucune donnée.**
 
 - **Pas d'accès à Internet.** L'application ne déclare pas la permission Internet. Elle ne peut techniquement rien envoyer.
 - **Pas de compte, pas de publicité, pas de mesure d'audience, pas de traceur.**
+- **Version web.** Le site (https://mensan2024.github.io/codjia/) ne contient aucun traceur ni mesure d'audience. Il télécharge uniquement ses propres fichiers (page, polices, musiques et, si vous activez la voix off, une voix de synthèse d'environ 63 Mo, une seule fois, gardée dans le cache de votre navigateur). Votre texte, votre voix off, votre musique importée et vos vidéos sont traités dans le navigateur et ne sont jamais envoyés. Une musique importée est gardée dans le stockage de votre navigateur pour la prochaine visite ; vous pouvez la retirer avec le bouton corbeille, ou en effaçant les données du site.
 - **Vos textes** restent dans l'application, sur votre téléphone. Ils servent uniquement à fabriquer la vidéo.
 - **Vos musiques importées** sont lues à partir du fichier que vous choisissez dans le sélecteur d'Android. L'application n'accède à aucun autre fichier.
 - **Vos vidéos** sont enregistrées dans votre Galerie (dossier *Movies/CODJIA*) uniquement quand vous le demandez. Les fichiers de travail sont effacés après chaque export.

@@ -165,6 +165,33 @@ class RenderTest {
         println("Styles modulables : $checked textes vérifiés")
     }
 
+    /** Infographie stylée : 30 styles tirés au hasard ; tout texte reste dans la zone sûre, titres et cadre jamais superposés. */
+    @Test fun lesInfographiesStyleesRestentDansLaZoneSure() {
+        val dir = listOf(File("engine-core/src/test/resources/textes"), File("../engine-core/src/test/resources/textes")).first { it.isDirectory }
+        val texts = listOf("astuce_026_force_brute.txt", "astuce_033_phishing_sections.txt", "systemes_linux.txt", "reseaux_vlan.txt", "marketing_linkedin.txt")
+        var checked = 0
+        for (seed in 301L..330L) {
+            val name = texts[(seed % texts.size).toInt()]
+            val p = io.github.mensan2024.itmentor.engine.CreativeDirector.propose(File(dir, name).readText(), seed, forcedLook = io.github.mensan2024.itmentor.engine.Look.INFOGRAPHIE)
+            val r = FrameRenderer(Composer.prepare(p.storyboard, p.template, null), VideoFormat.FULL_HD, p.template)
+            val kit = io.github.mensan2024.itmentor.engine.StyleKit.infographic(p.storyboard.seed)
+            var t = 700f
+            while (t < r.timeline.totalMs) {
+                if (r.timeline.at(t) is Moment.Single) {
+                    val rec = ArrayList<Pair<String, Rectangle2D>>()
+                    render(r, t, rec)
+                    for ((text, b) in rec.filter { it.second.height in 1.0..300.0 }) {
+                        val ok = b.minX >= Safe.LEFT - 2 && b.maxX <= Safe.RIGHT + 2 && b.minY >= 90.0 && b.maxY <= Safe.BOTTOM
+                        assertTrue("« $text » sort de la zone sûre ($name, graine $seed, ${kit.label}, ${kit.titleFont.family}, t=$t) : $b", ok)
+                        checked++
+                    }
+                }
+                t += 900f
+            }
+        }
+        println("Infographies stylées : $checked textes vérifiés")
+    }
+
     @Test fun le720pEstLaMemeCompositionQueLe1080p() {
         val hd = renderer(Templates.MODERN_EDUCATION, VideoFormat.HD)
         val fhd = renderer(Templates.MODERN_EDUCATION, VideoFormat.FULL_HD)

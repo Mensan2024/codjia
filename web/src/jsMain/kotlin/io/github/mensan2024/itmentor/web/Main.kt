@@ -641,7 +641,7 @@ private fun exportPage(): HTMLElement {
         progress(100)
         pct.textContent = "✓"
         ring.classList.add("ok")
-        status.textContent = "Vidéo prête · ${(r.ms / 1000).toInt()} s" + (if (mixed != null) " · voix off" else "") +
+        status.textContent = "Vidéo prête · ${(Timeline.build(sb).totalMs + 500) / 1000} s" + (if (mixed != null) " · voix off" else "") +
             (r.audioCodec?.let { "" } ?: if (track != null || mixed != null) " · sans son (ton navigateur ne sait pas encoder l'audio)" else "")
         App.lastVideoUrl?.let { old -> js("URL.revokeObjectURL(old)") }
         val bytes = uint8(r.bytes)

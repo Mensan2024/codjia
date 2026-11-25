@@ -7,10 +7,13 @@ CODJIA transforme **ton propre texte** en vidéo éducative verticale de 30 à 5
 **Version web (iPhone, Android, ordinateur) :** https://mensan2024.github.io/codjia/ — rien à installer, tout se passe sur ton appareil. Sur iPhone : Partager → « Sur l'écran d'accueil » pour l'avoir comme une appli.
 
 - **Domaines :** réseaux (CCNA, CCNP), systèmes (Windows, macOS, Linux, Android), cybersécurité, IA, développement fullstack, santé et longévité, marketing, anglais.
-- **Style unique à chaque vidéo :** un moteur de styles modulables combine palettes, fonds animés, polices, titres, cadres, sous-titres, transitions et mascotte (des milliers de combinaisons, filtrées par des règles de design).
+- **Style unique à chaque vidéo :** un moteur de styles modulables combine palettes, fonds animés, polices, titres, cadres, sous-titres, transitions et mascotte (plus de 500 000 combinaisons, filtrées par des règles de design).
 - **11 formats :** style unique, montage dynamique (tutoriel animé avec sous-titres mot à mot et mascotte), motion design, tableau blanc (main qui écrit), démo à l'écran, personnage animé, éditorial chic, explicatif néon, collage, cinéma, infographie (schémas animés).
 - **Tout ton texte est montré**, sans résumé, en 30 à 59 s selon sa longueur.
-- **Voix off au choix** (oui/non, français, anglais ou automatique) et 13 musiques originales rythmées, avec basses (afro, trap, phonk, EDM, house…), plus longues que la vidéo : jamais de coupure.
+- **Durée selon ton texte** : environ 5 s plus 1/3 de seconde par mot affiché, jamais plus de 59 s (un message de 15 mots donne ~12 s, un texte de 100 mots ~38 s).
+- **Voix off au choix** (oui/non, français, anglais ou automatique) : sur Android, la synthèse vocale du téléphone ; dans le navigateur, des voix neuronales Piper exécutées sur l'appareil (téléchargées une seule fois).
+- **Ta propre musique** : importe un MP3, M4A, WAV ou OGG depuis ton appareil (Android et web) ; elle reste dans « Mes musiques ». Sinon, 13 musiques originales rythmées avec basses (afro, trap, phonk, EDM, house…), plus longues que la vidéo : jamais de coupure.
+- **Mises à jour automatiques** de la version web : chaque nouvelle version arrive chez tout le monde au prochain lancement.
 - **Démonstrations pas à pas** sur Windows, macOS, Ubuntu et console Cisco, pour les sujets de la bibliothèque.
 - **Aucune permission :** pas de réseau, pas de collecte.
 
