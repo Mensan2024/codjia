@@ -73,7 +73,7 @@ internal class MontageLook(private val sb: Storyboard) : LookRenderer {
     private val stop = setOf("des", "les", "de", "la", "le", "en", "à", "du", "et", "un", "une", "pour", "sur", "avec", "par", "dans", "au", "aux", "qui", "que", "ou", "si", "tu", "ne", "il", "on", "je", "ce", "se", "ton", "ta", "tes", "the", "a", "to", "of", "and", "d'", "l'")
 
     /** Titre court : avant « : » ou « ( », 6 mots au plus, sans finir sur un petit mot (« des », « les »…). */
-    private fun short(s: String, max: Int = 6): String {
+    private fun short(s: String, max: Int = 8): String {
         val cut = plain(s).split(Regex(" : | \\(|, | — ")).first().trim().trimEnd('.', '!', ':')
         val w = cut.split(' ').filter { it.isNotBlank() }.take(max).toMutableList()
         while (w.size > 1 && w.last().lowercase() in stop) w.removeAt(w.lastIndex)

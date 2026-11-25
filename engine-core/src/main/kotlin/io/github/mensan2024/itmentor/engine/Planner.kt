@@ -43,7 +43,12 @@ data class TextAnalysis(
     val closing: String?,
     val hashtags: List<String>,
     val domain: Domain,
+    /** Toutes les parties du texte, dans l'ordre de l'auteur (rien n'est perdu). */
+    val sections: List<TextSection> = emptyList(),
 )
+
+/** Une partie du texte : un en-tête facultatif (« Comment l'éviter »), des phrases d'explication et/ou une liste. */
+data class TextSection(val header: String?, val prose: List<String>, val items: List<String>)
 
 /**
  * Transforme un texte libre (astuce, post LinkedIn, notes de cours) en storyboard prêt à habiller.
@@ -59,6 +64,8 @@ object StoryboardPlanner {
     private val TITLE_RE = Regex("^(?:astuce|tip|conseil)\\b[^\\d\\n]{0,40}?0*(\\d{1,4})\\s*[—–:\\-]+\\s*(.+)$", RegexOption.IGNORE_CASE)
     /** « Astuce santé — … », « English tip — … » : préfixe sans numéro. */
     private val PREFIX_RE = Regex("^(?:astuce|tip|english tip|conseil|dev tip)\\b[^—–:\\n]{0,30}\\s[—–:]\\s*(.+)$", RegexOption.IGNORE_CASE)
+    /** « Comment l'éviter : texte… » sur une seule ligne : en-tête de partie suivi du contenu. */
+    private val SECTION_RE = Regex("^((?:comment|pourquoi|que faire|quoi faire|les bons? réflexes?|le bon réflexe|bons? réflexes?|conseils?|astuces?|actions?|à faire|a faire|à éviter|a eviter|signes?|exemples?|attention|important|risques?|conséquences?|consequences?|how to|why|what to do|tips?)[^:]{0,45})\\s:\\s*(.{3,})$", RegexOption.IGNORE_CASE)
     private val BULLET_RE = Regex("^(?:[-*–+]|\\d{1,2}[.)])\\s+(.+)$")
     private val CONCLUSION_RE = Regex("^(?:à retenir|a retenir|en résumé|en resume|conclusion|retenez|retiens|l'essentiel|to remember|remember|key takeaway|takeaway)\\s*[:!]?\\s*(.*)$", RegexOption.IGNORE_CASE)
     private val HASHTAG_RE = Regex("#([\\p{L}0-9_]{2,40})")
@@ -102,38 +109,57 @@ object StoryboardPlanner {
         }
         title = title.trim().trimEnd('.', ':').trim()
 
-        // Sections : en-têtes « … : », puces, lignes courtes qui suivent un en-tête.
-        val intro = ArrayList<String>()
-        val lists = ArrayList<Pair<String?, MutableList<String>>>()
-        var conclusion: String? = null
-        var current: Pair<String?, MutableList<String>>? = null
-        val leftovers = ArrayList<String>()
-        for (line in rest) {
+        // Sections dans l'ordre de l'auteur : en-têtes « … : » (seuls sur leur ligne ou suivis du texte),
+        // puces, lignes courtes, paragraphes. Rien n'est jeté : un paragraphe après une liste devient une
+        // explication à sa place, et la partie « À retenir » garde toutes ses lignes.
+        class Raw(val header: String?) { val entries = ArrayList<Pair<Boolean, String>>() }
+        val raws = ArrayList<Raw>()
+        var cur: Raw? = null
+        val conclusionParts = ArrayList<String>()
+        var inConclusion = false
+        for (line0 in rest) {
+            var line = line0
             val c = CONCLUSION_RE.find(line)
-            if (c != null) { conclusion = c.groupValues[1].trim().ifEmpty { null }; current = null; continue }
+            if (c != null) { inConclusion = true; cur = null; c.groupValues[1].trim().takeIf { it.isNotEmpty() }?.let { conclusionParts += it }; continue }
             if (bad.any { it == line } || good.any { it == line }) continue
-            val b = BULLET_RE.find(line)
-            val isHeader = line.endsWith(":") && line.length <= 70
-            when {
-                isHeader -> { current = line.trimEnd(':').trim() to ArrayList(); lists += current!! }
-                b != null -> {
-                    if (current == null) { current = null to ArrayList(); lists += current!! }
-                    current!!.second += b.groupValues[1].trim()
-                }
-                current != null && line.length <= 150 && sentences(line).size <= 2 -> current!!.second += line
-                lists.isEmpty() -> intro += line
-                else -> { leftovers += line; current = null }
+            if (line.endsWith(":") && line.length <= 70 && BULLET_RE.find(line) == null) {
+                inConclusion = false; cur = Raw(line.trimEnd(':').trim()); raws += cur; continue
             }
+            val sp = SECTION_RE.find(line)
+            if (sp != null && BULLET_RE.find(line) == null) {
+                inConclusion = false; cur = Raw(sp.groupValues[1].trim()); raws += cur
+                line = sp.groupValues[2].trim().replaceFirstChar { it.uppercase() }
+            }
+            val b = BULLET_RE.find(line)
+            if (inConclusion) { conclusionParts += (b?.groupValues?.get(1) ?: line).trim(); continue }
+            if (cur == null) { cur = Raw(null); raws += cur }
+            cur.entries += (b != null) to (b?.groupValues?.get(1) ?: line).trim()
         }
-        // Un en-tête suivi d'un seul paragraphe long est en fait une explication (« Apprentissage technique : … »).
-        val realLists = ArrayList<Pair<String?, List<String>>>()
-        for ((h, items) in lists) {
-            if (items.isEmpty()) continue
-            if (items.size == 1 || (h != null && looksExplanatory(h))) intro += items else realLists += h to items
+        fun isShort(l: String) = l.length <= 150 && sentences(l).size <= 2
+        val sections = ArrayList<TextSection>()
+        for (rw in raws) {
+            if (rw.entries.isEmpty()) continue
+            val texts = rw.entries.map { it.second }
+            val section = when {
+                rw.header != null && looksExplanatory(rw.header) -> TextSection(rw.header, texts.flatMap { sentences(it) }, emptyList())
+                rw.entries.any { it.first } -> {
+                    // Puces + lignes courtes = la liste ; les paragraphes longs restent des explications.
+                    val items = rw.entries.filter { it.first || isShort(it.second) }.map { it.second }
+                    val prose = rw.entries.filter { !it.first && !isShort(it.second) }.flatMap { sentences(it.second) }
+                    TextSection(rw.header, prose, items)
+                }
+                rw.header != null && texts.size >= 2 && texts.all(::isShort) -> TextSection(rw.header, emptyList(), texts)
+                else -> TextSection(rw.header, texts.flatMap { sentences(it) }, emptyList())
+            }
+            // Une liste d'un seul élément est en fait une explication.
+            sections += if (section.items.size == 1) TextSection(section.header, section.prose + sentences(section.items.first()), emptyList()) else section
         }
-        val closing = leftovers.lastOrNull()?.takeIf { it.length <= 120 }
+        val intro = sections.flatMap { it.prose }
+        val realLists = sections.filter { it.items.isNotEmpty() }.map { it.header to it.items }
+        val conclusion = conclusionParts.takeIf { it.isNotEmpty() }?.joinToString(" ") { p -> p.trim().let { if (it.endsWith(".") || it.endsWith("!") || it.endsWith("?")) it else "$it." } }
+        val closing: String? = null
         val domain = DomainDetector.detect(text)
-        return TextAnalysis(title, number, intro.flatMap { sentences(it) }, realLists, bad, good, conclusion, closing, hashtags, domain)
+        return TextAnalysis(title, number, intro, realLists, bad, good, conclusion, closing, hashtags, domain, sections)
     }
 
     private fun looksExplanatory(header: String): Boolean {
@@ -193,6 +219,17 @@ object StoryboardPlanner {
         return w.joinToString(" ").trimEnd(',', ';', ':', ' ')
     }
 
+    /** Phrase très longue : coupée aux virgules en morceaux d'au plus ~240 caractères (rien n'est retiré). */
+    private fun splitLong(s: String): List<String> {
+        val out = ArrayList<String>(); var cur = StringBuilder()
+        for (part in s.split(Regex("(?<=,) "))) {
+            if (cur.isNotEmpty() && cur.length + part.length + 1 > 240) { out += cur.toString().trim(); cur = StringBuilder() }
+            cur.append(part).append(' ')
+        }
+        if (cur.isNotBlank()) out += cur.toString().trim()
+        return out
+    }
+
     private fun shorten(s: String, maxChars: Int): String {
         if (s.length <= maxChars) return s
         val cut = s.take(maxChars).substringBeforeLast(' ')
@@ -213,7 +250,7 @@ object StoryboardPlanner {
                 return cap(label) + " : " + (if (sep.trim() in listOf("pour", "afin", "avec", "sur", "lorsque", "quand")) sep.trim() + " " else "") + detail
             }
         }
-        return cap(shorten(s, 90))
+        return cap(s) // jamais tronqué : tout le texte de l'auteur est montré
     }
 
     /** L'idée principale d'un élément de liste, en peu de mots (pour le récapitulatif). */
@@ -290,64 +327,84 @@ object StoryboardPlanner {
             else ILLUSTRATION.getValue(d)
 
         val scenes = ArrayList<Scene>()
-        // 1. Couverture.
-        val heroSub = a.intro.firstOrNull()?.takeIf { it.length <= 130 && !it.endsWith(":") }
+        // 1. Couverture : la première phrase d'introduction sert de sous-titre.
+        val firstSec = a.sections.firstOrNull()
+        val introSec = firstSec?.takeIf { it.header == null || looksExplanatory(it.header) }
+        val heroSub = introSec?.prose?.firstOrNull()?.takeIf { it.length <= 130 && !it.endsWith(":") }
         val kicker = a.number?.let { n -> "${d.kicker} N°${n.padStart(3, '0')}" } ?: d.kicker
         scenes += Scene(id = "s-hero", layout = Layout.HERO, durationMs = 1, kicker = kicker,
             title = frenchTypo(emphasize(cap(a.title), d)), subtitle = heroSub?.let(::frenchTypo), illustration = heroIllustration,
             icon = icons.first(), variant = variant())
-        val introRest = if (heroSub != null) a.intro.drop(1) else a.intro
 
-        // 2. Définition / explication.
-        // Tout le texte est déroulé, sans résumé : les phrases sont regroupées par ~240 caractères (jamais coupées),
-        // une scène d'explication par groupe.
-        val groups = ArrayList<List<String>>()
-        run {
-            var cur = ArrayList<String>()
-            for (sentence in introRest) {
-                if (cur.isNotEmpty() && cur.sumOf { it.length + 1 } + sentence.length > 240) { groups += cur; cur = ArrayList() }
-                cur += sentence
-            }
-            if (cur.isNotEmpty()) groups += cur
-        }
-        for ((gi, picked) in groups.withIndex()) {
-            val body = shorten(picked.joinToString(" "), 300)
-            val defTitle = if (gi > 0) (if (english) "And also" else pick(listOf("Et *aussi*", "À *savoir*", "*Concrètement*")))
-                else if (english) pick(listOf("The idea", "In short", "Why it matters"))
-                else pick(listOf("Le *principe*", "Ce qu’il faut *savoir*", "*Pourquoi* c’est important$NB?", "*Comprendre* en 10 secondes"))
-            scenes += Scene(id = if (gi == 0) "s-def" else "s-def$gi", layout = Layout.DEFINITION, durationMs = 1,
-                kicker = if (english) "DEFINITION" else pick(listOf("DÉFINITION", "LE SAVIEZ-VOUS$NB?", "EN BREF")),
-                icon = icons[1 % icons.size], shape = listOf(ShapeKind.HEXAGON, ShapeKind.RING, ShapeKind.DIAMOND)[(r.nextInt() ushr 1) % 3],
-                title = defTitle, body = frenchTypo(body), variant = variant())
-        }
-
-        // 3. Étapes : la plus longue liste (coupée en deux scènes au-delà de 5 éléments).
-        // Toutes les listes, tous les éléments : rien n'est résumé ni coupé (5 éléments au plus par scène).
+        // 2. Tout le texte, dans l'ordre de l'auteur : chaque partie donne ses scènes d'explication
+        // (phrases regroupées par ~240 caractères, jamais coupées) puis ses étapes (5 au plus par scène).
+        // Une partie « Comment l'éviter » ou « Comment se protéger » a donc ses propres scènes, avec ce titre.
         val main = a.lists.maxByOrNull { it.second.size }
         val stepScenes = ArrayList<Scene>()
-        for ((li, list) in a.lists.withIndex()) {
-            val items = list.second.map { frenchTypo(item(it)) }
-            if (items.isEmpty()) continue
-            val nChunks = (items.size + 4) / 5
-            val per = (items.size + nChunks - 1) / nChunks
-            val chunks = items.chunked(per)
-            val baseTitle = list.first?.let { h -> cap(h.trimEnd(':').trim()) }
-            for ((k, chunk) in chunks.withIndex()) {
-                val t = when {
-                    baseTitle != null && baseTitle.length in 4..42 -> baseTitle + if (chunks.size > 1) " (${k + 1}/${chunks.size})" else ""
-                    english -> "Step by step"
-                    else -> pick(listOf("Les bons réflexes", "Comment faire$NB?", "Étape par étape", "Passe à l’action"))
+        var defCount = 0
+        for ((si, sec) in a.sections.withIndex()) {
+            val prose = if (sec === introSec && heroSub != null) sec.prose.drop(1) else sec.prose
+            val headed = sec.header?.takeIf { !looksExplanatory(it) && it.length in 3..48 }?.let { cap(it.trimEnd(':').trim()) }
+            val groups = ArrayList<List<String>>()
+            var curG = ArrayList<String>()
+            val pieces = prose.flatMap { sn -> if (sn.length <= 240) listOf(sn) else splitLong(sn) }
+            for (sentence in pieces) {
+                if (curG.isNotEmpty() && curG.sumOf { it.length + 1 } + sentence.length > 240) { groups += curG; curG = ArrayList() }
+                curG += sentence
+            }
+            if (curG.isNotEmpty()) groups += curG
+            for ((gi, picked) in groups.withIndex()) {
+                val body = picked.joinToString(" ")
+                val defTitle = when {
+                    headed != null -> emphasize(headed, d) + if (groups.size > 1) " (${gi + 1}/${groups.size})" else ""
+                    defCount > 0 -> if (english) "And also" else pick(listOf("Et *aussi*", "À *savoir*", "*Concrètement*"))
+                    english -> pick(listOf("The idea", "In short", "Why it matters"))
+                    else -> pick(listOf("Le *principe*", "Ce qu’il faut *savoir*", "*Pourquoi* c’est important$NB?", "*Comprendre* en 10 secondes"))
                 }
-                stepScenes += Scene(id = if (li == 0) "s-steps$k" else "s-steps$li-$k", layout = Layout.STEPS, durationMs = 1, icon = icons.last(),
-                    title = frenchTypo(emphasize(t, d)), items = chunk.take(5), variant = variant())
+                scenes += Scene(id = if (defCount == 0) "s-def" else "s-def$si-$gi", layout = Layout.DEFINITION, durationMs = 1,
+                    kicker = when {
+                        english -> "DEFINITION"
+                        headed != null -> pick(listOf("SENSIBILISATION", "LE BON RÉFLEXE", "À SAVOIR"))
+                        else -> pick(listOf("DÉFINITION", "LE SAVIEZ-VOUS$NB?", "EN BREF"))
+                    },
+                    icon = icons[1 % icons.size], shape = listOf(ShapeKind.HEXAGON, ShapeKind.RING, ShapeKind.DIAMOND)[(r.nextInt() ushr 1) % 3],
+                    title = frenchTypo(defTitle), body = frenchTypo(body), variant = variant())
+                defCount++
+            }
+            val items = sec.items.map { frenchTypo(item(it)) }
+            if (items.size >= 2) {
+                val nChunks = (items.size + 4) / 5
+                val per = (items.size + nChunks - 1) / nChunks
+                val chunks = items.chunked(per).let { ch -> if (ch.size > 1 && ch.last().size < 2) ch.dropLast(2) + listOf(ch[ch.size - 2] + ch.last()) else ch }
+                for ((k, chunk) in chunks.withIndex()) {
+                    val t = when {
+                        headed != null && headed.length in 4..42 -> headed + if (chunks.size > 1) " (${k + 1}/${chunks.size})" else ""
+                        english -> "Step by step"
+                        else -> pick(listOf("Les bons réflexes", "Comment faire$NB?", "Étape par étape", "Passe à l’action"))
+                    }
+                    val sc = Scene(id = if (stepScenes.isEmpty()) "s-steps$k" else "s-steps$si-$k", layout = Layout.STEPS, durationMs = 1, icon = icons.last(),
+                        title = frenchTypo(emphasize(t, d)), items = chunk, variant = variant())
+                    stepScenes += sc
+                    scenes += sc
+                }
             }
         }
 
         // 4. Comparaison explicite (❌ / ✅).
         val compare = if (a.bad.isNotEmpty() && a.good.isNotEmpty()) Scene(id = "s-cmp", layout = Layout.COMPARE, durationMs = 1,
             kicker = if (english) "WRONG / RIGHT" else "À ÉVITER / À FAIRE", title = if (english) "*Wrong* or *right*?" else "*Vrai* ou *faux*$NB?",
-            compare = Compare(if (english) "Avoid" else "À éviter", listOf(Span(shorten(a.bad.first(), 60), true)),
-                if (english) "Do" else "À faire", listOf(Span(shorten(a.good.first(), 60)))), variant = variant()) else null
+            compare = Compare(if (english) "Avoid" else "À éviter", listOf(Span(a.bad.first(), true)),
+                if (english) "Do" else "À faire", listOf(Span(a.good.first()))), variant = variant()) else null
+        // Les autres lignes ❌ / ✅ (au-delà de la première paire) ne sont pas perdues : elles forment leur propre liste.
+        val extraBad = if (compare != null) a.bad.drop(1) else a.bad
+        val extraGood = if (compare != null) a.good.drop(1) else a.good
+        for ((label, list) in listOf((if (english) "Avoid" else "À *éviter*") to extraBad, (if (english) "Do" else "À *faire*") to extraGood)) {
+            if (list.isEmpty()) continue
+            scenes += if (list.size >= 2) Scene(id = "s-x-${label.hashCode()}", layout = Layout.STEPS, durationMs = 1, icon = icons.last(),
+                title = frenchTypo(label), items = list.map { frenchTypo(item(it)) }, variant = variant())
+            else Scene(id = "s-x-${label.hashCode()}", layout = Layout.DEFINITION, durationMs = 1, kicker = if (english) "TIP" else "LE BON RÉFLEXE",
+                icon = icons[1 % icons.size], title = frenchTypo(label), body = frenchTypo(list.first()), variant = variant())
+        }
 
         // 5. Chiffre clé : le premier nombre accompagné d'une unité parlante.
         val stat = findStat(a)?.let { (value, sentence) ->
@@ -373,13 +430,13 @@ object StoryboardPlanner {
             title = if (takeaways.isEmpty()) (if (english) "*Follow* for more" else "*Abonne-toi* pour la suite")
                 else if (english) "*Remember*" else pick(listOf("*À retenir*", "*L’essentiel*", "*En résumé*")),
             items = takeaways.map { cap(frenchTypo(it)) },
-            subtitle = (a.closing ?: a.conclusion?.takeIf { takeaways.size < 2 })?.let { frenchTypo(shorten(it, 120)) },
+            // Pas de doublon : la conclusion n'est en sous-titre que si elle n'est pas déjà la liste.
+            subtitle = (a.closing ?: a.conclusion?.takeIf { takeaways.isEmpty() })?.let { frenchTypo(it) },
             body = if (english) pick(listOf("Share it with a friend", "Save this tip")) else pick(listOf("Partage à quelqu’un qui en a besoin", "Enregistre cette astuce", "Partage cette astuce")),
             exit = AnimSpec(AnimType.FADE_OUT, 600, easing = Easing.EASE_IN), variant = variant())
 
         // Ordre : la graine peut avancer le chiffre clé ou la comparaison, pour varier le récit.
         val middle = ArrayList<Scene>()
-        middle += stepScenes
         val extras = listOfNotNull(compare, stat).let { if (seed != 0L && r.next() < 0.5f) it.reversed() else it }
         if (seed != 0L && extras.isNotEmpty() && r.next() < 0.35f) middle.add(0, extras.first()) else middle += extras.take(1)
         middle += extras.drop(1).filter { it !in middle }

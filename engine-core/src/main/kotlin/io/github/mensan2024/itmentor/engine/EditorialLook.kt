@@ -23,7 +23,7 @@ internal class EditorialLook(private val sb: Storyboard) : LookRenderer {
     private val italic = FontSpec(FontFamily.CINEMA_ITALIC, 400, 120f)
     private val sans = FontSpec(FontFamily.TEXT, 400, 40f)
     private val caps = FontSpec(FontFamily.TEXT, 600, 26f)
-    private val L = Safe.LEFT + 20f
+    private val L = Safe.LEFT + 34f
     private val R = Safe.RIGHT - 20f
 
     override fun scene(g: Gfx, slot: Slot, localMs: Float, tGlobalMs: Float) {
@@ -79,7 +79,16 @@ internal class EditorialLook(private val sb: Storyboard) : LookRenderer {
     private fun headline(g: Gfx, sc: Scene, key: String, size: Float, x: Float, top: Float, w: Float, lines: Int, t: Float, delay: Float, align: Align = Align.LEFT): Float {
         val marked = Marked.parse(sc.title)
         val f = serif.withSize(size)
-        val b = cache.fit(g, key, marked.plain, f, w, lines, 1.02f)
+        // Les mots mis en valeur sont en italique, un peu plus larges : on resserre jusqu'à ce que chaque ligne tienne.
+        var fitW = w
+        var b = cache.fit(g, key, marked.plain, f, fitW, lines, 1.02f)
+        repeat(4) {
+            val rr = MarkedText.runs(b, marked)
+            val fiw = italic.withSize(b.font.size)
+            if (b.lines.indices.all { MarkedText.lineWidth(g, rr[it], b.font, fiw) <= w }) return@repeat
+            fitW *= 0.93f
+            b = cache.fit(g, "$key/$fitW", marked.plain, f, fitW, lines, 1.02f)
+        }
         val runs = MarkedText.runs(b, marked)
         val fi = italic.withSize(b.font.size)
         for (i in b.lines.indices) {

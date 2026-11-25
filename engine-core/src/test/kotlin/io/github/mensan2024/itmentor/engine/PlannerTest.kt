@@ -36,6 +36,24 @@ class PlannerTest {
         }
     }
 
+    /** Tout le message est montré : chaque mot (4 lettres ou plus) des phrases et des listes se retrouve dans la vidéo. */
+    @Test fun toutLeTexteEstMontreSansResume() {
+        fun words(t: String) = Regex("[\\p{L}]{4,}").findAll(t.lowercase().replace('’', '\'')).map { it.value }.toSet()
+        for ((name, text) in Fixtures.ALL) for (seed in 0L..3L) {
+            val p = CreativeDirector.propose(text, seed)
+            val sb = Composer.prepare(p.storyboard, p.template, null)
+            val shown = words(sb.scenes.joinToString(" ") { sc ->
+                listOf(sc.title, sc.body, sc.subtitle ?: "", sc.kicker ?: "").joinToString(" ") + " " + sc.items.joinToString(" ") +
+                    (sc.compare?.let { c -> " " + (c.badValue + c.goodValue).joinToString(" ") { sp -> sp.text } } ?: "")
+            }.replace("*", ""))
+            val source = text.lines().drop(1).map { it.trim() }
+                .filter { it.isNotEmpty() && !(it.endsWith(":") && it.length <= 70) && !it.startsWith("#") }
+                .map { l -> l.replace(Regex("#\\S+"), "").replace("*", "").let { x -> if (Regex("^[^:]{2,45}\\s:\\s").containsMatchIn(x)) x.substringAfter(" : ") else x } }
+            val missing = source.flatMap { words(it) }.filter { it !in shown }.distinct()
+            assertTrue("$name/$seed : mots absents de la vidéo : $missing", missing.isEmpty())
+        }
+    }
+
     @Test fun domainesDesTextesDeReference() {
         val expected = mapOf(
             "astuce_022_rdp" to Domain.CYBER, "astuce_024_audit" to Domain.CYBER, "astuce_025_certificats" to Domain.CYBER,

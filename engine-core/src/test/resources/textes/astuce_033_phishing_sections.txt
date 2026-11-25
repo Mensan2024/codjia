@@ -1,0 +1,12 @@
+Astuce 033 — Reconnais un SMS piégé avant de cliquer
+Un SMS piégé imite ta banque, un transporteur ou un service public pour te pousser à cliquer sur un lien.
+Comment le reconnaître :
+- Un message urgent qui te met la pression
+- Un lien raccourci ou une adresse qui ne correspond pas au site officiel
+- Une demande de code, de mot de passe ou de paiement
+Comment l'éviter :
+Ne clique jamais sur un lien reçu par SMS sans vérifier l'expéditeur, même si le message semble venir d'un proche ou d'un service que tu utilises tous les jours.
+Ouvre plutôt toi-même l'application officielle ou tape l'adresse du site dans ton navigateur.
+Comment se comporter si tu as cliqué : change tout de suite le mot de passe concerné, préviens ta banque et signale le message au 33700.
+À retenir : vérifie toujours avant de cliquer.
+#securiteinformatiquepourtous

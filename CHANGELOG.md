@@ -2,6 +2,24 @@
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [1.5.2] — 2026-11-25
+### Corrections
+- **Parties du texte perdues.** Quand une partie (« Comment l'éviter : », « Comment se protéger : »…) contenait des phrases plutôt qu'une courte liste, elle était jetée, et la vidéo passait directement à « L'essentiel ». Désormais :
+  - toutes les parties sont gardées, dans l'ordre du texte ;
+  - chaque partie a ses propres scènes, avec son titre (« Comment l'éviter », « Comment se comporter si tu as cliqué ») : des explications pour les phrases, des étapes pour les listes ;
+  - les en-têtes sur la même ligne que le texte (« Comment se comporter : change… ») sont reconnus.
+- Autres pertes de texte corrigées :
+  - les éléments de liste longs ne sont plus tronqués ;
+  - les phrases très longues sont coupées aux virgules au lieu d'être raccourcies ;
+  - toutes les lignes ❌/✅ sont montrées, pas seulement la première paire ;
+  - toutes les lignes de la partie « À retenir » sont gardées.
+- La conclusion n'est plus dite deux fois à la fin.
+- Format Éditorial : un titre avec un mot en italique pouvait déborder de l'écran.
+- Montage dynamique : titres jusqu'à 8 mots (« Comment se comporter si tu as cliqué »).
+- Tests :
+  - nouveau test qui vérifie que **chaque mot du texte de l'auteur apparaît dans la vidéo** ;
+  - les scripts de test s'arrêtent désormais sur toute erreur de compilation (avant, ils pouvaient tourner sur une ancienne version des tests).
+
 ## [1.5.1] — 2026-11-25
 ### Corrections
 - Aperçu figé au-delà de 48 s : la musique boucle désormais dans l'aperçu (comme à l'export), et l'image suit sa propre horloge.
