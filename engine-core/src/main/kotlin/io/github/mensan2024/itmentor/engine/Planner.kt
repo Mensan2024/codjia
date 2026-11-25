@@ -488,28 +488,41 @@ object StoryboardPlanner {
         return s.copy(durationMs = (base + read).coerceIn(lo, hi))
     }
 
-    /** Durée selon le texte : 30 à 59 s. Au-delà, on retire les scènes facultatives puis on resserre. */
+    /** Nombre de mots montrés à l'écran (le texte de l'auteur, sans les mentions automatiques). */
+    fun wordsShown(sb: Storyboard): Int = sb.scenes.filter { it.layout != Layout.SCREEN && it.id != "s-end" }.sumOf { s ->
+        listOfNotNull(Marked.strip(s.title), s.subtitle, s.body, s.statValue).plus(s.items)
+            .plus(s.compare?.let { listOf(it.badText(), it.goodText()) } ?: emptyList())
+            .sumOf { t -> t.split(Regex("\\s+")).count { w -> w.any { it.isLetterOrDigit() } } }
+    }
+
+    /**
+     * Durée visée, proportionnelle au texte : ~5 s d'ouverture et de fin + 0,33 s par mot affiché
+     * (vitesse de lecture confortable sur téléphone). 15 mots ≈ 12 s, 70 mots ≈ 28 s, 100 mots ≈ 38 s,
+     * 160 mots ≈ 58 s. Jamais plus de 59 s.
+     */
+    fun targetMs(words: Int): Int = (5_000 + words * 330).coerceIn(12_000, SOFT_MAX_MS)
+
+    /** Durée selon le texte (voir [targetMs]) : on étire ou resserre doucement vers la cible, sans couper le message. */
     private fun fit(sb: Storyboard): Storyboard {
         val overlap = 600
         fun total(sc: List<Scene>) = sc.sumOf { it.durationMs } - overlap * (sc.size - 1)
         var scenes = sb.scenes
+        val target = targetMs(wordsShown(sb))
         // Le texte de l'auteur n'est jamais retiré : seul le chiffre clé (déjà présent dans le texte) peut l'être.
-        val dropOrder = listOf("s-stat")
-        // Durée selon le contenu, entre 30 et 59 s. Au-delà de 58 s, on retire les scènes facultatives
-        // puis on resserre ; en deçà de 30 s, on n'étire que modérément (×1,3 au plus) pour garder du rythme.
-        for (id in dropOrder) { if (total(scenes) <= SOFT_MAX_MS) break; scenes = scenes.filter { it.id != id } }
+        if (total(scenes) > target + 4_000) scenes = scenes.filter { it.id != "s-stat" || scenes.size <= 3 }
         val t = total(scenes)
-        if (t > SOFT_MAX_MS) {
-            val k = (SOFT_MAX_MS.toDouble() + overlap * (scenes.size - 1)) / scenes.sumOf { it.durationMs }
-            scenes = scenes.map { it.copy(durationMs = max(3_200, (it.durationMs * k).toInt())) }
-            // Texte très long : on resserre encore (2 s au moins par scène) plutôt que de couper le message.
-            if (total(scenes) > SOFT_MAX_MS) {
-                val k2 = (SOFT_MAX_MS.toDouble() + overlap * (scenes.size - 1)) / scenes.sumOf { it.durationMs }
-                scenes = scenes.map { it.copy(durationMs = max(2_000, (it.durationMs * k2).toInt())) }
-            }
-        } else if (t < MIN_MS) {
-            val k = ((MIN_MS + 500.0 + overlap * (scenes.size - 1)) / scenes.sumOf { it.durationMs }).coerceAtMost(1.3)
+        if (t > target) {
+            // Resserrer vers la cible : 2,4 s au moins par scène, et jamais sous 78 % de la durée de lecture.
+            val k = ((target.toDouble() + overlap * (scenes.size - 1)) / scenes.sumOf { it.durationMs }).coerceAtLeast(0.78)
+            scenes = scenes.map { it.copy(durationMs = max(2_400, (it.durationMs * k).toInt())) }
+        } else if (t < target) {
+            val k = ((target + overlap * (scenes.size - 1.0)) / scenes.sumOf { it.durationMs }).coerceAtMost(1.3)
             scenes = scenes.map { it.copy(durationMs = (it.durationMs * k).toInt()) }
+        }
+        // Plafond absolu : texte très long, on resserre encore (2 s au moins par scène) plutôt que de couper.
+        if (total(scenes) > SOFT_MAX_MS) {
+            val k2 = (SOFT_MAX_MS.toDouble() + overlap * (scenes.size - 1)) / scenes.sumOf { it.durationMs }
+            scenes = scenes.map { it.copy(durationMs = max(2_000, (it.durationMs * k2).toInt())) }
         }
         return sb.copy(scenes = scenes)
     }
@@ -559,7 +572,8 @@ object CreativeDirector {
             val fresh = allowed.filter { it !in avoidLooks }.ifEmpty { allowed }
             // Les styles modulables (une combinaison nouvelle à chaque fois) reviennent le plus souvent,
             // puis le montage dynamique ; les autres formats gardent leur place.
-            val weighted = fresh + fresh.filter { it == Look.MONTAGE } + List(4) { fresh.filter { it == Look.KIT } }.flatten()
+            val weighted = fresh + fresh.filter { it == Look.MONTAGE } + List(4) { fresh.filter { it == Look.KIT } }.flatten() +
+                List(3) { fresh.filter { it == Look.INFOGRAPHIE } }.flatten()
             weighted[(Rand.of(seed, 0x2C7F).nextInt() ushr 1) % weighted.size]
         }
         var sb = StoryboardPlanner.plan(text, seed, template.id).copy(look = look)
@@ -574,7 +588,9 @@ object CreativeDirector {
      */
     internal fun withDemo(sb: Storyboard, topic: Procedures.Topic, text: String, seed: Long): Storyboard {
         val demo = Procedures.scenes(Procedures.pick(topic, text, seed))
-        val soft = StoryboardPlanner.SOFT_MAX_MS
+        // La démo ajoute des écrans à regarder : jusqu'à ~14 s de plus que la durée visée par le texte.
+        val target = StoryboardPlanner.targetMs(StoryboardPlanner.wordsShown(sb))
+        val soft = minOf(StoryboardPlanner.SOFT_MAX_MS, target + 14_000)
         val hero = sb.scenes.firstOrNull { it.layout == Layout.HERO }?.let { it.copy(durationMs = it.durationMs.coerceAtMost(4800)) }
         val defs = sb.scenes.filter { it.layout == Layout.DEFINITION }
         val after = sb.scenes.filter { it.layout == Layout.STEPS || it.layout == Layout.COMPARE }
@@ -589,9 +605,9 @@ object CreativeDirector {
         var scenes = build(screens, true)
         if (total(scenes) > soft) scenes = build(screens, false)
         // Un peu court : léger étirement des écrans de démo (×1,25 au plus, pour garder du rythme).
-        if (total(scenes) < StoryboardPlanner.MIN_MS) {
+        if (total(scenes) < target) {
             val screenMs = screens.sumOf { it.durationMs }.coerceAtLeast(1)
-            val k = (1.0 + (StoryboardPlanner.MIN_MS + 500 - total(scenes)).toDouble() / screenMs).coerceAtMost(1.25)
+            val k = (1.0 + (target + 500 - total(scenes)).toDouble() / screenMs).coerceAtMost(1.25)
             screens = screens.map { it.copy(durationMs = (it.durationMs * k).toInt().coerceAtMost(9500)) }
             scenes = build(screens, true)
         }

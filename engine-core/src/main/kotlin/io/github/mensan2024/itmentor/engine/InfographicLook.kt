@@ -17,16 +17,18 @@ import kotlin.math.sin
  * - l'explication complète dans un cadre en bas ;
  * - à la fin, « Abonne-toi » et l'astuce suivante.
  */
-internal class InfographicLook(private val sb: Storyboard) : LookRenderer {
-    private val pal = listOf(rgb(0x37C6F4), rgb(0x3DDC97), rgb(0xFFC43D))[(Rand.of(sb.seed, 0x1F0).nextInt() ushr 1) % 3]
-    override val ink = rgb(0xF4F6FA)
-    override val muted = rgb(0x8E98AD)
-    override val accent = pal
+internal class InfographicLook(private val sb: Storyboard, private val kit: StyleKit = StyleKit.INFOGRAPHIE) : LookRenderer {
+    private val pal = kit.palette
+    private val classic = kit == StyleKit.INFOGRAPHIE
+    override val ink = pal.ink
+    override val muted = pal.muted
+    /** Style d'origine : une des trois couleurs de la référence ; sinon la couleur du style. */
+    override val accent = if (classic) listOf(rgb(0x37C6F4), rgb(0x3DDC97), rgb(0xFFC43D))[(Rand.of(sb.seed, 0x1F0).nextInt() ushr 1) % 3] else pal.accent
     override val accent2 = rgb(0xFF4D5E)
     private val danger = rgb(0xFF4D5E)
     private val warn = rgb(0xFFC43D)
     private val ok = rgb(0x3DDC97)
-    private val panel = rgb(0x111A2E)
+    private val panel = pal.card
     private val cache = TextCache()
     private val domain by lazy { DomainDetector.detect(TextSanitizer.clean(sb.title + " " + sb.scenes.joinToString(" ") { it.title + " " + it.body })) }
     private val astuceNo: Int? = (listOf(sb.title) + sb.scenes.take(1).flatMap { listOf(it.kicker ?: "", it.title) })
@@ -38,12 +40,6 @@ internal class InfographicLook(private val sb: Storyboard) : LookRenderer {
                     val main: String = "", val detail: String? = null, val list: List<String> = emptyList(), val index: Int = 0, val good: Boolean = true, val icon: IconId = IconId.BULB, val attack: Boolean = false)
 
     private val beatsCache = HashMap<String, List<Beat>>()
-
-    /** Nom de la série, d'après le mot-dièse (« #securiteinformatiquepourtous » → « SÉCURITÉ INFORMATIQUE POUR TOUS »). */
-    private val series: String by lazy {
-        val tag = (sb.hashtag ?: "").lowercase().removePrefix("#")
-        SERIES[tag] ?: domain.label.uppercase()
-    }
 
     /** Nombre total d'étapes du texte (toutes les listes), pour « DÉFENSE 2/4 ». */
     private val totalSteps: Int by lazy { sb.scenes.filter { it.layout == Layout.STEPS }.sumOf { it.items.size } }
@@ -176,23 +172,21 @@ internal class InfographicLook(private val sb: Storyboard) : LookRenderer {
 
     override fun scene(g: Gfx, slot: Slot, localMs: Float, tGlobalMs: Float) {
         val sc = slot.scene
-        g.fillVerticalGradient(0f, 0f, 1080f, 1920f, rgb(0x0B1224), rgb(0x1A1446))
-        g.fillRadialGlow(540f, 1650f, 900f, rgb(0x3B2E9A).withAlpha(0.35f))
+        if (classic) {
+            g.fillVerticalGradient(0f, 0f, 1080f, 1920f, rgb(0x0B1224), rgb(0x1A1446))
+            g.fillRadialGlow(540f, 1650f, 900f, rgb(0x3B2E9A).withAlpha(0.35f))
+        } else KitDecor.background(g, kit, sb.seed, tGlobalMs, corners = false)
         val bs = beats(sc)
         if (bs.isEmpty()) return
         val (i, t, len) = beatAt(sc, localMs)
         val b = bs[i]
         // Rouge pendant l'attaque, bleu pour la défense.
         if (b.attack) { g.fillRadialGlow(540f, 520f, 1000f, danger.withAlpha(0.22f)); g.fillRadialGlow(540f, 1300f, 700f, rgb(0x7A1F4A).withAlpha(0.25f)) }
-        else g.fillRadialGlow(540f, 300f, 760f, rgb(0x1E6FD9).withAlpha(0.12f))
-        // Rubrique en haut (fixe)
+        else if (classic) g.fillRadialGlow(540f, 300f, 760f, rgb(0x1E6FD9).withAlpha(0.12f))
+        // Rubrique en haut (fixe) : le numéro de l'astuce s'il y en a un, sinon la marque.
         val hf = FontSpec(FontFamily.TEXT, 800, 24f)
         val left = (astuceNo?.let { "ASTUCE ${Fmt.pad(it, 3)}" } ?: "CODJIA")
         g.drawTracked(left, Safe.LEFT, 172f, hf, accent, 2f)
-        val lx = Safe.LEFT + g.measureTracked(left, hf, 2f)
-        g.drawText("·", lx + 10f, 172f, hf, muted)
-        val st = TextLayout.fit(g, series, hf.copy(weight = 600), Safe.RIGHT - lx - 40f, 1, minSize = 16f)
-        g.drawTracked(st.lines.first(), lx + 30f, 172f, st.font, muted, 2f)
         val e = Easing.EXPO_OUT.ease(clamp01(t / 300f))
         if (b.diagram == Diagram.CTA) { g.withPose(Pose(alpha = e), 540f, 900f) { cta(g, b, t) }; captionBox(g, b, t, "${sc.id}/$i"); return }
         if (b.diagram == Diagram.CHAPTER) { chapter(g, b, t, "${sc.id}/$i"); captionBox(g, b, t, "${sc.id}/$i"); return }
@@ -202,27 +196,68 @@ internal class InfographicLook(private val sb: Storyboard) : LookRenderer {
             val cf = FontSpec(FontFamily.TEXT, 800, 26f)
             val w = g.measureTracked(b.chip, cf, 2f) + 48f
             g.withPose(Pose(alpha = e, scale = lerp(0.8f, 1f, e)), 540f, y + 25f) {
-                g.fillRoundRect(540f - w / 2, y, 540f + w / 2, y + 50f, 25f, accent.withAlpha(0.18f))
-                g.strokeRoundRect(540f - w / 2, y, 540f + w / 2, y + 50f, 25f, 2f, accent.withAlpha(0.7f))
-                g.drawTracked(b.chip, 540f - w / 2 + 24f, y + 25f + g.metrics(cf).ascent / 2, cf, accent, 2f)
+                when (kit.header) {
+                    KitHeader.BADGE -> {
+                        g.fillRoundRect(540f - w / 2, y, 540f + w / 2, y + 50f, 10f, accent)
+                        g.drawTracked(b.chip, 540f - w / 2 + 24f, y + 25f + g.metrics(cf).ascent / 2, cf, pal.onHighlight.takeIf { !classic } ?: rgb(0x0B1224), 2f)
+                    }
+                    KitHeader.BAR -> {
+                        g.fillRect(540f - w / 2 + 10f, y + 46f, 540f + w / 2 - 10f, y + 50f, accent)
+                        g.drawTracked(b.chip, 540f - w / 2 + 24f, y + 25f + g.metrics(cf).ascent / 2, cf, accent, 2f)
+                    }
+                    KitHeader.CHIP -> {
+                        g.fillRoundRect(540f - w / 2, y, 540f + w / 2, y + 50f, 25f, accent.withAlpha(0.18f))
+                        g.strokeRoundRect(540f - w / 2, y, 540f + w / 2, y + 50f, 25f, 2f, accent.withAlpha(0.7f))
+                        g.drawTracked(b.chip, 540f - w / 2 + 24f, y + 25f + g.metrics(cf).ascent / 2, cf, accent, 2f)
+                    }
+                }
             }
             y += 80f
         }
         // Titre sur deux lignes
-        val tf = FontSpec(FontFamily.TEXT, 800, 72f)
+        val tf = titleFont(72f)
         for ((k, line) in listOf(b.l1, b.l2).withIndex()) {
             if (line.isEmpty()) continue
-            val bl = cache.fit(g, "t/${sc.id}/$i/$k", line, tf, Safe.WIDTH, 1)
+            val bl = cache.fit(g, "t/${sc.id}/$i/$k", line, tf, Safe.WIDTH - 20f, 1)
             val a = Easing.EXPO_OUT.ease(clamp01((t - k * 120f) / 420f))
             val base = g.baselineOf(bl, y, 0)
             val text = bl.lines.first()
-            g.withPose(Pose(alpha = a, dy = (1 - a) * 24f), 540f, base) { g.drawText(text, 540f - g.measureText(text, bl.font) / 2, base, bl.font, if (k == 0) ink else accent) }
+            val tw = g.measureText(text, bl.font)
+            val x0 = 540f - tw / 2
+            g.withPose(Pose(alpha = a, dy = (1 - a) * 24f), 540f, base) {
+                if (k == 1) when (kit.titleFx) {
+                    KitTitleFx.HIGHLIGHT -> {
+                        val m = g.metrics(bl.font); val p = Easing.EXPO_OUT.ease(clamp01((t - 250f) / 450f))
+                        g.fillRoundRect(x0 - 16f, base - m.ascent - 6f, x0 - 16f + (tw + 32f) * p, base + m.descent + 4f, 12f, pal.highlight)
+                        g.drawText(text, x0, base, bl.font, pal.onHighlight)
+                    }
+                    KitTitleFx.MARKER -> {
+                        val p = Easing.EXPO_OUT.ease(clamp01((t - 250f) / 450f))
+                        g.fillRoundRect(x0 - 6f, base - 8f, x0 - 6f + (tw + 12f) * p, base + 12f, 8f, accent.withAlpha(0.45f))
+                        g.drawText(text, x0, base, bl.font, ink)
+                    }
+                    else -> g.drawText(text, x0, base, bl.font, accent)
+                } else g.drawText(text, x0, base, bl.font, ink)
+            }
             y += bl.height + 4f
         }
         val top = y + 40f
         val cap = captionBox(g, b, t, "${sc.id}/$i")
         val area = R(Safe.LEFT, top, Safe.RIGHT, cap - 40f)
-        g.withPose(Pose(alpha = e), 540f, area.cy) { diagram(g, b, t, len, area, "${sc.id}/$i") }
+        g.withPose(entrance(t), 540f, area.cy) { diagram(g, b, t, len, area, "${sc.id}/$i") }
+        if (kit.flash && t < 120f) g.fillRect(0f, 0f, 1080f, 1920f, (((1f - t / 120f) * 0.18f * 255).toInt() shl 24) or 0xFFFFFF)
+    }
+
+    /** Police des titres du style (taille de référence : 72 px en police « texte »). */
+    private fun titleFont(size: Float) = if (classic) FontSpec(FontFamily.TEXT, 800, size)
+        else FontSpec(kit.titleFont.family, kit.titleFont.weight, size * kit.titleFont.size / 66f)
+
+    /** Entrée du schéma selon le style. */
+    private fun entrance(t: Float): Pose = when (kit.motion) {
+        KitMotion.RISE -> { val e = Easing.EXPO_OUT.ease(clamp01(t / 380f)); Pose(alpha = e, dy = (1 - e) * 60f) }
+        KitMotion.DROP -> { val e = Easing.BACK_OUT.ease(clamp01(t / 440f)); Pose(alpha = clamp01(t / 160f), dy = -(1 - e) * 70f) }
+        KitMotion.ZOOM -> { val e = Easing.EXPO_OUT.ease(clamp01(t / 380f)); Pose(alpha = clamp01(t / 140f), scale = lerp(0.82f, 1f, e)) }
+        KitMotion.POP -> { val e = Easing.BACK_OUT.ease(clamp01(t / 360f)); Pose(alpha = clamp01(t / 100f), scale = lerp(0.7f, 1f, e).coerceAtMost(1.01f)) }
     }
 
     data class R(val l: Float, val t: Float, val r: Float, val b: Float) {
@@ -239,9 +274,31 @@ internal class InfographicLook(private val sb: Storyboard) : LookRenderer {
         val top = 1560f - h
         val a = Easing.EXPO_OUT.ease(clamp01((t - 150f) / 400f))
         g.withPose(Pose(alpha = a, dy = (1 - a) * 16f), 540f, top) {
-            g.fillRoundRect(Safe.LEFT, top, Safe.RIGHT, top + h, 16f, panel.withAlpha(0.92f))
-            g.strokeRoundRect(Safe.LEFT, top, Safe.RIGHT, top + h, 16f, 1.5f, 0x22FFFFFF)
-            g.fillRoundRect(Safe.LEFT, top, Safe.LEFT + 7f, top + h, 3f, accent)
+            when (kit.frame) {
+                KitFrame.FLAT -> {
+                    g.fillRoundRect(Safe.LEFT, top, Safe.RIGHT, top + h, 16f, panel.withAlpha(0.92f))
+                    g.strokeRoundRect(Safe.LEFT, top, Safe.RIGHT, top + h, 16f, 1.5f, 0x22FFFFFF)
+                    g.fillRoundRect(Safe.LEFT, top, Safe.LEFT + 7f, top + h, 3f, accent)
+                }
+                KitFrame.DOUBLE -> {
+                    g.fillRoundRect(Safe.LEFT - 10f, top - 10f, Safe.RIGHT + 10f, top + h + 10f, 26f, KitDecor.darken(panel, 0.35f))
+                    g.strokeRoundRect(Safe.LEFT - 10f, top - 10f, Safe.RIGHT + 10f, top + h + 10f, 26f, 1.5f, 0x1CFFFFFF)
+                    g.fillRoundRect(Safe.LEFT, top, Safe.RIGHT, top + h, 18f, panel)
+                    g.strokeRoundRect(Safe.LEFT, top, Safe.RIGHT, top + h, 18f, 1.5f, 0x26FFFFFF)
+                    g.fillRoundRect(Safe.LEFT, top, Safe.LEFT + 7f, top + h, 3f, accent)
+                }
+                KitFrame.GLASS -> {
+                    g.fillRoundRect(Safe.LEFT + 6f, top + 12f, Safe.RIGHT + 6f, top + h + 12f, 22f, 0x44000000)
+                    g.fillRoundRect(Safe.LEFT, top, Safe.RIGHT, top + h, 22f, panel.withAlpha(0.78f))
+                    g.fillVerticalGradient(Safe.LEFT + 16f, top + 2f, Safe.RIGHT - 16f, top + 60f, 0x22FFFFFF, 0x00FFFFFF)
+                    g.strokeRoundRect(Safe.LEFT, top, Safe.RIGHT, top + h, 22f, 2f, 0x33FFFFFF)
+                }
+                KitFrame.NEON -> {
+                    g.fillRoundRect(Safe.LEFT, top, Safe.RIGHT, top + h, 18f, panel.withAlpha(0.94f))
+                    g.strokeRoundRect(Safe.LEFT - 5f, top - 5f, Safe.RIGHT + 5f, top + h + 5f, 22f, 7f, accent.withAlpha(0.22f))
+                    g.strokeRoundRect(Safe.LEFT, top, Safe.RIGHT, top + h, 18f, 2.5f, accent)
+                }
+            }
             g.drawBlock(bl, Safe.LEFT + 36f, top + 28f, ink)
         }
         return top
@@ -785,10 +842,4 @@ internal class InfographicLook(private val sb: Storyboard) : LookRenderer {
         if (t > 800f) g.drawText(tl.lines.first(), 540f - g.measureText(tl.lines.first(), tl.font) / 2, cy + 310f, tl.font, muted)
     }
 
-    private companion object {
-        /** Séries connues (mot-dièse → nom affiché en haut de la vidéo). */
-        val SERIES = mapOf(
-            "securiteinformatiquepourtous" to "SÉCURITÉ INFORMATIQUE POUR TOUS",
-        )
-    }
 }

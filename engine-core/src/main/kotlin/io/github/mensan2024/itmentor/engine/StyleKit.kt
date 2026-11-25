@@ -21,7 +21,7 @@ data class Palette(
     val highlight: Int, val onHighlight: Int,
 )
 
-enum class KitBackground { GRID_FLOOR, STARS, AURORA, MESH, NEON_LINES, DOTS, PAPER, SUNSET }
+enum class KitBackground { GRID_FLOOR, STARS, AURORA, MESH, NEON_LINES, DOTS, PAPER, SUNSET, GLOW }
 enum class KitTitleFx { HIGHLIGHT, MARKER, COLOR, TYPEWRITER }
 enum class KitHeader { BADGE, CHIP, BAR }
 enum class KitFrame { DOUBLE, GLASS, NEON, FLAT }
@@ -68,6 +68,12 @@ data class StyleKit(
                 rgb(0x2563EB), rgb(0xF59E0B), rgb(0xFFFFFF), rgb(0xEEF2FB), rgb(0xE3E9F7), rgb(0x2563EB), rgb(0xFFFFFF)),
             Palette("Papier rouge", true, rgb(0xF7F3EE), rgb(0xECE5DC), rgb(0x1B1B1B), rgb(0x6E655C), rgb(0xBDB3A8),
                 rgb(0xE63946), rgb(0x1D3557), rgb(0xFFFFFF), rgb(0xF2ECE5), rgb(0xEAE2D8), rgb(0xE63946), rgb(0xFFFFFF)),
+            Palette("Nuit indigo", false, rgb(0x0B1224), rgb(0x1A1446), rgb(0xF4F6FA), rgb(0x8E98AD), rgb(0x4A5470),
+                rgb(0x37C6F4), rgb(0xFFC43D), rgb(0x111A2E), rgb(0x16213A), rgb(0x1B2744), rgb(0x37C6F4), rgb(0x0B1224)),
+            Palette("Ardoise corail", false, rgb(0x15181F), rgb(0x0A0C10), rgb(0xF7F7F8), rgb(0x9499A6), rgb(0x50555F),
+                rgb(0xFF6F59), rgb(0x43D9AD), rgb(0x1C2029), rgb(0x232833), rgb(0x2A303C), rgb(0xFF6F59), rgb(0xFFFFFF)),
+            Palette("Océan turquoise", false, rgb(0x04263A), rgb(0x021521), rgb(0xEFFCFF), rgb(0x8CB5C4), rgb(0x3F6878),
+                rgb(0x2EE6D6), rgb(0xFF9F1C), rgb(0x07324B), rgb(0x0B3D5A), rgb(0x0F4766), rgb(0x2EE6D6), rgb(0x021521)),
         )
 
         val TITLE_FONTS = listOf(
@@ -82,7 +88,7 @@ data class StyleKit(
 
         private val BG_NAMES = mapOf(KitBackground.GRID_FLOOR to "Grille", KitBackground.STARS to "Étoiles", KitBackground.AURORA to "Aurore",
             KitBackground.MESH to "Halo", KitBackground.NEON_LINES to "Néon", KitBackground.DOTS to "Points", KitBackground.PAPER to "Papier",
-            KitBackground.SUNSET to "Planète")
+            KitBackground.SUNSET to "Planète", KitBackground.GLOW to "Lueur")
         private val CAP_NAMES = mapOf(KitCaptions.BOX to "Karaoké", KitCaptions.COLOR to "Mot en couleur", KitCaptions.POP to "Mots géants",
             KitCaptions.BAR to "Bandeau")
 
@@ -91,7 +97,7 @@ data class StyleKit(
             KitHeader.BADGE, KitFrame.DOUBLE, KitCaptions.BOX, KitMotion.RISE, KitMascot.BALL, false)
 
         private val DARK_BG = listOf(KitBackground.GRID_FLOOR, KitBackground.STARS, KitBackground.AURORA, KitBackground.MESH,
-            KitBackground.NEON_LINES, KitBackground.DOTS, KitBackground.SUNSET)
+            KitBackground.NEON_LINES, KitBackground.DOTS, KitBackground.SUNSET, KitBackground.GLOW)
         private val LIGHT_BG = listOf(KitBackground.PAPER, KitBackground.DOTS, KitBackground.MESH)
         private val BUSY_BG = setOf(KitBackground.STARS, KitBackground.AURORA, KitBackground.NEON_LINES, KitBackground.SUNSET)
 
@@ -103,6 +109,28 @@ data class StyleKit(
          * - « Mots géants » en sous-titres → la mascotte reste (sinon le bas paraît vide) ;
          * - deux effets forts (éclair + entrée « pop ») ne vont jamais ensemble.
          */
+        /** Nombre de combinaisons possibles (pour l'interface : « des milliers de styles »). */
+        val combinations: Long get() = PALETTES.size.toLong() * DARK_BG.size * TITLE_FONTS.size * CAPTION_FONTS.size *
+            KitTitleFx.entries.size * KitHeader.entries.size * KitFrame.entries.size * KitCaptions.entries.size * KitMotion.entries.size
+
+        /** Le style d'origine de l'Infographie (référence « astuce 026 »). */
+        val INFOGRAPHIE = StyleKit(PALETTES.first { it.name == "Nuit indigo" }, KitBackground.GLOW, FontSpec(FontFamily.TEXT, 800, 66f),
+            CAPTION_FONTS[0], KitTitleFx.COLOR, KitHeader.CHIP, KitFrame.FLAT, KitCaptions.BOX, KitMotion.RISE, KitMascot.NONE, false)
+
+        /**
+         * Style d'une infographie : fond sombre uniquement (les terminaux et graphiques y restent lisibles),
+         * polices de titre sobres (le schéma porte déjà le message), une fois sur cinq le style d'origine.
+         */
+        fun infographic(seed: Long): StyleKit {
+            val r = Rand.of(seed, 0x1F05)
+            if ((r.nextInt() ushr 1) % 5 == 0) return INFOGRAPHIE
+            fun <T> pick(l: List<T>): T = l[(r.nextInt() ushr 1) % l.size]
+            val pal = pick(PALETTES.filter { !it.light })
+            val fonts = TITLE_FONTS.filter { it.family != FontFamily.SERIF }
+            return StyleKit(pal, pick(DARK_BG), pick(fonts), CAPTION_FONTS[0], pick(listOf(KitTitleFx.COLOR, KitTitleFx.HIGHLIGHT, KitTitleFx.MARKER)),
+                pick(KitHeader.entries), pick(KitFrame.entries), KitCaptions.BOX, pick(KitMotion.entries), KitMascot.NONE, r.next() < 0.3f)
+        }
+
         fun random(seed: Long): StyleKit {
             val r = Rand.of(seed, 0x57E1)
             fun <T> pick(l: List<T>): T = l[(r.nextInt() ushr 1) % l.size]

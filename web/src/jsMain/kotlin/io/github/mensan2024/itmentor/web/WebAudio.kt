@@ -45,10 +45,37 @@ class WebAudio(private val base: String) {
     suspend fun buffer(track: MusicTrack): dynamic {
         val cached: dynamic = buffers[track.id]
         if (cached != null) return cached
+        if (track.category == io.github.mensan2024.itmentor.engine.MusicCategory.PERSO) {
+            val bytes = MyMusic.bytes(track.file) ?: throw IllegalStateException("Ta musique « ${track.title} » n'est plus disponible : importe-la à nouveau.")
+            return decode(track.id, bytes)
+        }
         val ab = (window.fetch(base + "assets/" + track.file).await().arrayBuffer()).await()
         val c = context()
         val buf: dynamic = Promise<dynamic> { res, rej -> c.decodeAudioData(ab, { b: dynamic -> res(b) }, { e: dynamic -> rej(Error("Décodage audio impossible : $e")) }) }.await()
         buffers[track.id] = buf
+        return buf
+    }
+
+    /** Musique importée : décodée une fois, gardée sous son identifiant. */
+    suspend fun decode(id: String, bytes: dynamic): dynamic {
+        val c = context()
+        val buf: dynamic = Promise<dynamic> { res, rej -> c.decodeAudioData(bytes, { b: dynamic -> res(b) }, { e: dynamic -> rej(Error("Ce fichier audio n'est pas lisible par ton navigateur ($e)")) }) }.await()
+        buffers[id] = buf
+        return buf
+    }
+
+    fun forget(id: String) { buffers.remove(id) }
+
+    /** PCM 16 bits → AudioBuffer (pour écouter la voix off mixée dans l'aperçu). */
+    fun fromPcm(p: Pcm): dynamic {
+        val c = context()
+        val frames = p.frames
+        val buf: dynamic = c.createBuffer(p.channels, frames, p.sampleRate)
+        for (ch in 0 until p.channels) {
+            val d: dynamic = buf.getChannelData(ch)
+            var i = 0
+            while (i < frames) { d[i] = p.samples[i * p.channels + ch] / 32768.0; i++ }
+        }
         return buf
     }
 

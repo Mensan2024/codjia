@@ -55,6 +55,7 @@ object Exporter {
     suspend fun export(
         sb: Storyboard, template: Template, music: Pcm?, musicGain: Float,
         progress: (done: Int, total: Int) -> Unit, cancelled: () -> Boolean,
+        premixed: Pcm? = null,
     ): Result {
         val started = window.performance.now()
         val (vcfg, format) = pickVideo() ?: throw IllegalStateException("Ton navigateur ne sait pas encoder la vidéo H.264. Mets-le à jour (Chrome, Edge, Safari 16.4+, Firefox 130+).")
@@ -64,7 +65,8 @@ object Exporter {
         val frameUs = 1_000_000.0 / format.fps
 
         // ── Son : même mixage que l'application Android (boucle de sécurité, fondu final, volume).
-        var pcm: Pcm? = music?.let { AudioMix.musicBed(it, totalMs, musicGain) }
+        // Avec voix off, la piste est déjà mixée (voix + musique qui baisse sous la voix).
+        var pcm: Pcm? = premixed ?: music?.let { AudioMix.musicBed(it, totalMs, musicGain) }
         var acfg: dynamic = null
         if (pcm != null) {
             acfg = pickAudio(pcm.sampleRate, pcm.channels)

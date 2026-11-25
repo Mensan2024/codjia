@@ -1,6 +1,11 @@
-// CODJIA : fonctionne hors ligne une fois ouvert. Coquille mise en cache à l'installation,
-// polices et musiques mises en cache à la première utilisation. Aucune donnée envoyée.
+// CODJIA : fonctionne hors ligne une fois ouvert, et se met à jour tout seul.
+// - Coquille (page, code) : réseau d'abord, donc une nouvelle version publiée arrive au prochain chargement.
+// - Polices et musiques : cache d'abord (elles ne changent pas d'une version à l'autre).
+// - Voix (dossier voix/) : cache dédié, gardé d'une version à l'autre (fichiers lourds, téléchargés une fois).
+// Aucune donnée n'est envoyée.
 const VERSION = 'codjia-__BUILD__';
+const VOICE = 'codjia-voix-v1';
+const KEEP = [VERSION, VOICE, 'codjia-ma-musique-v1'];
 const SHELL = ['./', 'index.html', 'codjia.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', (e) => {
@@ -8,18 +13,24 @@ self.addEventListener('install', (e) => {
 });
 
 self.addEventListener('activate', (e) => {
-  e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== VERSION).map((k) => caches.delete(k))))
+  e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => !KEEP.includes(k)).map((k) => caches.delete(k))))
     .then(() => self.clients.claim()));
+});
+
+self.addEventListener('message', (e) => {
+  if (e.data === 'version') e.source && e.source.postMessage({ version: VERSION });
 });
 
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== self.location.origin) return;
-  // Code et page : réseau d'abord (mises à jour), cache si hors ligne. Polices et musiques : cache d'abord.
+  // Les modèles de voix sont gérés par codjia-voice.js (avec progression) : on ne les double pas ici.
+  if (url.pathname.endsWith('.onnx') || url.pathname.includes('/ma-musique/')) return;
+  const voice = url.pathname.includes('/voix/');
   const assets = url.pathname.includes('/assets/');
   e.respondWith(
-    caches.open(VERSION).then(async (cache) => {
-      if (assets) {
+    caches.open(voice ? VOICE : VERSION).then(async (cache) => {
+      if (assets || (voice && !url.pathname.endsWith('codjia-voice.js'))) {
         const hit = await cache.match(e.request);
         if (hit) return hit;
         const res = await fetch(e.request);
@@ -27,7 +38,7 @@ self.addEventListener('fetch', (e) => {
         return res;
       }
       try {
-        const res = await fetch(e.request);
+        const res = await fetch(e.request, { cache: 'no-cache' });
         if (res.ok) cache.put(e.request, res.clone());
         return res;
       } catch (err) {

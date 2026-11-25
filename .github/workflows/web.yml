@@ -37,8 +37,14 @@ jobs:
           ls -la "$OUT"
           sed -i "s/__BUILD__/${GITHUB_SHA::12}/" "$OUT/sw.js"
           test -f "$OUT/codjia.js" && test -f "$OUT/index.html" && test -d "$OUT/assets/fonts" && test -f "$OUT/assets/music/music.json"
+          test -f "$OUT/voix/codjia-voice.js"
           mkdir -p site && cp -r "$OUT"/. site/
-          (cd site && zip -qr ../codjia-web.zip .)
+      - name: Voix off (Piper, ONNX Runtime Web, espeak-ng) — versions et empreintes figées
+        run: |
+          bash tools/voice/prepare_web_voice.sh site
+          test -f site/voix/fr_FR-siwis-medium.onnx && test -f site/voix/en_GB-alba-medium.onnx && test -f site/voix/ort/ort-wasm-simd-threaded.wasm
+      - name: Zip de test (sans les modèles de voix, trop lourds)
+        run: (cd site && zip -qr ../codjia-web.zip . -x 'voix/*.onnx')
       - uses: actions/upload-pages-artifact@v4
         with:
           path: site
@@ -55,6 +61,7 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v5
       - uses: actions/download-artifact@v5
         with:
           name: codjia-web
@@ -63,6 +70,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir site && cd site && unzip -q ../codjia-web.zip && touch .nojekyll
+          # Modèles de voix : récupérés à nouveau ici (le zip ne les contient pas).
+          cd .. && bash tools/voice/prepare_web_voice.sh site && cd site
           git init -q -b gh-pages
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

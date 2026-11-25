@@ -163,13 +163,37 @@ class MainActivity : ComponentActivity() {
     private val pickAudio = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
         if (uri == null) return@registerForActivityResult
         // Analyse hors du fil d'interface : un fichier lourd ou piégé ne doit pas figer l'appli.
+        // Garder l'accès au fichier après redémarrage : la musique reste dans « Mes musiques ».
+        runCatching { contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
         lifecycleScope.launch {
             runCatching { withContext(Dispatchers.IO) { MusicCatalog.fromUserFile(this@MainActivity, uri) } }
-                .onSuccess { t -> imported.removeAll { it.id == t.id }; imported.add(0, t); choice = choice.copy(track = t); category = null; show(Step.MUSIC, animate = false) }
+                .onSuccess { t ->
+                    imported.removeAll { it.id == t.id }; imported.add(0, t); saveImported()
+                    choice = choice.copy(track = t); category = null; show(Step.MUSIC, animate = false)
+                }
                 .onFailure { e ->
                     val msg = (e as? IllegalArgumentException)?.message ?: "Fichier audio illisible"
                     Toast.makeText(this@MainActivity, msg, Toast.LENGTH_LONG).show()
                 }
+        }
+    }
+
+    private val prefs by lazy { getSharedPreferences("codjia", MODE_PRIVATE) }
+
+    /** Mémorise les musiques importées (adresses de fichiers choisis par l'utilisateur, 20 au plus). */
+    private fun saveImported() {
+        prefs.edit().putString("musiques", imported.take(20).joinToString("\n") { it.file }).apply()
+    }
+
+    /** Recharge les musiques importées lors des visites précédentes (celles devenues illisibles sont oubliées). */
+    private fun loadImported() {
+        val uris = prefs.getString("musiques", "").orEmpty().lines().filter { it.startsWith("content://") }
+        if (uris.isEmpty()) return
+        lifecycleScope.launch {
+            val ok = withContext(Dispatchers.IO) { uris.mapNotNull { u -> runCatching { MusicCatalog.fromUserFile(this@MainActivity, Uri.parse(u)) }.getOrNull() } }
+            imported.removeAll { t -> ok.any { it.id == t.id } }
+            imported.addAll(ok)
+            if (ok.size != uris.size) saveImported()
         }
     }
 
@@ -182,6 +206,7 @@ class MainActivity : ComponentActivity() {
         )
         super.onCreate(savedInstanceState)
         catalog = MusicCatalog.load(this)
+        loadImported()
         root = FrameLayout(this).apply { setBackgroundColor(Brand.BG) }
         setContentView(root)
         ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
@@ -566,9 +591,8 @@ class MainActivity : ComponentActivity() {
             list.removeAllViews(); trackRows.clear()
             noMusic = noMusicRow()
             list.addView(noMusic, lp(MATCH, WRAP, top = dp(12f)))
-            val tracks = (imported + catalog).filter { category == null || (it.category == category && it.source == MusicSource.BUILT_IN) }
+            val tracks = (imported + catalog).filter { category == null || it.category == category }
             for (t in tracks) list.addView(trackRow(t).also { trackRows[t.id] = it }, lp(MATCH, WRAP, top = dp(10f)))
-            list.addView(button("＋ Importer un fichier audio", primary = false) { pickAudio.launch(arrayOf("audio/*")) }, lp(MATCH, WRAP, top = dp(14f)))
             list.addView(label("Les musiques intégrées sont des compositions originales CODJIA (licence GPL-3.0). " +
                 "Un fichier importé est utilisé sous ta responsabilité.", 12f, Brand.MUTED), lp(MATCH, WRAP, top = dp(10f)))
             refreshSelection()
@@ -583,6 +607,8 @@ class MainActivity : ComponentActivity() {
             chipViews += c to v
             chips.addView(v, lp(WRAP, WRAP, end = dp(8f)))
         }
+        // Sa propre musique, en premier : MP3, M4A, WAV, OGG… choisie dans le téléphone (aucune permission demandée).
+        page.addView(button("🎵  Importer ma musique") { pickAudio.launch(arrayOf("audio/*")) }, lp(MATCH, WRAP, top = dp(2f), end = 0))
         page.addView(HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(chips) })
         page.addView(ScrollView(this).apply { addView(list) }, lp(MATCH, 0, 1f))
         fill()

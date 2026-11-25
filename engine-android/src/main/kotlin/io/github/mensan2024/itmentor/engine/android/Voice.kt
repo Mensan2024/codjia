@@ -9,11 +9,8 @@ import android.speech.tts.Voice
 import io.github.mensan2024.itmentor.engine.Narration
 import io.github.mensan2024.itmentor.engine.Pcm
 import io.github.mensan2024.itmentor.engine.Storyboard
-import io.github.mensan2024.itmentor.engine.StoryboardException
-import io.github.mensan2024.itmentor.engine.Timeline
 import io.github.mensan2024.itmentor.engine.VoiceMode
 import io.github.mensan2024.itmentor.engine.Wav
-import io.github.mensan2024.itmentor.engine.AudioMix
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -92,42 +89,21 @@ class OfflineVoices private constructor(private val tts: TextToSpeech, val byLan
 /** Résultat : storyboard aux durées adaptées à la voix + piste audio finale (voix + musique). */
 data class VoicedResult(val storyboard: Storyboard, val audio: File, val speechRate: Float, val languages: Set<String>, val voiceMs: Long)
 
-/**
- * Synthétise chaque phrase, allonge les scènes si besoin, puis mélange voix et musique (la musique baisse
- * sous la voix). Si la vidéo dépasse 52 s, la lecture est un peu accélérée (jusqu'à 1,3×) ; au-delà de 59 s,
- * c'est refusé.
- */
+/** Voix off Android : la synthèse du téléphone alimente [Narration.prepare] (règles communes avec le navigateur). */
 object Narrator {
-    private val RATES = floatArrayOf(1.0f, 1.1f, 1.2f, 1.3f)
-
     suspend fun prepare(
         voices: OfflineVoices, storyboard: Storyboard, mode: VoiceMode, workDir: File,
         music: suspend (totalMs: Long) -> Pcm?,
     ): VoicedResult {
-        val lines = Narration.lines(storyboard, mode).map { if (voices.has(it.lang)) it else it.copy(lang = voices.byLang.keys.first()) }
-        require(lines.isNotEmpty()) { "Aucune phrase à lire" }
         workDir.mkdirs()
-        var best: Pair<Storyboard, Map<String, Pcm>>? = null
-        var bestRate = 1f
-        for (rate in RATES) {
-            val clips = LinkedHashMap<String, Pcm>()
-            for (l in lines) {
-                val f = File(workDir, "voix_${l.sceneId}.wav")
-                voices.synthesize(l.text, l.lang, f, rate, "${l.sceneId}@$rate")
-                clips[l.sceneId] = withContext(Dispatchers.IO) { Wav.read(f.readBytes()).also { f.delete() } }
-            }
-            val fitted = Narration.fit(storyboard, clips.mapValues { it.value.durationMs })
-            val total = runCatching { Timeline.build(fitted).totalMs }.getOrNull() ?: continue
-            best = fitted to clips; bestRate = rate
-            if (total <= 52_000) break
-        }
-        val (fitted, clips) = best ?: throw StoryboardException("Le texte lu dépasse 59 s, même accéléré à 1,3× : raccourcis ton texte.")
-        val timeline = Timeline.build(fitted)
-        val starts = Narration.starts(timeline)
-        val voiceTrack = AudioMix.place(timeline.totalMs, clips.map { (id, pcm) -> starts.getValue(id) to pcm })
-        val mixed = withContext(Dispatchers.Default) { Narration.mix(voiceTrack, music(timeline.totalMs), timeline.totalMs) }
+        var n = 0
+        val res = Narration.prepare(storyboard, mode, voices.byLang.keys, synth = { text, lang, rate ->
+            val f = File(workDir, "voix_${n++}.wav")
+            voices.synthesize(text, lang, f, rate, "${f.name}@$rate")
+            withContext(Dispatchers.IO) { Wav.read(f.readBytes()).also { f.delete() } }
+        }, music = { total -> withContext(Dispatchers.Default) { music(total) } })
         val out = File(workDir, "voix_et_musique.wav")
-        withContext(Dispatchers.IO) { out.writeBytes(Wav.write(mixed)) }
-        return VoicedResult(fitted, out, bestRate, lines.map { it.lang }.toSet(), clips.values.sumOf { it.durationMs })
+        withContext(Dispatchers.IO) { out.writeBytes(Wav.write(res.audio)) }
+        return VoicedResult(res.storyboard, out, res.speechRate, res.languages, res.voiceMs)
     }
 }

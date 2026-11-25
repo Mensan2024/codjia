@@ -4,6 +4,9 @@ package io.github.mensan2024.itmentor.engine
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.coroutines.Continuation
+import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.coroutines.startCoroutine
 
 class NarrationTest {
     @Test fun detecteLaLangueDeChaquePhrase() {
@@ -51,4 +54,29 @@ class NarrationTest {
     }
 
     private fun abs(x: Int) = kotlin.math.abs(x)
+
+    /** Exécute une fonction suspendue qui ne suspend pas réellement (synthèse factice). */
+    private fun <T> runNow(block: suspend () -> T): T {
+        var out: Result<T>? = null
+        block.startCoroutine(Continuation(EmptyCoroutineContext) { out = it })
+        return out!!.getOrThrow()
+    }
+
+    @Test fun preparationCommuneAndroidEtNavigateur() {
+        val sb = CreativeDirector.propose(Fixtures.ALL.values.first(), 5).storyboard
+        val calls = ArrayList<Pair<String, Float>>()
+        // Voix factice : 120 ms par mot, à 22 050 Hz (comme Piper), plus lente que l'affichage.
+        val res = runNow {
+            Narration.prepare(sb, VoiceMode.AUTO, setOf("fr", "en"), synth = { text, lang, rate ->
+                calls += lang to rate
+                val ms = (text.split(' ').size * 120 / rate).toLong()
+                Pcm(22_050, 1, ShortArray((ms * 22_050 / 1000).toInt()) { (it % 200 - 100).toShort() })
+            }, music = { total -> Pcm(44_100, 2, ShortArray((total * 44_100 / 1000).toInt() * 2) { 1000 }) })
+        }
+        val tl = Timeline.build(res.storyboard)
+        assertTrue("≤ 59 s", tl.totalMs <= Timeline.MAX_DURATION_MS)
+        assertTrue("piste audio aussi longue que la vidéo", kotlin.math.abs(tl.totalMs - res.audio.durationMs) <= 30)
+        assertTrue("une synthèse par phrase", calls.size >= Narration.lines(sb, VoiceMode.AUTO).size)
+        assertTrue(res.voiceMs > 0)
+    }
 }

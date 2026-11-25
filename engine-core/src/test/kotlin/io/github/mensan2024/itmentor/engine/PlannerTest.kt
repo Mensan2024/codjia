@@ -157,4 +157,15 @@ class VariationTest {
         for (seed in 1L..40L) assertTrue(CreativeDirector.propose(text, seed).look != Look.DEMO)
         assertEquals(Look.DEMO, CreativeDirector.propose(text, 3, forcedLook = Look.DEMO).look)
     }
+
+    @Test fun laDureeSuitLaLongueurDuTexte() {
+        fun ms(text: String) = Timeline.build(Composer.prepare(CreativeDirector.propose(text, 4).storyboard, CreativeDirector.propose(text, 4).template, null)).totalMs
+        val court = ms("Astuce 030 — Verrouille ton écran.\nQuand tu quittes ton poste, appuie sur Windows + L.")
+        val long = Fixtures.ALL.getValue("long_reseau_securise").let(::ms)
+        assertTrue("texte court : vidéo courte ($court ms)", court < 20_000)
+        assertTrue("texte long : vidéo longue ($long ms)", long > 45_000)
+        assertTrue(long <= Timeline.MAX_DURATION_MS)
+        assertEquals(12_000, StoryboardPlanner.targetMs(5))
+        assertTrue(StoryboardPlanner.targetMs(100) in 36_000..40_000)
+    }
 }

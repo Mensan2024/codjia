@@ -78,7 +78,7 @@ object MusicCatalog {
         ImportPolicy.checkAudio(size, duration, rate, channels, mime)?.let { throw IllegalArgumentException(it) }
         // Identifiant stable sans exposer l'URI (qui peut contenir un chemin).
         val id = "import:" + Integer.toHexString(uri.toString().hashCode())
-        return MusicTrack(id, ImportPolicy.displayName(name), MusicCategory.DOUCE, 0, uri.toString(), duration,
+        return MusicTrack(id, ImportPolicy.displayName(name), MusicCategory.PERSO, 0, uri.toString(), duration,
             "Fichier de l'utilisateur", "Importé par l'utilisateur, sous sa responsabilité", source = MusicSource.USER_IMPORT)
     }
 }

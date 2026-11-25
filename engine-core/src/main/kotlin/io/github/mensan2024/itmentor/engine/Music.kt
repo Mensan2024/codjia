@@ -12,6 +12,8 @@ enum class MusicCategory(val label: String) {
     INSPIRANTE("Inspirante et émotionnelle"),
     TECHNO("Électro (EDM, house, future bass, synthwave)"),
     EDUCATIVE("Hip-hop et lo-fi pour apprendre"),
+    /** Musique importée par l'utilisateur depuis son appareil (jamais dans le catalogue intégré). */
+    PERSO("Ma musique"),
     NATURE("Nature et environnement"),
     AFRO("Afro et tropical (afrobeats, amapiano, dembow)"),
     CINEMATIQUE("Cinématique et épique"),

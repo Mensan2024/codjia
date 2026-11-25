@@ -84,7 +84,7 @@ object Looks {
         Look.NEON -> ReelLook(storyboard, template, ReelStyle.NEON)
         Look.COLLAGE -> ReelLook(storyboard, template, ReelStyle.COLLAGE)
         Look.CINEMA -> ReelLook(storyboard, template, ReelStyle.CINEMA)
-        Look.INFOGRAPHIE -> InfographicLook(storyboard)
+        Look.INFOGRAPHIE -> InfographicLook(storyboard, StyleKit.infographic(storyboard.seed))
         Look.MONTAGE -> MontageLook(storyboard)
         Look.KIT -> MontageLook(storyboard, StyleKit.random(storyboard.seed))
     }

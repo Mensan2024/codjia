@@ -123,5 +123,46 @@ object Narration {
         return Pcm(rate, 2, out)
     }
 
+    /** Storyboard aux durées adaptées à la voix + piste finale (voix + musique) ; commun Android / navigateur. */
+    class Voiced(val storyboard: Storyboard, val audio: Pcm, val speechRate: Float, val languages: Set<String>, val voiceMs: Long)
+
+    private val RATES = floatArrayOf(1.0f, 1.1f, 1.2f, 1.3f)
+
+    /**
+     * Synthétise chaque phrase avec [synth], allonge les scènes si besoin, puis mélange voix et musique
+     * (la musique baisse sous la voix). Si la vidéo dépasse 52 s, la lecture est un peu accélérée
+     * (jusqu'à 1,3×) ; au-delà de 59 s, c'est refusé. [available] : langues que le moteur sait lire.
+     */
+    suspend fun prepare(
+        storyboard: Storyboard, mode: VoiceMode, available: Set<String>,
+        synth: suspend (text: String, lang: String, rate: Float) -> Pcm,
+        music: suspend (totalMs: Long) -> Pcm?,
+        progress: (done: Int, total: Int) -> Unit = { _, _ -> },
+    ): Voiced {
+        require(available.isNotEmpty()) { "Aucune voix disponible" }
+        val lines = lines(storyboard, mode).map { if (it.lang in available) it else it.copy(lang = available.first()) }
+        require(lines.isNotEmpty()) { "Aucune phrase à lire" }
+        var best: Pair<Storyboard, Map<String, Pcm>>? = null
+        var bestRate = 1f
+        var done = 0
+        for (rate in RATES) {
+            val clips = LinkedHashMap<String, Pcm>()
+            for (l in lines) {
+                clips[l.sceneId] = synth(l.text, l.lang, rate)
+                progress(++done, lines.size)
+            }
+            val fitted = fit(storyboard, clips.mapValues { it.value.durationMs })
+            val total = runCatching { Timeline.build(fitted).totalMs }.getOrNull() ?: continue
+            best = fitted to clips; bestRate = rate
+            if (total <= 52_000) break
+        }
+        val (fitted, clips) = best ?: throw StoryboardException("Le texte lu dépasse 59 s, même accéléré à 1,3× : raccourcis ton texte.")
+        val timeline = Timeline.build(fitted)
+        val st = starts(timeline)
+        val voiceTrack = AudioMix.place(timeline.totalMs, clips.map { (id, pcm) -> st.getValue(id) to pcm })
+        val mixed = mix(voiceTrack, music(timeline.totalMs), timeline.totalMs)
+        return Voiced(fitted, mixed, bestRate, lines.map { it.lang }.toSet(), clips.values.sumOf { it.durationMs })
+    }
+
     @Suppress("unused") private fun clampMs(x: Long) = max(0L, min(x, Timeline.MAX_DURATION_MS))
 }
