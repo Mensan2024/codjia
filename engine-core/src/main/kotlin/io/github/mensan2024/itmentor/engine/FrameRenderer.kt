@@ -140,8 +140,42 @@ class FrameRenderer(val storyboard: Storyboard, val format: VideoFormat, baseTem
  * C'est la seule porte d'entrée de l'application : l'aperçu et l'export passent tous deux par ici.
  */
 object Composer {
+    /** Durée visée après habillage : une marge sous le maximum de 59 s. */
+    private const val TARGET_MS = 57_500L
+
+    /**
+     * Applique le modèle, le format (ses transitions) et le calage sur le tempo de la musique.
+     * Un format en coupes franches (sans fondus qui se chevauchent) ou le calage sur le tempo peuvent
+     * allonger la vidéo : si elle dépasse la limite, les scènes sont resserrées proportionnellement
+     * (rien n'est retiré) et le calage est refait.
+     */
     fun prepare(content: Storyboard, template: Template, music: MusicTrack?): Storyboard {
+        var src = content
+        var out = dress(src, template, music)
+        repeat(5) {
+            val total = totalMs(out)
+            if (total <= TARGET_MS + 1_000) return out
+            val k = TARGET_MS.toDouble() / total
+            src = src.copy(scenes = src.scenes.map { it.copy(durationMs = (it.durationMs * k).toInt().coerceAtLeast(2_000)) })
+            out = dress(src, template, music)
+        }
+        return out
+    }
+
+    private fun dress(content: Storyboard, template: Template, music: MusicTrack?): Storyboard {
         val dressed = Looks.apply(Templates.apply(content, template), content.look)
         return if (music != null) Rhythm.align(dressed, music.beatMs) else dressed
+    }
+
+    /** Durée totale, calculée comme `Timeline.build` mais sans limite. */
+    internal fun totalMs(sb: Storyboard): Long {
+        var cursor = 0L
+        var end = 0L
+        for ((i, sc) in sb.scenes.withIndex()) {
+            end = cursor + sc.durationMs
+            val overlap = if (i == sb.scenes.lastIndex || sc.transitionOut.type == TransitionType.CUT) 0 else sc.transitionOut.durationMs
+            cursor = end - overlap
+        }
+        return end
     }
 }

@@ -1,0 +1,16 @@
+Astuce 032 — Sécurise ton réseau Wi-Fi domestique de bout en bout
+Apprentissage technique :
+Un réseau Wi-Fi mal configuré permet à un voisin ou à un attaquant de lire ton trafic, d'utiliser ta connexion ou d'attaquer tes appareils.
+La plupart des box sont livrées avec des réglages par défaut connus de tous, ce qui facilite le travail des pirates.
+En quelques minutes, tu peux fermer la majorité de ces portes et garder le contrôle de ton réseau.
+Action :
+Change le mot de passe d'administration de la box dès la première connexion.
+Choisis le chiffrement WPA3, ou WPA2-AES si certains appareils sont anciens.
+Utilise une phrase de passe Wi-Fi longue, d'au moins quinze caractères.
+Désactive le WPS, qui permet de deviner le code d'accès en quelques heures.
+Crée un réseau invité séparé pour les visiteurs et les objets connectés.
+Mets à jour le micrologiciel de la box chaque mois.
+Désactive l'administration à distance si tu ne l'utilises pas.
+Vérifie régulièrement la liste des appareils connectés et bloque les inconnus.
+En résumé : un mot de passe fort, un chiffrement récent et des mises à jour régulières protègent l'essentiel de ton réseau.
+#securiteinformatiquepourtous #codjia

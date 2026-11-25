@@ -371,8 +371,12 @@ class MainActivity : ComponentActivity() {
         actions.addView(button("Style", primary = false) { show(Step.STYLE) }, lp(0, WRAP, 1f, end = dp(8f)))
         actions.addView(button("Musique", primary = false) { show(Step.MUSIC) }, lp(0, WRAP, 1f, end = dp(8f)))
         actions.addView(button("Autre version", primary = false) {
-            propose(regenerate = true)
-            show(Step.PREVIEW, animate = false)
+            // Calcul hors du fil d'interface ; une erreur ne doit jamais fermer l'appli.
+            lifecycleScope.launch {
+                runCatching { withContext(Dispatchers.Default) { propose(regenerate = true) } }
+                    .onSuccess { show(Step.PREVIEW, animate = false) }
+                    .onFailure { Toast.makeText(this@MainActivity, it.message ?: "Impossible de créer une autre version", Toast.LENGTH_LONG).show() }
+            }
         }, lp(0, WRAP, 1f))
         page.addView(actions, lp(MATCH, WRAP, top = dp(10f)))
         // Choix explicite de la voix off, directement sur l'aperçu (la langue se règle dans « Musique »).
@@ -388,12 +392,18 @@ class MainActivity : ComponentActivity() {
         previewPaused = false
         if (voiceMode != VoiceMode.NONE) hint.text = "Préparation de la voix off…"
         previewJob = lifecycleScope.launch {
-            val (sb, audio) = runCatching { audioPlan { hint.text = it } }.getOrElse { e ->
+            val plan = runCatching { audioPlan { hint.text = it } }.recoverCatching { e ->
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 Toast.makeText(this@MainActivity, "Voix off impossible : ${e.message}", Toast.LENGTH_LONG).show()
-                Composer.prepare(content, template, choice.track?.takeIf { it.bpm > 0 }) to null
+                withContext(Dispatchers.Default) { Composer.prepare(content, template, choice.track?.takeIf { it.bpm > 0 }) } to null
             }
-            val secs = (FrameRenderer(sb, VideoFormat(360, 640, 30), template).timeline.totalMs + 500) / 1000
-            info.text = "${info.text} · $secs s"
+            val (sb, audio) = plan.getOrElse { e ->
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                hint.text = "Aperçu impossible : ${e.message ?: "erreur inconnue"}. Essaie « Autre version » ou raccourcis le texte."
+                return@launch
+            }
+            val secs = runCatching { withContext(renderThread) { (FrameRenderer(sb, VideoFormat(360, 640, 30), template).timeline.totalMs + 500) / 1000 } }.getOrNull()
+            if (secs != null) info.text = "${info.text} · $secs s"
             hint.text = "Touche pour mettre en pause"
             startPreview(sb, img, audio)
         }
@@ -405,6 +415,8 @@ class MainActivity : ComponentActivity() {
         val mp = if (mixed != null) runCatching { MediaPlayer().apply { setDataSource(mixed.absolutePath); prepare() } }.getOrNull()
             else choice.track?.takeIf { choice.hasAudio }?.let { runCatching { openPlayer(it) }.getOrNull() }
         if (mixed == null) mp?.setVolume(choice.volume.gain, choice.volume.gain)
+        // La musique (48 s) peut être plus courte que la vidéo (jusqu'à 59 s) : elle boucle, comme à l'export.
+        if (mixed == null) mp?.isLooping = true
         player = mp
         previewJob = lifecycleScope.launch {
             val renderer = withContext(renderThread) { FrameRenderer(sb, VideoFormat(360, 640, 30), template) }
@@ -416,13 +428,20 @@ class MainActivity : ComponentActivity() {
             mp?.start()
             view.alpha = 0f
             var first = true
+            val mpLen = runCatching { mp?.duration?.toLong() ?: 0L }.getOrDefault(0L)
+            var lastSync = 0L
             while (isActive) {
                 val now = SystemClock.elapsedRealtime()
                 if (!previewPaused) clock += now - last
                 last = now
-                var t = if (mp != null && !previewPaused) mp.currentPosition.toLong() else clock
-                if (t >= total) { clock = 0; mp?.seekTo(0); t = 0 }
-                clock = t
+                // Le temps de la vidéo suit l'horloge ; le son est recalé s'il dérive (> 150 ms).
+                if (clock >= total) { clock = 0; runCatching { mp?.seekTo(0) } }
+                val t = clock
+                if (mp != null && !previewPaused && mpLen > 0 && now - lastSync > 600) runCatching {
+                    lastSync = now
+                    val expected = if (mixed != null) t.coerceAtMost(mpLen - 1) else t % mpLen
+                    if (kotlin.math.abs(mp.currentPosition - expected) > 250) mp.seekTo(expected.toInt())
+                }
                 val target = bufs[flip]
                 withContext(renderThread) {
                     target.eraseColor(Color.BLACK)
@@ -687,8 +706,13 @@ class MainActivity : ComponentActivity() {
             try {
                 val format = withContext(Dispatchers.Default) { DeviceProfile.pickFormat() }
                 val music = choice.track
-                val (sb, voicedAudio) = audioPlan { status.text = it }
-                val total = FrameRenderer(sb, format, template).timeline.totalMs
+                // Si la voix off échoue, la vidéo est quand même générée, avec la musique seule.
+                val (sb, voicedAudio) = runCatching { audioPlan { status.text = it } }.getOrElse { e ->
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    say("Voix off      : impossible (${e.message}) · vidéo générée sans voix")
+                    withContext(Dispatchers.Default) { Composer.prepare(content, template, choice.track?.takeIf { it.bpm > 0 }) } to null
+                }
+                val total = withContext(Dispatchers.Default) { FrameRenderer(sb, format, template).timeline.totalMs }
                 say("Appareil      : ${Build.MANUFACTURER} ${Build.MODEL} · Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
                 say("Format vidéo  : ${look.label}${if (hasDemo) " + démo à l'écran" else ""} · modèle ${template.name}")
                 say("Musique       : ${music?.let { "${it.title} · volume ${choice.volume.label}" } ?: "sans musique"}")
@@ -750,9 +774,16 @@ class MainActivity : ComponentActivity() {
                 actions.addView(open, lp(0, WRAP, 1f, end = dp(10f)))
                 actions.addView(share, lp(0, WRAP, 1f))
                 result.addView(actions, lp(MATCH, WRAP))
-                result.addView(button("🔀 Une autre version", primary = false) { propose(regenerate = true); show(Step.PREVIEW, forward = false) }, lp(MATCH, WRAP, top = dp(10f)))
+                result.addView(button("🔀 Une autre version", primary = false) {
+                    lifecycleScope.launch {
+                        runCatching { withContext(Dispatchers.Default) { propose(regenerate = true) } }
+                            .onSuccess { show(Step.PREVIEW, forward = false) }
+                            .onFailure { Toast.makeText(this@MainActivity, it.message ?: "Impossible de créer une autre version", Toast.LENGTH_LONG).show() }
+                    }
+                }, lp(MATCH, WRAP, top = dp(10f)))
                 result.addView(button("Nouveau texte", primary = false) { show(Step.CONTENT, forward = false) }, lp(MATCH, WRAP, top = dp(10f)))
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 percent.text = "❌"
                 status.text = "La génération a échoué : ${e.message ?: e::class.simpleName}"
                 say("ÉCHEC : ${e::class.simpleName} — ${e.message}")

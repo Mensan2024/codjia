@@ -2,6 +2,27 @@
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [1.5.1] — 2026-11-25
+### Corrections
+- Aperçu figé au-delà de 48 s : la musique boucle désormais dans l'aperçu (comme à l'export), et l'image suit sa propre horloge.
+- Plantages possibles :
+  - « Autre version » (dans l'aperçu et après la génération) : calculée hors de l'écran, avec un message en cas d'échec ;
+  - aperçu impossible : message clair au lieu d'une fermeture de l'appli ;
+  - échec de la voix off pendant l'export : la vidéo est générée quand même, avec la musique seule.
+- Vidéo refusée au-delà de 59 s : un format en coupes franches ou le calage sur le tempo pouvaient pousser un texte long à plus de 59 s. Les scènes sont maintenant resserrées automatiquement, sans rien retirer.
+- Démo hors sujet : « mets à jour » dans une astuce sur la box ne déclenche plus la démo Windows Update (il faut parler d'un ordinateur).
+- Titres coupés sur un petit mot (« … des », « … si tu ») et titres devenus minuscules : ils passent maintenant sur deux lignes, en grand.
+- Nouveau test : un texte long (8 étapes, ~58 s) rendu dans tous les formats.
+### Montage dynamique plus rythmé
+- Un plan par phrase (3 à 4 s) au lieu de longs blocs.
+- Les mots clés surgissent autour de l'objet au moment exact où ils sont dits.
+- Effets visuels :
+  - reflet lumineux sur chaque nouvelle carte, qui entre aussi avec un rebond ;
+  - lente poussée de caméra pendant le plan ;
+  - mot prononcé qui « pop » ;
+  - mascotte qui saute à chaque coupe.
+- Terminal réaliste : sortie typique de la commande (installation, lignes « Failed password » avec des adresses IP de documentation…).
+
 ## [1.5.0] — 2026-11-25
 - Nouveau format **Montage dynamique** (10 formats ; il revient deux fois plus souvent que les autres). C'est le style des tutoriels animés des réseaux sociaux :
   - un chapitre numéroté en haut, avec une petite étiquette et le mot clé surligné ;

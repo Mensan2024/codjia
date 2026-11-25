@@ -239,8 +239,13 @@ object Procedures {
     /** Sujet de démonstration correspondant au texte (score ≥ 3), ou `null`. */
     fun match(text: String): Topic? {
         val low = text.lowercase()
+        // « Mettre à jour » seul ne suffit pas pour la démo Windows Update / apt : il faut parler d'un ordinateur
+        // (sinon une astuce sur la box ou le téléphone recevrait une démo hors sujet).
+        val computer = Regex("windows|macos|\\bmac\\b|linux|ubuntu|debian|ordinateur|\\bpc\\b|système d'exploitation|\\bapt\\b").containsMatchIn(low)
         return ALL.map { tp -> tp to tp.keywords.sumOf { (k, w) -> if (low.contains(k)) w else 0 } }
-            .filter { it.second >= 3 }.maxByOrNull { it.second }?.first
+            .filter { it.second >= 3 }
+            .filter { (tp, _) -> computer || tp.keywords.none { it.first == "windows update" } }
+            .maxByOrNull { it.second }?.first
     }
 
     /** Système nommé dans le texte, s'il y en a un. */

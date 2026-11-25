@@ -57,7 +57,7 @@ internal class MontageLook(private val sb: Storyboard) : LookRenderer {
     private val astuceNo: Int? = (listOf(sb.title) + sb.scenes.take(1).flatMap { listOf(it.kicker ?: "", it.title) })
         .firstNotNullOfOrNull { Regex("(?i)astuce\\D{0,30}?0*(\\d{1,4})").find(Marked.strip(it))?.groupValues?.get(1)?.toIntOrNull() }
 
-    enum class Kind { HOOK, DOC, PROMPT, TERMINAL, PHONE, OBJECT, NUMBER, VERSUS, END }
+    enum class Kind { HOOK, KEYWORDS, DOC, PROMPT, TERMINAL, PHONE, OBJECT, NUMBER, VERSUS, END }
 
     data class Shot(
         val kind: Kind, val caption: String, val kicker: String, val title: String, val badge: String?,
@@ -70,7 +70,7 @@ internal class MontageLook(private val sb: Storyboard) : LookRenderer {
 
     private fun plain(s: String?) = Marked.strip(s ?: "").replace(' ', ' ').trim()
 
-    private val stop = setOf("des", "les", "de", "la", "le", "en", "à", "du", "et", "un", "une", "pour", "sur", "avec", "ton", "ta", "tes", "the", "a", "to", "of", "and", "d'", "l'")
+    private val stop = setOf("des", "les", "de", "la", "le", "en", "à", "du", "et", "un", "une", "pour", "sur", "avec", "par", "dans", "au", "aux", "qui", "que", "ou", "si", "tu", "ne", "il", "on", "je", "ce", "se", "ton", "ta", "tes", "the", "a", "to", "of", "and", "d'", "l'")
 
     /** Titre court : avant « : » ou « ( », 6 mots au plus, sans finir sur un petit mot (« des », « les »…). */
     private fun short(s: String, max: Int = 6): String {
@@ -91,6 +91,40 @@ internal class MontageLook(private val sb: Storyboard) : LookRenderer {
     private fun keyOf(title: String): String? = title.split(' ').map { it.trim(',', '.', ':', '!', '?') }.filter { it.length >= 3 }
         .maxByOrNull { (if (DomainDetector.isKeyword(it, domain)) 100 else 0) + it.length }
 
+    /** Découpe un texte en plans de 16 mots au plus, aux fins de phrase, puis aux virgules. */
+    private fun splitCaption(text: String): List<String> {
+        val sentences = Regex("(?<=[.!?;])\\s+").split(plain(text)).filter { it.isNotBlank() }
+        val out = ArrayList<String>()
+        for (sn in sentences) {
+            val w = sn.split(' ').filter { it.isNotBlank() }
+            if (w.size <= 18) { out += sn; continue }
+            var cur = ArrayList<String>()
+            for (x in w) {
+                cur += x
+                if (cur.size >= 14 || (cur.size >= 7 && x.endsWith(","))) { out += cur.joinToString(" "); cur = ArrayList() }
+            }
+            if (cur.isNotEmpty()) { if (cur.size < 4 && out.isNotEmpty()) out[out.lastIndex] = out.last() + " " + cur.joinToString(" ") else out += cur.joinToString(" ") }
+        }
+        // regroupe les morceaux trop courts
+        val merged = ArrayList<String>()
+        for (c in out) if (merged.isNotEmpty() && (merged.last().split(' ').size + c.split(' ').size) <= 9) merged[merged.lastIndex] = merged.last() + " " + c else merged += c
+        return merged.ifEmpty { listOf(plain(text)) }
+    }
+
+    /** Mots clés d'une phrase (sigles, termes du domaine, mots longs), dans l'ordre où ils sont dits. */
+    private fun keywords(text: String, max: Int = 4): List<Pair<Int, String>> {
+        val words = text.replace('\n', ' ').split(' ').filter { it.isNotBlank() }
+        val scored = words.mapIndexedNotNull { i, raw ->
+            val w = raw.trim(',', '.', ':', ';', '!', '?', '(', ')', '«', '»', '"', '`')
+            val core = w.substringAfter('\'')
+            if (core.length < 3 || core.lowercase() in stop) return@mapIndexedNotNull null
+            val acr = core.length in 2..6 && core.all { it.isUpperCase() || it.isDigit() }
+            val score = (if (acr) 60 else 0) + (if (DomainDetector.isKeyword(core, domain)) 50 else 0) + core.length.coerceAtMost(14) * 3 - (if (core.length < 5 && !acr) 40 else 0)
+            Triple(i, w, score)
+        }
+        return scored.sortedByDescending { it.third }.distinctBy { it.second.lowercase() }.take(max).sortedBy { it.first }.map { it.first to it.second }
+    }
+
     private val shotsCache = HashMap<String, List<Shot>>()
 
     /** Numéro de chapitre de chaque scène (les étapes sont numérotées une par une, en continu). */
@@ -108,13 +142,20 @@ internal class MontageLook(private val sb: Storyboard) : LookRenderer {
         val n0 = firstChapter[sc.id] ?: 1
         val out = ArrayList<Shot>()
         when (sc.layout) {
-            Layout.HERO -> out += Shot(Kind.HOOK, (plain(sc.title).trimEnd('.', '!') + ". " + plain(sc.subtitle)).trim().trimEnd(' ', '.') + ".",
-                kicker = plain(sc.kicker).uppercase(), title = plain(sc.title), badge = null,
-                icon = iconForText(plain(sc.title + " " + sc.subtitle), sc.iconOrDefault()), sticker = domain.label.split(' ', ':').first().uppercase())
+            Layout.HERO -> {
+                val icon = iconForText(plain(sc.title + " " + sc.subtitle), sc.iconOrDefault())
+                out += Shot(Kind.HOOK, plain(sc.title).trimEnd('.', '!', ' ') + ".", kicker = plain(sc.kicker).uppercase(), title = plain(sc.title), badge = null,
+                    icon = icon, sticker = domain.label.split(' ', ':').first().uppercase())
+                val sub = plain(sc.subtitle)
+                if (sub.isNotEmpty()) for (c in splitCaption(sub)) out += Shot(Kind.KEYWORDS, c, kicker = "L'IDÉE", title = short(c, 5), badge = null, icon = icon)
+            }
             Layout.DEFINITION -> {
                 val body = plain(sc.body.ifEmpty { sc.subtitle })
-                out += Shot(Kind.DOC, body, kicker = plain(sc.kicker).ifEmpty { "LE PRINCIPE" }.uppercase(), title = short(plain(sc.title)), badge = "$n0",
-                    main = body, icon = iconForText(body, sc.iconOrDefault()))
+                for ((k, c) in splitCaption(body).withIndex()) {
+                    val kind = if ((k + (r.nextInt() ushr 1)) % 2 == 0) Kind.KEYWORDS else Kind.DOC
+                    out += Shot(kind, c, kicker = plain(sc.kicker).ifEmpty { "LE PRINCIPE" }.uppercase(), title = short(plain(sc.title)), badge = "$n0",
+                        main = c, icon = iconForText(c, sc.iconOrDefault()))
+                }
             }
             Layout.STEPS -> {
                 val labels = sc.items.map { splitLabel(plain(it)).first }
@@ -123,9 +164,14 @@ internal class MontageLook(private val sb: Storyboard) : LookRenderer {
                     val (label, detail) = splitLabel(plain(it))
                     val cmd = if (isCommand(label)) label else commandIn(plain(it))
                     val kind = if (cmd != null) Kind.TERMINAL else listOf(Kind.PROMPT, Kind.PHONE, Kind.OBJECT)[((r.nextInt() ushr 1) + i) % 3]
-                    out += Shot(kind, plain(it), kicker = kick, title = short(label), badge = "${n0 + i}", items = labels.map { l -> short(l, 6) },
-                        icon = iconForText(plain(it), sc.iconOrDefault()), main = if (kind == Kind.TERMINAL) cmd!! else plain(it),
-                        detail = if (cmd == label) detail else null, index = i, sticker = keyOf(short(label))?.uppercase())
+                    // Une commande se montre en entier dans le terminal : pas de découpage.
+                    val parts = if (cmd != null) listOf(plain(it)) else splitCaption(plain(it))
+                    for ((k, c) in parts.withIndex()) {
+                        val kd = if (k == 0) kind else Kind.KEYWORDS
+                        out += Shot(kd, c, kicker = kick, title = short(label), badge = "${n0 + i}", items = labels.map { l -> short(l, 6) },
+                            icon = iconForText(plain(it), sc.iconOrDefault()), main = if (kd == Kind.TERMINAL) cmd!! else c,
+                            detail = if (cmd == label) detail else null, index = i, sticker = keyOf(short(label))?.uppercase())
+                    }
                 }
             }
             Layout.STAT -> out += Shot(Kind.NUMBER, plain(sc.title).trimEnd(':', ' ', '.') + "." + (if (sc.body.isNotEmpty()) " " + plain(sc.body) else ""),
@@ -181,15 +227,19 @@ internal class MontageLook(private val sb: Storyboard) : LookRenderer {
         val s = ss[i]
         val key = "${sc.id}/$i"
         val (wi, speaking) = wordAt(s, t, len)
-        mascot(g, tGlobalMs, speaking)
-        if (s.kind == Kind.HOOK) hookHeader(g, s, wi, key) else header(g, s, t, key)
-        val e = Easing.EXPO_OUT.ease(clamp01(t / 380f))
+        mascot(g, tGlobalMs, speaking, t)
+        val sameHeader = i > 0 && ss[i - 1].badge == s.badge && ss[i - 1].title == s.title && ss[i - 1].kind != Kind.HOOK
+        if (s.kind == Kind.HOOK) hookHeader(g, s, wi, key) else header(g, s, if (sameHeader) 2000f else t, key)
+        // Entrée de la carte : elle monte avec un léger rebond, puis la caméra pousse doucement.
+        val e = Easing.BACK_OUT.ease(clamp01(t / 420f))
+        val push = 1f + 0.02f * Easing.EASE_IN_OUT.ease(clamp01(t / len))
         val top = if (s.kind == Kind.HOOK) 720f else CARD_T
-        g.withPose(Pose(alpha = e, dy = (1 - e) * 40f, scale = lerp(0.96f, 1f, e)), 540f, (top + CARD_B) / 2) {
+        g.withPose(Pose(alpha = clamp01(t / 160f), dy = (1 - e) * 90f, scale = lerp(0.9f, 1f, e) * push), 540f, (top + CARD_B) / 2) {
             cardFrame(g, top)
             val area = R(CARD_L + 40f, top + 40f, CARD_R - 40f, CARD_B - 40f)
             when (s.kind) {
                 Kind.HOOK -> hookCard(g, s, t, area)
+                Kind.KEYWORDS -> keywordsCard(g, s, t, wi, area)
                 Kind.DOC -> doc(g, s, t, len, area, key)
                 Kind.PROMPT -> prompt(g, s, t, len, area)
                 Kind.TERMINAL -> terminal(g, s, t, len, area)
@@ -199,8 +249,9 @@ internal class MontageLook(private val sb: Storyboard) : LookRenderer {
                 Kind.VERSUS -> versus(g, s, t, area)
                 Kind.END -> endCard(g, s, t, area)
             }
+            sweep(g, top, t)
         }
-        captions(g, s, wi, key)
+        captions(g, s, wi, key, t)
     }
 
     data class R(val l: Float, val t: Float, val r: Float, val b: Float) {
@@ -236,8 +287,9 @@ internal class MontageLook(private val sb: Storyboard) : LookRenderer {
     }
 
     /** Mascotte CODJIA (originale) : une petite boule à antenne, qui sautille et parle avec les sous-titres. */
-    private fun mascot(g: Gfx, tg: Float, speaking: Boolean) {
-        val bounce = abs(sin(tg * 0.0045f)) * 14f
+    private fun mascot(g: Gfx, tg: Float, speaking: Boolean, tShot: Float) {
+        val jump = if (tShot < 380f) sin(tShot / 380f * 3.1416f) * 34f else 0f
+        val bounce = abs(sin(tg * 0.0045f)) * 14f + jump
         val cx = 540f; val cy = MASCOT_Y - bounce
         g.fillRadialGlow(cx, MASCOT_Y + 70f, 150f, 0x66000000)
         g.fillRadialGlow(cx, cy, 170f, accent.withAlpha(0.35f))
@@ -255,6 +307,46 @@ internal class MontageLook(private val sb: Storyboard) : LookRenderer {
         g.fillCircle(cx + 38f, cy + 12f, 9f, rgb(0xFF5C8A).withAlpha(0.5f))
         val open = if (speaking) 3f + 7f * abs(sin(tg * 0.025f)) else 2.5f
         g.fillRoundRect(cx - 10f, cy + 14f, cx + 10f, cy + 16f + open, 6f, rgb(0x3A1010))
+    }
+
+    /** Reflet lumineux qui traverse la carte à son arrivée (effet « verre »). */
+    private fun sweep(g: Gfx, top: Float, t: Float) {
+        val p = clamp01((t - 120f) / 650f)
+        if (p <= 0f || p >= 1f) return
+        g.save()
+        g.clipPath(roundPath(CARD_L, top, CARD_R, CARD_B, 30f))
+        val x = lerp(CARD_L - 400f, CARD_R + 400f, Easing.EASE_IN_OUT.ease(p))
+        g.rotate(18f, x, (top + CARD_B) / 2)
+        g.fillRect(x - 70f, top - 400f, x + 70f, CARD_B + 400f, 0x14FFFFFF)
+        g.fillRect(x - 18f, top - 400f, x + 18f, CARD_B + 400f, 0x18FFFFFF)
+        g.restore()
+    }
+
+    /** Les mots clés de la phrase apparaissent autour de l'objet au moment exact où ils sont dits. */
+    private fun keywordsCard(g: Gfx, s: Shot, t: Float, wi: Int, a: R) {
+        object3d(g, s.icon, a.cx, a.cy, 210f, t)
+        val kws = keywords(s.caption)
+        val spots = listOf(a.l + 170f to a.t + 90f, a.r - 170f to a.t + 150f, a.l + 190f to a.b - 150f, a.r - 180f to a.b - 90f)
+        val f = FontSpec(FontFamily.TEXT, 800, 40f)
+        for ((k, kw) in kws.withIndex()) {
+            val (idx, word) = kw
+            if (wi < idx) continue
+            val since = clamp01(((wi - idx) * 300f + 200f) / 300f)
+            val kk = Easing.BACK_OUT.ease(since)
+            val (x0, y) = spots[k % spots.size]
+            val lab = TextLayout.fit(g, word, f, 360f, 1, minSize = 24f)
+            val text = lab.lines.first()
+            val w = g.measureText(text, lab.font) + 44f
+            val x = x0.coerceIn(a.l + w / 2, a.r - w / 2)
+            // fil vers l'objet
+            g.line(a.cx, a.cy, x, y, 2f, accent.withAlpha(0.35f * kk))
+            val isNow = wi == idx
+            g.withPose(Pose(scale = lerp(0.3f, 1f, kk) * (if (isNow) 1.06f else 1f), alpha = clamp01(kk * 2)), x, y) {
+                g.fillRoundRect(x - w / 2, y - 36f, x + w / 2, y + 36f, 36f, if (isNow) rgb(0xFFFFFF) else rgb(0x2C2C30))
+                g.strokeRoundRect(x - w / 2, y - 36f, x + w / 2, y + 36f, 36f, 2f, if (isNow) rgb(0xFFFFFF) else accent.withAlpha(0.7f))
+                g.drawText(text, x - w / 2 + 22f, y + 14f, lab.font, if (isNow) dark else ink)
+            }
+        }
     }
 
     private fun cardFrame(g: Gfx, top: Float) {
@@ -285,9 +377,16 @@ internal class MontageLook(private val sb: Storyboard) : LookRenderer {
         val maxW = Safe.RIGHT - x
         val kick = TextLayout.fit(g, s.kicker, kf, maxW - 60f, 1, minSize = 18f)
         g.withPose(Pose(alpha = a), x, by) { g.drawTracked(kick.lines.firstOrNull() ?: "", x, by + 26f, kick.font, muted, 5f) }
-        val tl = TextLayout.fit(g, s.title, FontSpec(FontFamily.TEXT, 800, 66f), maxW - 40f, 1, minSize = 36f)
-        val line = tl.lines.firstOrNull() ?: return
-        highlightLine(g, line, keyOf(line), x, by + 94f, tl.font, a)
+        // Titre sur une ligne si possible, sinon deux lignes en assez grand (jamais minuscule).
+        val one = TextLayout.fit(g, s.title, FontSpec(FontFamily.TEXT, 800, 66f), maxW - 40f, 1, minSize = 50f)
+        val fits = one.lines.size == 1 && !one.lines[0].endsWith("…") && g.measureText(one.lines[0], one.font) <= maxW - 40f
+        val tl = if (fits) one else TextLayout.fit(g, s.title, FontSpec(FontFamily.TEXT, 800, 50f), maxW - 40f, 2, lineHeightFactor = 1.08f, minSize = 34f)
+        val kw = keyOf(s.title)
+        var hit = false
+        for ((li, line) in tl.lines.withIndex()) {
+            val k = if (!hit && kw != null && line.split(' ').any { it.trim(',', '.', ':', '!', '?') == kw }) { hit = true; kw } else null
+            highlightLine(g, line, k, x, by + 94f + li * tl.font.size * 1.12f, tl.font, a)
+        }
     }
 
     /** Une ligne de titre, avec le mot clé dans un cadre blanc (texte noir). */
@@ -346,16 +445,20 @@ internal class MontageLook(private val sb: Storyboard) : LookRenderer {
     private fun wordAt(s: Shot, t: Float, len: Float): Pair<Int, Boolean> {
         if (s.words.isEmpty()) return -1 to false
         val start = 180f; val end = (len - 250f).coerceAtLeast(start + 300f)
-        if (t < start) return -1 to false
+        if (t < start) { wordFrac = 0f; return -1 to false }
         val wts = s.words.map { it.length + 3f }
         val p = ((t - start) / (end - start)).coerceIn(0f, 1f) * wts.sum()
         var acc = 0f
-        for ((i, w) in wts.withIndex()) { acc += w; if (p < acc) return i to true }
+        for ((i, w) in wts.withIndex()) { if (p < acc + w) { wordFrac = (p - acc) / w; return i to true }; acc += w }
+        wordFrac = 1f
         return s.words.lastIndex to (t < end)
     }
 
+    /** Avancement dans le mot prononcé (0 au début du mot), pour le petit « pop » du surlignage. */
+    private var wordFrac = 0f
+
     /** Une ou deux lignes de sous-titres ; le mot prononcé est dans un cadre blanc, les suivants en gris. */
-    private fun captions(g: Gfx, s: Shot, wi: Int, key: String) {
+    private fun captions(g: Gfx, s: Shot, wi: Int, key: String, t: Float) {
         if (s.words.isEmpty() || wi < 0) return
         val f = FontSpec(FontFamily.TEXT, 800, 56f)
         val maxW = Safe.WIDTH - 60f
@@ -394,8 +497,12 @@ internal class MontageLook(private val sb: Storyboard) : LookRenderer {
                 val word = s.words[k]
                 val ww = g.measureText(word, f)
                 if (k == wi) {
-                    g.fillRoundRect(x - 8f, y - 48f, x + ww + 8f, y + 14f, 10f, rgb(0xFFFFFF))
-                    g.drawText(word, x, y, f, dark); x += 16f
+                    val pop = 1f + 0.1f * (1f - Easing.EXPO_OUT.ease(clamp01(wordFrac * 3f)))
+                    g.withPose(Pose(scale = pop), x + ww / 2, y - 17f) {
+                        g.fillRoundRect(x - 8f, y - 48f, x + ww + 8f, y + 14f, 10f, rgb(0xFFFFFF))
+                        g.drawText(word, x, y, f, dark)
+                    }
+                    x += 16f
                 } else g.drawText(word, x, y, f, if (k < wi) ink else rgb(0x5A5A60))
                 x += ww + sp
             }
@@ -553,13 +660,34 @@ internal class MontageLook(private val sb: Storyboard) : LookRenderer {
             g.drawText((if (i == 0) "$ " else "  ") + line.take(chars.coerceAtLeast(0)), a.l + 36f, y, cmd.font, ok)
             chars -= line.length; y += cmd.font.size * 1.3f
         }
-        val oa = clamp01((t - 400f - typeMs - 300f) / 300f)
-        val out = s.detail
-        if (oa > 0f && out != null) {
-            val ob = TextLayout.fit(g, "# $out", FontSpec(FontFamily.MONO, 400, 30f), a.w - 80f, 4, lineHeightFactor = 1.3f, minSize = 20f)
-            g.withPose(Pose(alpha = oa), a.l, y) { g.drawBlock(ob, a.l + 36f, y + 10f, muted) }
+        // Sortie typique de la commande (exemples génériques, adresses IP réservées à la documentation).
+        val lines = (sampleOutput(s.main) + listOfNotNull(s.detail?.let { "# $it" })).take(6)
+        val of = FontSpec(FontFamily.MONO, 400, 28f)
+        var oy = y + 16f
+        for ((k, l) in lines.withIndex()) {
+            val oa = clamp01((t - 400f - typeMs - 250f - k * 220f) / 200f)
+            if (oa <= 0f || oy > a.b - 90f) break
+            val ob = TextLayout.fit(g, l, of, a.w - 80f, 1, minSize = 18f)
+            val col = when { l.startsWith("#") -> muted; Regex("Failed|refus|denied|erreur", RegexOption.IGNORE_CASE).containsMatchIn(l) -> rgb(0xFF9AA5); else -> rgb(0xD6D6DA) }
+            g.withPose(Pose(alpha = oa), a.l, oy) { g.drawText(ob.lines.first(), a.l + 36f, oy + 24f, ob.font, col) }
+            oy += 42f
         }
         sticker(g, "FAIT", a.r - 90f, a.b - 60f, t, ok, 400f + typeMs + 500f, -8f)
+    }
+
+    private fun sampleOutput(cmd: String): List<String> {
+        val c = cmd.lowercase()
+        return when {
+            c.contains("apt install") -> listOf("Lecture des listes de paquets… Fait", "Les NOUVEAUX paquets suivants seront installés :", "  " + c.substringAfter("install").trim().split(' ').first(), "Paramétrage en cours… Fait")
+            c.startsWith("grep") && c.contains("failed") -> listOf("Failed password for root from 203.0.113.7", "Failed password for admin from 203.0.113.7", "Failed password for root from 198.51.100.23")
+            c.startsWith("ufw") -> listOf("Règles mises à jour", "État : actif")
+            c.startsWith("systemctl") -> listOf("● service actif (running)")
+            c.startsWith("git status") -> listOf("Sur la branche main", "rien à valider, la copie de travail est propre")
+            c.startsWith("df") -> listOf("Sys. fichiers  Taille Utilisé Dispo Uti%", "/dev/sda1        50G     21G   27G  44%")
+            c.startsWith("free") -> listOf("        total  utilisé  libre", "Mem:    7,7Gi   3,1Gi   2,9Gi")
+            c.startsWith("show vlan") -> listOf("VLAN Name        Status", "10   COMPTA      active")
+            else -> emptyList()
+        }
     }
 
     /** Téléphone qui coche les étapes une à une ; l'étape courante est mise en avant. */
