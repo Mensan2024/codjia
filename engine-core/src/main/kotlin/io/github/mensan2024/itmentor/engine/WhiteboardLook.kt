@@ -239,7 +239,7 @@ internal class WhiteboardLook(private val sb: Storyboard) : LookRenderer {
      */
     private fun drawHand(g: Gfx, x: Float, y: Float) {
         if (x > 1500f || y > 2400f) return
-        val angle = Math.toDegrees(atan2(1.2, 1.0)).toFloat()
+        val angle = deg(atan2(1.2, 1.0)).toFloat()
         val skinDark = mix(skin, 0xFF000000.toInt(), 0.30f)
         val skinShade = mix(skin, 0xFF000000.toInt(), 0.12f)
         val skinLight = mix(skin, 0xFFFFFFFF.toInt(), 0.16f)

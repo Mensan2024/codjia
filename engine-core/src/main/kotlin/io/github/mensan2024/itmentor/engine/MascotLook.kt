@@ -60,7 +60,7 @@ internal class MascotLook(private val sb: Storyboard, private val template: Temp
             Layout.HERO -> { wave = true; mood = Mood.HAPPY; talk = hero(g, sc, t, bottom, cx) }
             Layout.DEFINITION -> talk = definition(g, sc, t, bottom, cx)
             Layout.STEPS -> talk = steps(g, sc, t, bottom, cx)
-            Layout.STAT -> { mood = Mood.HAPPY; hop = abs(sin(window(t, 900f, 900f) * Math.PI.toFloat() * 2f)); talk = stat(g, sc, t, bottom, cx) }
+            Layout.STAT -> { mood = Mood.HAPPY; hop = abs(sin(window(t, 900f, 900f) * kotlin.math.PI.toFloat() * 2f)); talk = stat(g, sc, t, bottom, cx) }
             Layout.COMPARE -> { val (tk, m) = compare(g, sc, t, bottom, cx); talk = tk; mood = m }
             Layout.CHECKLIST -> { mood = Mood.HAPPY; wave = t > sc.durationMs * 0.65f; talk = checklist(g, sc, t, bottom, cx) }
             Layout.SCREEN -> {}
@@ -206,7 +206,7 @@ internal class MascotLook(private val sb: Storyboard, private val template: Temp
         // Éclats autour du chiffre
         val burst = window(t, 900f, 800f)
         if (burst > 0f && burst < 1f) for (k in 0 until 12) {
-            val ang = k * 30f * Math.PI.toFloat() / 180f
+            val ang = k * 30f * kotlin.math.PI.toFloat() / 180f
             val r0 = 180f + 160f * burst
             g.fillCircle(540f + cos(ang) * r0, cy + sin(ang) * r0 * 0.6f, 9f * (1 - burst), if (k % 2 == 0) st.accent else st.accent2)
         }
@@ -341,7 +341,7 @@ internal class MascotLook(private val sb: Storyboard, private val template: Temp
     }
 
     private fun arm(g: Gfx, sx: Float, sy: Float, deg: Float, c: Int, hand: Int) {
-        val a = Math.toRadians(deg.toDouble())
+        val a = rad(deg.toDouble())
         val len = 110f
         val ex = sx + (cos(a) * len).toFloat()
         val ey = sy + (sin(a) * len).toFloat()
@@ -359,5 +359,5 @@ internal class MascotLook(private val sb: Storyboard, private val template: Temp
 
     private fun luma(c: Int): Float = (0.2126f * ((c shr 16) and 0xFF) + 0.7152f * ((c shr 8) and 0xFF) + 0.0722f * (c and 0xFF)) / 255f
 
-    @Suppress("unused") private fun angleTo(x0: Float, y0: Float, x1: Float, y1: Float) = Math.toDegrees(atan2((y1 - y0).toDouble(), (x1 - x0).toDouble())).toFloat()
+    @Suppress("unused") private fun angleTo(x0: Float, y0: Float, x1: Float, y1: Float) = deg(atan2((y1 - y0).toDouble(), (x1 - x0).toDouble())).toFloat()
 }

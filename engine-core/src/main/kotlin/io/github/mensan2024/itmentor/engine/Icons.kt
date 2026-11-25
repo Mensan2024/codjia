@@ -101,7 +101,7 @@ object Icons {
         IconId.GEAR -> listOf(Part(PathData().circle(12f, 12f, 6.2f)), Part(PathData().circle(12f, 12f, 2.6f)),
             Part(PathData().apply {
                 for (k in 0 until 8) {
-                    val a = k * Math.PI / 4
+                    val a = k * kotlin.math.PI / 4
                     moveTo((12 + 6.2 * kotlin.math.cos(a)).toFloat(), (12 + 6.2 * kotlin.math.sin(a)).toFloat())
                     lineTo((12 + 9.2 * kotlin.math.cos(a)).toFloat(), (12 + 9.2 * kotlin.math.sin(a)).toFloat())
                 }

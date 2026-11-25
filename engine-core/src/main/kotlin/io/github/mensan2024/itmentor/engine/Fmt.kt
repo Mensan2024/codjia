@@ -25,3 +25,7 @@ internal object Fmt {
         return (if (n < 0) "-" else "") + out
     }
 }
+
+/** Degrés → radians et l'inverse (sans java.lang.Math, pour tourner aussi dans le navigateur). */
+internal fun rad(deg: Double): Double = deg * kotlin.math.PI / 180.0
+internal fun deg(rad: Double): Double = rad * 180.0 / kotlin.math.PI

@@ -123,7 +123,7 @@ class PathData {
 
     fun polygon(cx: Float, cy: Float, r: Float, sides: Int, rotationDeg: Float = -90f) = apply {
         for (i in 0 until sides) {
-            val a = Math.toRadians((rotationDeg + i * 360.0 / sides)).toFloat()
+            val a = rad((rotationDeg + i * 360.0 / sides)).toFloat()
             val x = cx + r * cos(a)
             val y = cy + r * sin(a)
             if (i == 0) moveTo(x, y) else lineTo(x, y)

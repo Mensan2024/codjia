@@ -232,7 +232,7 @@ internal class DemoLook(private val sb: Storyboard, private val template: Templa
             val moveStart = maxOf(a.at + 150f, b.at - 650f)
             if (t >= b.at) { x = b.x; y = b.y; continue }
             val k = Easing.EASE_IN_OUT.ease(window(t, moveStart, b.at - moveStart))
-            x = lerp(a.x, b.x, k); y = lerp(a.y, b.y, k) - sin(k * Math.PI.toFloat()) * 40f
+            x = lerp(a.x, b.x, k); y = lerp(a.y, b.y, k) - sin(k * kotlin.math.PI.toFloat()) * 40f
             break
         }
         val alpha = window(t, start.at, 300f)

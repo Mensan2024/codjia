@@ -172,7 +172,7 @@ internal class ScreenSceneRenderer(private val accent: Int) {
         var x = from.first; var y = from.second
         if (target != null && at != null) {
             val k = Easing.EASE_IN_OUT.ease(window(t, at - 800f, 750f))
-            x = lerp(from.first, target.first, k); y = lerp(from.second, target.second, k) - sin(k * Math.PI.toFloat()) * 30f
+            x = lerp(from.first, target.first, k); y = lerp(from.second, target.second, k) - sin(k * kotlin.math.PI.toFloat()) * 30f
             val c = window(t, at, 420f)
             if (c > 0f && c < 1f) g.strokeCircle(target.first, target.second, 10f + 34f * c, 4f * (1 - c), accent.withAlpha(1 - c))
         }

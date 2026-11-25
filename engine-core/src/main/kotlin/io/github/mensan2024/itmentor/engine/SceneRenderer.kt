@@ -439,7 +439,7 @@ class SceneRenderer(private val tp: Template) {
         g.withPose(p(sc, t, exit, 0, AnimType.FADE_IN, 600), cx, cy) {
             val rot = tg * 0.008f
             for (k in 0 until 60) {
-                val a = Math.toRadians((rot + k * 6f).toDouble())
+                val a = rad((rot + k * 6f).toDouble())
                 val r0 = if (k % 5 == 0) 272f else 282f
                 g.line(cx + (r0 * cos(a)).toFloat(), cy + (r0 * sin(a)).toFloat(), cx + (296f * cos(a)).toFloat(), cy + (296f * sin(a)).toFloat(),
                     3f, style.text.withAlpha(if (k % 5 == 0) 0.28f else 0.12f))
@@ -629,7 +629,7 @@ class SceneRenderer(private val tp: Template) {
     private fun orbit(g: Gfx, cx: Float, cy: Float, r: Float, tg: Float) {
         g.strokeCircle(cx, cy, r, 2f, style.text.withAlpha(0.08f))
         for (k in 0 until 3) {
-            val a = Math.toRadians((tg * 0.025f + k * 120f).toDouble())
+            val a = rad((tg * 0.025f + k * 120f).toDouble())
             g.fillCircle(cx + (r * cos(a)).toFloat(), cy + (r * sin(a)).toFloat(), 9f, if (k == 0) style.accent2 else style.accent.withAlpha(0.8f))
         }
     }

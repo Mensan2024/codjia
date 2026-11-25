@@ -50,7 +50,7 @@ object ImportPolicy {
             for (ch in base) {
                 when {
                     ch.isISOControl() || ch == '/' || ch == '\\' -> append(' ')
-                    Character.getType(ch) == Character.FORMAT.toInt() -> {} // ex. U+202E (inversion de sens)
+                    ch.category == CharCategory.FORMAT -> {} // ex. U+202E (inversion de sens)
                     else -> append(ch)
                 }
             }

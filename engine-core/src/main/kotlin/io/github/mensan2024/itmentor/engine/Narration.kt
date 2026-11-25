@@ -116,7 +116,7 @@ object Narration {
                 val s = mv + vs * 0.95
                 // Limiteur doux (tanh) au-delà de -3 dBFS
                 val x = s / 32768.0
-                val y = if (abs(x) < 0.7) x else Math.signum(x) * (0.7 + 0.3 * kotlin.math.tanh((abs(x) - 0.7) / 0.3))
+                val y = if (abs(x) < 0.7) x else kotlin.math.sign(x) * (0.7 + 0.3 * kotlin.math.tanh((abs(x) - 0.7) / 0.3))
                 out[i * 2 + ch] = (y * 32767).roundToInt().coerceIn(-32768, 32767).toShort()
             }
         }

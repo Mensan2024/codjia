@@ -43,7 +43,8 @@ class WebAudio(private val base: String) {
     }
 
     suspend fun buffer(track: MusicTrack): dynamic {
-        buffers[track.id]?.let { return it }
+        val cached: dynamic = buffers[track.id]
+        if (cached != null) return cached
         val ab = (window.fetch(base + "assets/" + track.file).await().arrayBuffer()).await()
         val c = context()
         val buf: dynamic = Promise<dynamic> { res, rej -> c.decodeAudioData(ab, { b: dynamic -> res(b) }, { e: dynamic -> rej(Error("Décodage audio impossible : $e")) }) }.await()

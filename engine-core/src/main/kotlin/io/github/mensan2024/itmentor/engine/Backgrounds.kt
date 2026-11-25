@@ -172,7 +172,7 @@ internal object Backgrounds {
         fun star(cx: Float, cy: Float, r: Float, rot: Float, c: Int) {
             val p = PathData()
             for (i in 0 until 10) {
-                val a = Math.toRadians((rot + i * 36f).toDouble())
+                val a = rad((rot + i * 36f).toDouble())
                 val rr = if (i % 2 == 0) r else r * 0.42f
                 val x = cx + (rr * cos(a)).toFloat(); val y = cy + (rr * sin(a)).toFloat()
                 if (i == 0) p.moveTo(x, y) else p.lineTo(x, y)
