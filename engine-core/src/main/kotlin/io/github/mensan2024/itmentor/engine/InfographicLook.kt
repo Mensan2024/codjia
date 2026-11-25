@@ -32,12 +32,32 @@ internal class InfographicLook(private val sb: Storyboard) : LookRenderer {
     private val astuceNo: Int? = (listOf(sb.title) + sb.scenes.take(1).flatMap { listOf(it.kicker ?: "", it.title) })
         .firstNotNullOfOrNull { Regex("astuce\\D{0,30}?0*(\\d{1,4})", RegexOption.IGNORE_CASE).find(Marked.strip(it))?.groupValues?.get(1)?.toIntOrNull() }
 
-    enum class Diagram { HERO_ICON, STEPLIST, TARGETS, LOCK_ATTACK, SHIELD, BARS, CHAIN, ATTEMPTS, CHART, TERMINAL, NUMBER, VERSUS, CHECKS, TEXT, CTA }
+    enum class Diagram { CHAPTER, HERO_ICON, STEPLIST, TARGETS, LOCK_ATTACK, SHIELD, BARS, CHAIN, ATTEMPTS, CHART, TERMINAL, NUMBER, VERSUS, CHECKS, TEXT, CTA }
 
     data class Beat(val chip: String, val l1: String, val l2: String, val caption: String, val diagram: Diagram,
-                    val main: String = "", val detail: String? = null, val list: List<String> = emptyList(), val index: Int = 0, val good: Boolean = true, val icon: IconId = IconId.BULB)
+                    val main: String = "", val detail: String? = null, val list: List<String> = emptyList(), val index: Int = 0, val good: Boolean = true, val icon: IconId = IconId.BULB, val attack: Boolean = false)
 
     private val beatsCache = HashMap<String, List<Beat>>()
+
+    /** Nom de la série, d'après le mot-dièse (« #securiteinformatiquepourtous » → « SÉCURITÉ INFORMATIQUE POUR TOUS »). */
+    private val series: String by lazy {
+        val tag = (sb.hashtag ?: "").lowercase().removePrefix("#")
+        SERIES[tag] ?: domain.label.uppercase()
+    }
+
+    /** Nombre total d'étapes du texte (toutes les listes), pour « DÉFENSE 2/4 ». */
+    private val totalSteps: Int by lazy { sb.scenes.filter { it.layout == Layout.STEPS }.sumOf { it.items.size } }
+    private val firstStep: Map<String, Int> by lazy {
+        var n = 0
+        sb.scenes.filter { it.layout == Layout.STEPS }.associate { sc -> val s0 = n; n += sc.items.size; sc.id to s0 }
+    }
+
+    /** Titre d'étape plus direct : « Utilise des mots de passe… » → « Mots de passe… ». */
+    private fun direct(label: String): String {
+        val m = Regex("^(utilise|choisis|adopte|mets en place|installe|crée|configure)\\s+(des|un|une|les|le|la|l')\\s*", RegexOption.IGNORE_CASE).find(label)
+        val out = if (m != null && label.length - m.value.length >= 8) label.substring(m.value.length) else label
+        return out.replaceFirstChar { it.uppercase() }
+    }
 
     private fun plain(s: String?) = Marked.strip(s ?: "").replace(' ', ' ').trim()
 
@@ -88,24 +108,35 @@ internal class InfographicLook(private val sb: Storyboard) : LookRenderer {
         val attack = Regex("attaque|force brute|pirate|hacker|phishing|ransomware|intrus").containsMatchIn((sc.title + " " + sc.body + " " + sc.subtitle).lowercase())
         val tag = (sc.kicker ?: "").uppercase()
         when (sc.layout) {
-            Layout.HERO -> { val (a, b) = split2(sc.title); listOf(Beat(tag.ifEmpty { domain.kicker }, a, b, plain(sc.subtitle ?: sc.title),
-                if (attack) Diagram.LOCK_ATTACK else Diagram.HERO_ICON, icon = sc.iconOrDefault(), list = sb.scenes.flatMap { it.items }.map { splitLabel(plain(it)).first }.filter { it.length <= 22 }.take(6))) }
+            Layout.HERO -> { val (a, b) = split2(sc.title); listOf(Beat(if (attack) "L'ATTAQUE" else "L'ASTUCE", a, b, plain(sc.subtitle ?: sc.title),
+                if (attack) Diagram.LOCK_ATTACK else Diagram.HERO_ICON, icon = sc.iconOrDefault(), attack = attack,
+                list = sb.scenes.flatMap { it.items }.map { splitLabel(plain(it)).first }.filter { it.length <= 22 }.take(6))) }
             Layout.DEFINITION -> {
                 val (a, b) = split2(sc.title); val body = plain(sc.body.ifEmpty { sc.subtitle })
                 val tg = targets(body)
                 val d = when { tg.isNotEmpty() -> Diagram.TARGETS; attack || Regex("attaque|essai").containsMatchIn(body.lowercase()) -> Diagram.LOCK_ATTACK; else -> diagramFor(body, Diagram.TEXT) }
-                listOf(Beat(tag.ifEmpty { "LE PRINCIPE" }, a, b, body, d, main = body, list = tg))
+                listOf(Beat("LE PRINCIPE", a, b, body, d, main = body, list = tg, attack = attack || d == Diagram.LOCK_ATTACK))
             }
             Layout.STEPS -> {
-                val word = if (domain == Domain.CYBER) "DÉFENSE" else "ÉTAPE"
+                val defend = domain == Domain.CYBER
+                val word = if (defend) "DÉFENSE" else "ÉTAPE"
                 val labels = sc.items.map { splitLabel(plain(it)).first }
-                sc.items.mapIndexed { i, it ->
+                val n0 = firstStep[sc.id] ?: 0
+                val total = totalSteps.coerceAtLeast(sc.items.size)
+                val steps = sc.items.mapIndexed { i, it ->
                     val (label, detail) = splitLabel(plain(it))
-                    val (a, b) = split2(label)
+                    val (a, b) = split2(direct(label))
                     val cmd = Regex("^[a-z][a-z0-9._-]*(\\s+[-/a-zA-Z0-9.=_\"]+){0,4}$").matches(label) && label.length < 40
                     val d = if (cmd) Diagram.TERMINAL else diagramFor(plain(it), Diagram.STEPLIST)
-                    Beat("$word ${i + 1}/${sc.items.size}", a, b, explain(d, plain(it)), d, main = label, detail = detail, list = labels, index = i)
+                    Beat("$word ${n0 + i + 1}/$total", a, b, explain(d, plain(it)), d, main = label, detail = detail, list = labels, index = i)
                 }
+                // Écran de chapitre avant la première liste : « Comment se défendre ? 4 réflexes ».
+                if (n0 == 0 && total >= 2) {
+                    val header = plain(sc.title).trimEnd('?', ' ', ':').takeIf { it.lowercase().startsWith("comment") }
+                    val (c1, c2) = if (header != null) split2("$header ?") else if (defend) "Comment" to "se défendre ?" else "Comment" to "faire ?"
+                    val unit = if (defend) "RÉFLEXES" else "ÉTAPES"
+                    listOf(Beat("$total $unit", c1, c2, "${(c1 + " " + c2).trim()} $total ${unit.lowercase()} simples.", Diagram.CHAPTER)) + steps
+                } else steps
             }
             Layout.STAT -> { val (a, b) = split2(sc.title); listOf(Beat(tag.ifEmpty { "LE CHIFFRE" }, a, b, plain(sc.title) + (if (sc.body.isNotEmpty()) ". " + plain(sc.body) else ""), Diagram.NUMBER, main = sc.statValue ?: "")) }
             Layout.COMPARE -> sc.compare?.let { c -> listOf(
@@ -115,8 +146,8 @@ internal class InfographicLook(private val sb: Storyboard) : LookRenderer {
             Layout.CHECKLIST -> {
                 val (a, b) = split2(sc.title)
                 listOfNotNull(
-                    Beat(tag.ifEmpty { "À RETENIR" }, a, b, plain(sc.subtitle).ifEmpty { "${sc.items.size} réflexes simples à appliquer dès aujourd'hui." }, Diagram.CHECKS, list = sc.items.map(::plain)),
-                    Beat("", "", "", plain(sc.body).ifEmpty { "Abonne-toi pour la suite !" }, Diagram.CTA, main = plain(sc.body)),
+                    if (sc.items.isEmpty()) null else Beat(tag.ifEmpty { "À RETENIR" }, a, b, plain(sc.subtitle).ifEmpty { "${sc.items.size} réflexes simples à appliquer dès aujourd'hui." }, Diagram.CHECKS, list = sc.items.map(::plain)),
+                    Beat("", "", "", astuceNo?.let { "Abonne-toi pour l'astuce ${Fmt.pad(it + 1, 3)} !" } ?: plain(sc.body).ifEmpty { "Abonne-toi pour la suite !" }, Diagram.CTA, main = plain(sc.body)),
                 )
             }
             Layout.SCREEN -> emptyList()
@@ -125,7 +156,12 @@ internal class InfographicLook(private val sb: Storyboard) : LookRenderer {
 
     private fun beatAt(sc: Scene, t: Float): Triple<Int, Float, Float> {
         val bs = beats(sc)
-        val w = bs.map { 0.7f + 0.3f * (it.caption.length.coerceIn(30, 180) / 100f) + (if (it.diagram == Diagram.CTA) -0.3f else 0f) }
+        // Les schémas riches (graphique + terminal, fail2ban, MFA, mots de passe) ont besoin de plus de temps pour se dérouler.
+        val rich = setOf(Diagram.CHART, Diagram.ATTEMPTS, Diagram.CHAIN, Diagram.BARS, Diagram.LOCK_ATTACK)
+        val w = bs.map {
+            (0.7f + 0.3f * (it.caption.length.coerceIn(30, 180) / 100f)) * (if (it.diagram in rich) 1.4f else 1f) +
+                (if (it.diagram == Diagram.CTA) -0.3f else 0f) + (if (it.diagram == Diagram.CHAPTER) -0.25f else 0f)
+        }
         val total = w.sum()
         var acc = 0f
         for ((i, x) in w.withIndex()) {
@@ -142,18 +178,24 @@ internal class InfographicLook(private val sb: Storyboard) : LookRenderer {
         val sc = slot.scene
         g.fillVerticalGradient(0f, 0f, 1080f, 1920f, rgb(0x0B1224), rgb(0x1A1446))
         g.fillRadialGlow(540f, 1650f, 900f, rgb(0x3B2E9A).withAlpha(0.35f))
-        g.fillRadialGlow(540f, 300f, 700f, accent.withAlpha(0.06f))
         val bs = beats(sc)
         if (bs.isEmpty()) return
         val (i, t, len) = beatAt(sc, localMs)
         val b = bs[i]
+        // Rouge pendant l'attaque, bleu pour la défense.
+        if (b.attack) { g.fillRadialGlow(540f, 520f, 1000f, danger.withAlpha(0.22f)); g.fillRadialGlow(540f, 1300f, 700f, rgb(0x7A1F4A).withAlpha(0.25f)) }
+        else g.fillRadialGlow(540f, 300f, 760f, rgb(0x1E6FD9).withAlpha(0.12f))
         // Rubrique en haut (fixe)
         val hf = FontSpec(FontFamily.TEXT, 800, 24f)
         val left = (astuceNo?.let { "ASTUCE ${Fmt.pad(it, 3)}" } ?: "CODJIA")
         g.drawTracked(left, Safe.LEFT, 172f, hf, accent, 2f)
-        g.drawTracked(domain.label.uppercase(), Safe.LEFT + g.measureTracked(left, hf, 2f) + 30f, 172f, hf.copy(weight = 600), muted, 2f)
+        val lx = Safe.LEFT + g.measureTracked(left, hf, 2f)
+        g.drawText("·", lx + 10f, 172f, hf, muted)
+        val st = TextLayout.fit(g, series, hf.copy(weight = 600), Safe.RIGHT - lx - 40f, 1, minSize = 16f)
+        g.drawTracked(st.lines.first(), lx + 30f, 172f, st.font, muted, 2f)
         val e = Easing.EXPO_OUT.ease(clamp01(t / 300f))
-        if (b.diagram == Diagram.CTA) { g.withPose(Pose(alpha = e), 540f, 900f) { cta(g, b, t) }; return }
+        if (b.diagram == Diagram.CTA) { g.withPose(Pose(alpha = e), 540f, 900f) { cta(g, b, t) }; captionBox(g, b, t, "${sc.id}/$i"); return }
+        if (b.diagram == Diagram.CHAPTER) { chapter(g, b, t, "${sc.id}/$i"); captionBox(g, b, t, "${sc.id}/$i"); return }
         var y = 230f
         // Pastille d'étape
         if (b.chip.isNotEmpty()) {
@@ -212,7 +254,7 @@ internal class InfographicLook(private val sb: Storyboard) : LookRenderer {
             Diagram.TARGETS -> targetsDiagram(g, b, t, a)
             Diagram.HERO_ICON -> heroIcon(g, b, t, a)
             Diagram.STEPLIST -> stepList(g, b, t, a, key)
-            Diagram.LOCK_ATTACK -> lockAttack(g, t, a)
+            Diagram.LOCK_ATTACK -> lockAttack(g, t, len, a)
             Diagram.SHIELD -> shield(g, t, a)
             Diagram.BARS -> bars(g, b, t, a, key)
             Diagram.CHAIN -> chain(g, b, t, a, key)
@@ -223,7 +265,7 @@ internal class InfographicLook(private val sb: Storyboard) : LookRenderer {
             Diagram.VERSUS -> versus(g, b, t, a, key)
             Diagram.CHECKS -> checks(g, b, t, a, key)
             Diagram.TEXT -> textCard(g, b, t, a, key)
-            Diagram.CTA -> {}
+            Diagram.CTA, Diagram.CHAPTER -> {}
         }
     }
 
@@ -232,34 +274,109 @@ internal class InfographicLook(private val sb: Storyboard) : LookRenderer {
         g.strokeRoundRect(l, tp, r, bt, 16f, 2f, border)
     }
 
-    private fun lockAttack(g: Gfx, t: Float, a: R) {
-        val cx = a.cx; val cy = a.cy - 30f
-        g.fillRadialGlow(cx, cy, 260f, danger.withAlpha(0.35f))
-        g.fillCircle(cx, cy, 120f, danger.withAlpha(0.25f))
-        g.fillCircle(cx, cy, 92f, danger)
+    /** Bouclier « glitch » du chapitre, puis le titre en grand. */
+    private fun chapter(g: Gfx, b: Beat, t: Float, key: String) {
+        val cx = 540f; val cy = 760f
+        val k = Easing.BACK_OUT.ease(clamp01(t / 520f))
+        val glitch = t < 700f && ((t / 60f).toInt() % 3 != 0)
+        g.fillRadialGlow(cx, cy, 380f, accent.withAlpha(0.28f))
+        g.withPose(Pose(scale = lerp(0.6f, 1f, k), alpha = clamp01(k * 1.5f)), cx, cy) {
+            if (glitch) {
+                Icons.draw(g, IconId.SHIELD, cx - 9f, cy, 300f, rgb(0xFF3B6B).withAlpha(0.7f), 2.6f)
+                Icons.draw(g, IconId.SHIELD, cx + 9f, cy, 300f, rgb(0x22D3EE).withAlpha(0.7f), 2.6f)
+            }
+            Icons.draw(g, IconId.SHIELD, cx, cy, 300f, accent, 2.6f)
+            Icons.draw(g, IconId.CHECK, cx, cy + 8f, 130f, accent, 3.4f, reveal = clamp01((t - 300f) / 400f))
+        }
+        val cf = FontSpec(FontFamily.TEXT, 800, 26f)
+        val w = g.measureTracked(b.chip, cf, 2f) + 48f
+        val y0 = 1010f
+        g.fillRoundRect(cx - w / 2, y0, cx + w / 2, y0 + 50f, 25f, accent.withAlpha(0.18f))
+        g.strokeRoundRect(cx - w / 2, y0, cx + w / 2, y0 + 50f, 25f, 2f, accent.withAlpha(0.7f))
+        g.drawTracked(b.chip, cx - w / 2 + 24f, y0 + 25f + g.metrics(cf).ascent / 2, cf, accent, 2f)
+        val tf = FontSpec(FontFamily.TEXT, 900, 96f)
+        var y = y0 + 90f
+        for ((li, line) in listOf(b.l1, b.l2).withIndex()) {
+            if (line.isEmpty()) continue
+            val bl = cache.fit(g, "ch/$key/$li", line, tf, Safe.WIDTH, 1)
+            val a = Easing.EXPO_OUT.ease(clamp01((t - 200f - li * 150f) / 400f))
+            val base = g.baselineOf(bl, y, 0)
+            g.withPose(Pose(alpha = a, dy = (1 - a) * 30f), cx, base) { g.drawText(bl.lines.first(), cx - g.measureText(bl.lines.first(), bl.font) / 2, base, bl.font, if (li == 0) ink else accent) }
+            y += bl.height + 6f
+        }
+    }
+
+    /** Petites étiquettes alignées et centrées (types d'attaque, conseils). */
+    private fun chips(g: Gfx, labels: List<String>, y: Float, t: Float, delay: Float, col: Int, a: R): Float {
+        val f = FontSpec(FontFamily.TEXT, 700, 24f)
+        val rows = ArrayList<List<Pair<String, Float>>>(); var cur = ArrayList<Pair<String, Float>>(); var w = 0f
+        for (l in labels) {
+            val lw = g.measureText(l, f) + 36f
+            if (cur.isNotEmpty() && w + lw + 12f > a.w) { rows += cur; cur = ArrayList(); w = 0f }
+            cur += l to lw; w += lw + 12f
+        }
+        if (cur.isNotEmpty()) rows += cur
+        var yy = y
+        var idx = 0
+        for (row in rows) {
+            var x = a.cx - (row.sumOf { it.second.toDouble() }.toFloat() + 12f * (row.size - 1)) / 2
+            for ((l, lw) in row) {
+                val k = Easing.BACK_OUT.ease(clamp01((t - delay - idx * 120f) / 300f))
+                if (k > 0f) g.withPose(Pose(alpha = clamp01(k * 2), scale = lerp(0.7f, 1f, k)), x + lw / 2, yy + 22f) {
+                    g.fillRoundRect(x, yy, x + lw, yy + 44f, 22f, col.withAlpha(0.16f))
+                    g.strokeRoundRect(x, yy, x + lw, yy + 44f, 22f, 1.5f, col.withAlpha(0.8f))
+                    g.drawText(l, x + 18f, yy + 30f, f, col)
+                }
+                x += lw + 12f; idx++
+            }
+            yy += 56f
+        }
+        return yy
+    }
+
+    /** Cadenas assailli d'essais, compteur qui s'emballe, puis le mot de passe trouvé : le cadenas s'ouvre. */
+    private fun lockAttack(g: Gfx, t: Float, len: Float, a: R) {
+        val cx = a.cx; val cy = a.cy - 70f
+        val found = t > len * 0.62f
+        val col = if (found) ok else danger
+        g.fillRadialGlow(cx, cy, 260f, col.withAlpha(0.35f))
+        g.fillCircle(cx, cy, 120f, col.withAlpha(0.25f))
+        g.fillCircle(cx, cy, 92f, col)
         Icons.draw(g, IconId.LOCK, cx, cy, 100f, rgb(0xFFFFFF), 2.4f)
-        // Essais qui fusent autour du cadenas
-        val guesses = listOf("azerty123", "motdepasse", "123456", "soleil2024", "admin", "qwerty", "bonjour1", "liberte!")
-        val mf = FontSpec(FontFamily.MONO, 600, 30f)
-        for ((k, s) in guesses.withIndex()) {
-            val ph = ((t / 1600f) + k / guesses.size.toFloat()) % 1f
-            val ang = k * 0.785f + 0.3f
-            val r = 140f + ph * 300f
-            val x = cx + cos(ang) * r * 1.3f; val y = cy + sin(ang) * r * 0.75f
-            val w = g.measureText(s, mf) + 24f
-            val al = (1f - ph) * clamp01(ph * 5f)
-            if (x - w / 2 < a.l || x + w / 2 > a.r || y < a.t + 20f || y > a.b - 20f) continue
-            if (y > cy + 130f && y < cy + 220f) continue
-            g.withPose(Pose(alpha = al), x, y) {
-                g.fillRoundRect(x - w / 2, y - 22f, x + w / 2, y + 22f, 8f, danger.withAlpha(0.2f))
-                g.strokeRoundRect(x - w / 2, y - 22f, x + w / 2, y + 22f, 8f, 1.5f, danger.withAlpha(0.8f))
-                g.drawText(s, x - w / 2 + 12f, y + 9f, mf, rgb(0xFFB3BB))
+        val mf = FontSpec(FontFamily.MONO, 600, 28f)
+        if (!found) {
+            val guesses = listOf("azerty123", "motdepasse", "123456", "liberte2023", "admin", "qwerty", "bonjour1", "000000", "iloveyou", "marseille")
+            for ((k, s) in guesses.withIndex()) {
+                val ph = ((t / 1600f) + k / guesses.size.toFloat()) % 1f
+                val ang = k * 0.63f + 0.3f
+                val r = 150f + ph * 280f
+                val x = cx + cos(ang) * r * 1.3f; val y = cy + sin(ang) * r * 0.7f
+                val w = g.measureText(s, mf) + 24f
+                val al = (1f - ph) * clamp01(ph * 5f)
+                if (x - w / 2 < a.l || x + w / 2 > a.r || y < a.t + 20f || y > cy + 150f) continue
+                g.withPose(Pose(alpha = al), x, y) {
+                    g.fillRoundRect(x - w / 2, y - 21f, x + w / 2, y + 21f, 8f, danger.withAlpha(0.2f))
+                    g.strokeRoundRect(x - w / 2, y - 21f, x + w / 2, y + 21f, 8f, 1.5f, danger.withAlpha(0.8f))
+                    g.drawText(s, x - w / 2 + 12f, y + 9f, mf, rgb(0xFFB3BB))
+                    g.fillCircle(x + w / 2 - 2f, y - 19f, 7f, danger)
+                }
+            }
+        } else {
+            // le mot de passe trouvé, au-dessus du cadenas
+            val s = "Soleil2024"
+            val w = g.measureText(s, mf) + 30f
+            val k = Easing.BACK_OUT.ease(clamp01((t - len * 0.62f) / 350f))
+            g.withPose(Pose(scale = lerp(0.5f, 1f, k), alpha = clamp01(k * 2)), cx, cy - 160f) {
+                g.fillRoundRect(cx - w / 2, cy - 182f, cx + w / 2, cy - 138f, 10f, ok.withAlpha(0.22f))
+                g.strokeRoundRect(cx - w / 2, cy - 182f, cx + w / 2, cy - 138f, 10f, 2f, ok)
+                g.drawText(s, cx - w / 2 + 15f, cy - 150f, mf, ok)
             }
         }
-        val n = (Easing.EASE_IN.ease(clamp01(t / 3200f)) * 8412).toInt()
+        val n = (Easing.EASE_IN.ease(clamp01(t / (len * 0.62f))) * 8412).toInt().coerceAtLeast(27)
         val cf = FontSpec(FontFamily.TEXT, 800, 42f)
         val label = "Essais : " + Fmt.thousands(n)
-        g.drawText(label, cx - g.measureText(label, cf) / 2, cy + 190f, cf, danger)
+        g.drawText(label, cx - g.measureText(label, cf) / 2, cy + 190f, cf, col)
+        chips(g, listOf("Force brute pure", "Dictionnaire", "Password spraying", "Credential stuffing"), cy + 230f, t, 900f, warn, a)
     }
 
     /** Icône du sujet dans des anneaux, entourée des mots-clés du tutoriel qui s'allument un à un. */
@@ -355,142 +472,217 @@ internal class InfographicLook(private val sb: Storyboard) : LookRenderer {
         }
     }
 
+    /** Nombre de combinaisons lisible : « 309 millions », « 3 600 000 milliards ». */
+    private fun bigCount(x: Double): String = when {
+        x >= 1e9 -> { val m = x / 1e9; val mag = kotlin.math.floor(kotlin.math.log10(m)).toInt(); val p = kotlin.math.round(m / 10.0.pow(mag - 1)) * 10.0.pow(mag - 1); Fmt.thousands(p.toInt()) + " milliards" }
+        x >= 1e6 -> "${kotlin.math.round(x / 1e6).toInt()} millions"
+        else -> Fmt.thousands(x.toInt())
+    }
+
+    private fun Double.pow(e: Int): Double { var r = 1.0; repeat(kotlin.math.abs(e)) { r *= this }; return if (e < 0) 1 / r else r }
+
+    /**
+     * Robustesse : combinaisons qu'un attaquant doit tester dans le pire cas.
+     * - azerty : 6 minuscules → 26⁶ ≈ 309 millions, et il figure en tête de tous les dictionnaires ;
+     * - Soleil2024 : mot courant + année → environ 10 millions de candidats avec les règles de dictionnaire ;
+     * - 4 mots tirés au hasard dans une liste de 7 776 (Diceware) → 7 776⁴ ≈ 3,7 × 10¹⁵.
+     */
     private fun bars(g: Gfx, b: Beat, t: Float, a: R, key: String) {
         val pw = Regex("mots? de passe|passphrase").containsMatchIn(b.caption.lowercase())
-        val rows: List<Triple<String, String, Float>> = if (pw) listOf(
-            Triple("azerty", "Faible : deviné en quelques secondes", 0.12f),
-            Triple("Soleil2024", "Moyen : nom + année, prévisible", 0.42f),
-            Triple("rivière-cactus-lampe-orbite", "Robuste : long et aléatoire", 0.96f),
-        ) else b.list.take(3).mapIndexed { i, s -> Triple(s, if (i == b.index) "← ici" else "", 0.35f + 0.3f * i) }
+        if (!pw) { stepList(g, b, t, a, key); return }
+        data class Row(val pwd: String, val sub: String, val count: String, val fill: Float, val col: Int)
+        val rows = listOf(
+            Row("azerty", "6 minuscules · en tête de tous les dictionnaires", bigCount(26.0.pow(6)), 0.12f, danger),
+            Row("Soleil2024", "10 caractères… mais mot courant + année", "≈ 10 millions", 0.38f, warn),
+            Row("rivière-cactus-lampe-orbite", "4 mots tirés au hasard", "≈ " + bigCount(7776.0.pow(4)), 0.97f, ok),
+        )
+        val lf = FontSpec(FontFamily.TEXT, 600, 24f)
+        g.drawText("Combinaisons à tester (pire cas pour l'attaquant)", a.l + 4f, a.t + 26f, lf, muted)
         val rowH = 150f
-        var y = a.cy - rows.size * rowH / 2
+        var y = a.t + 50f
+        val mf = FontSpec(FontFamily.MONO, 700, 34f)
+        val sf = FontSpec(FontFamily.TEXT, 500, 22f)
+        val cf = FontSpec(FontFamily.TEXT, 800, 26f)
         for ((i, r) in rows.withIndex()) {
-            val d = 200f + i * 350f
-            val k = Easing.EXPO_OUT.ease(clamp01((t - d) / 900f))
+            val k = Easing.EXPO_OUT.ease(clamp01((t - 150f - i * 330f) / 700f))
             if (k <= 0f) { y += rowH; continue }
-            val col = if (r.third < 0.3f) danger else if (r.third < 0.6f) warn else ok
             g.withPose(Pose(alpha = clamp01(k * 2)), a.cx, y) {
-                card(g, a.l, y, a.r, y + rowH - 18f, if (!pw && i == b.index.coerceAtMost(rows.lastIndex)) accent else 0x26FFFFFF)
-                val mf = FontSpec(if (pw) FontFamily.MONO else FontFamily.TEXT, 700, 36f)
-                val name = TextLayout.fit(g, r.first, mf, a.w - 80f, 1, minSize = 24f)
-                g.drawText(name.lines.first(), a.l + 30f, y + 50f, name.font, ink)
-                if (r.second.isNotEmpty()) {
-                    val sf = FontSpec(FontFamily.TEXT, 500, 24f)
-                    val st = TextLayout.fit(g, r.second, sf, a.w - 60f, 1, minSize = 18f)
-                    g.drawText(st.lines.first(), a.l + 30f, y + 86f, st.font, muted)
-                }
-                g.fillRoundRect(a.l + 30f, y + 104f, a.r - 30f, y + 114f, 5f, 0x22FFFFFF)
-                g.fillRoundRect(a.l + 30f, y + 104f, a.l + 30f + (a.w - 60f) * r.third * k, y + 114f, 5f, col)
+                card(g, a.l, y, a.r, y + rowH - 16f)
+                val cw = g.measureText(r.count, cf)
+                val name = TextLayout.fit(g, r.pwd, mf, a.w - cw - 90f, 1, minSize = 22f)
+                g.drawText(name.lines.first(), a.l + 26f, y + 48f, name.font, ink)
+                if (k > 0.5f) g.drawText(r.count, a.r - 26f - cw, y + 46f, cf, r.col)
+                g.drawText(TextLayout.fit(g, r.sub, sf, a.w - 52f, 1, minSize = 16f).lines.first(), a.l + 26f, y + 82f, sf, muted)
+                g.fillRoundRect(a.l + 26f, y + 104f, a.r - 26f, y + 114f, 5f, 0x22FFFFFF)
+                g.fillRoundRect(a.l + 26f, y + 104f, a.l + 26f + (a.w - 52f) * r.fill * k, y + 114f, 5f, r.col)
             }
             y += rowH
         }
+        if (Regex("unique").containsMatchIn(b.caption.lowercase()))
+            chips(g, listOf("Unique : une fuite ne doit jamais ouvrir tes autres comptes"), y + 6f, t, 1300f, accent, a)
     }
 
     private fun chain(g: Gfx, b: Beat, t: Float, a: R, key: String) {
         val mfa = Regex("mfa|2fa|double authentification|authentification").containsMatchIn(b.caption.lowercase())
-        val steps: List<Triple<IconId, String, Int>> = if (mfa) listOf(
-            Triple(IconId.KEY, "Mot de passe deviné", danger), Triple(IconId.SHIELD, "Code MFA demandé", accent), Triple(IconId.LOCK, "Accès refusé", ok),
+        data class Step(val icon: IconId, val title: String, val sub: String, val col: Int)
+        val steps: List<Step> = if (mfa) listOf(
+            Step(IconId.KEY, "Mot de passe deviné", "l'attaquant a trouvé « Soleil2024 »", danger),
+            Step(IconId.SHIELD, "Code MFA demandé", "sur ton téléphone ou ta clé", accent),
+            Step(IconId.LOCK, "Accès refusé", "l'attaquant reste dehors", ok),
         ) else {
             val l = b.list.ifEmpty { listOf(b.main) }
-            val s = (b.index - 1).coerceAtLeast(0).coerceAtMost((l.size - 3).coerceAtLeast(0))
-            l.drop(s).take(3).mapIndexed { i, x -> Triple(listOf(IconId.BULB, IconId.TARGET, IconId.CHECK)[i], x, if (s + i == b.index) accent else muted) }
+            val s0 = (b.index - 1).coerceAtLeast(0).coerceAtMost((l.size - 3).coerceAtLeast(0))
+            l.drop(s0).take(3).mapIndexed { i, x -> Step(listOf(IconId.BULB, IconId.TARGET, IconId.CHECK)[i], x, "", if (s0 + i == b.index) accent else muted) }
         }
-        val h = 130f; val gap = 70f
-        val total = steps.size * h + (steps.size - 1) * gap
-        var y = a.cy - total / 2
+        val h = 132f; val gap = 54f
+        var y = a.t + 10f
+        val tf = FontSpec(FontFamily.TEXT, 800, 32f)
+        val sf = FontSpec(FontFamily.TEXT, 500, 22f)
         for ((i, s) in steps.withIndex()) {
-            val k = Easing.BACK_OUT.ease(clamp01((t - 200f - i * 650f) / 450f))
-            if (k > 0f) g.withPose(Pose(alpha = clamp01(k), scale = lerp(0.85f, 1f, k)), a.cx, y + h / 2) {
-                card(g, a.l + 40f, y, a.r - 40f, y + h, s.third.withAlpha(0.8f))
-                g.fillCircle(a.l + 110f, y + h / 2, 38f, s.third.withAlpha(0.25f))
-                Icons.draw(g, s.first, a.l + 110f, y + h / 2, 44f, s.third, 2.4f)
-                val f = FontSpec(FontFamily.TEXT, 700, 36f)
-                val bl = TextLayout.fit(g, s.second, f, a.w - 260f, 2, lineHeightFactor = 1.15f, minSize = 24f)
-                g.drawBlock(bl, a.l + 175f, y + h / 2 - bl.height / 2, s.third.let { if (it == muted) ink else it })
+            val start = 150f + i * 550f
+            val k = Easing.BACK_OUT.ease(clamp01((t - start) / 420f))
+            if (k > 0f) g.withPose(Pose(alpha = clamp01(k), scale = lerp(0.88f, 1f, k)), a.cx, y + h / 2) {
+                card(g, a.l + 10f, y, a.r - 10f, y + h, s.col.withAlpha(0.85f))
+                g.fillCircle(a.l + 74f, y + h / 2, 34f, s.col.withAlpha(0.22f))
+                Icons.draw(g, s.icon, a.l + 74f, y + h / 2, 36f, s.col, 2.6f)
+                val title = TextLayout.fit(g, s.title, tf, a.w - 400f, 1, minSize = 22f)
+                g.drawText(title.lines.first(), a.l + 128f, y + (if (s.sub.isEmpty()) h / 2 + 12f else 58f), title.font, if (s.col == muted) ink else s.col)
+                if (s.sub.isNotEmpty()) g.drawText(TextLayout.fit(g, s.sub, sf, a.w - 170f, 1, minSize = 16f).lines.first(), a.l + 128f, y + 94f, sf, muted)
+                // code à 6 chiffres envoyé à l'utilisateur, que l'attaquant n'a pas
+                if (mfa && i == 1) {
+                    val digits = "482913"
+                    val bw = 34f; val bx0 = a.r - 40f - 6 * (bw + 6f)
+                    val df = FontSpec(FontFamily.MONO, 700, 26f)
+                    val fail = t > start + 650f
+                    for (d in 0 until 6) {
+                        val x = bx0 + d * (bw + 6f)
+                        g.fillRoundRect(x, y + 44f, x + bw, y + 88f, 6f, if (fail) danger.withAlpha(0.18f) else accent.withAlpha(0.15f))
+                        g.strokeRoundRect(x, y + 44f, x + bw, y + 88f, 6f, 1.5f, if (fail) danger else accent)
+                        val ch = if (fail) "•" else digits[d].toString()
+                        if (t > start + 150f + d * 60f) g.drawText(ch, x + bw / 2 - g.measureText(ch, df) / 2, y + 76f, df, if (fail) danger else ink)
+                    }
+                    if (fail) { g.fillCircle(a.r - 34f, y + 40f, 15f, danger); Icons.draw(g, IconId.CROSS, a.r - 34f, y + 40f, 14f, rgb(0xFFFFFF), 3f) }
+                }
             }
             if (i < steps.lastIndex) {
-                val lk = clamp01((t - 550f - i * 650f) / 300f)
+                val lk = clamp01((t - start - 450f) / 250f)
                 g.fillRect(a.cx - 2f, y + h, a.cx + 2f, y + h + gap * lk, 0x66FFFFFF)
             }
             y += h + gap
         }
+        if (mfa) chips(g, listOf("Préfère une appli d'authentification ou une clé FIDO2 au SMS"), y - gap + 24f, t, 1800f, accent, a)
     }
 
     private fun attempts(g: Gfx, t: Float, a: R) {
-        val cy = a.t + 80f
-        val n = (clamp01((t - 200f) / 2200f) * 5).toInt().coerceAtMost(5)
-        val tf = FontSpec(FontFamily.TEXT, 700, 32f)
+        val cy = a.t + 70f
+        val n = (clamp01((t - 150f) / 1500f) * 5).toInt().coerceAtMost(5)
+        val tf = FontSpec(FontFamily.TEXT, 800, 30f)
         val label = "Tentatives : $n/5"
         g.drawText(label, a.cx - g.measureText(label, tf) / 2, cy - 30f, tf, warn)
         for (k in 0 until 5) {
-            val x = a.cx + (k - 2) * 120f
-            if (k < n) { g.fillCircle(x, cy + 50f, 40f, danger); Icons.draw(g, IconId.CROSS, x, cy + 50f, 40f, rgb(0xFFFFFF), 3.4f) }
-            else g.fillCircle(x, cy + 50f, 40f, 0x22FFFFFF)
+            val x = a.cx + (k - 2) * 110f
+            if (k < n) { g.fillCircle(x, cy + 40f, 36f, danger); Icons.draw(g, IconId.CROSS, x, cy + 40f, 36f, rgb(0xFFFFFF), 3.4f) }
+            else g.fillCircle(x, cy + 40f, 36f, 0x22FFFFFF)
         }
-        if (n >= 5) {
-            val k = Easing.BACK_OUT.ease(clamp01((t - 2500f) / 400f))
-            val bf = FontSpec(FontFamily.TEXT, 800, 32f)
-            val s = "Bloqué pendant 1 h"
-            val w = g.measureText(s, bf) + 90f
-            g.withPose(Pose(alpha = clamp01(k), scale = lerp(1.5f, 1f, k)), a.cx, cy + 150f) {
-                g.fillRoundRect(a.cx - w / 2, cy + 122f, a.cx + w / 2, cy + 178f, 28f, danger)
-                Icons.draw(g, IconId.LOCK, a.cx - w / 2 + 36f, cy + 150f, 28f, rgb(0xFFFFFF), 2.4f)
-                g.drawText(s, a.cx - w / 2 + 64f, cy + 162f, bf, rgb(0xFFFFFF))
+        val banned = n >= 5
+        if (banned) {
+            val k = Easing.BACK_OUT.ease(clamp01((t - 1700f) / 350f))
+            val bf = FontSpec(FontFamily.TEXT, 800, 28f)
+            val s = "IP bannie pendant 1 h"
+            val w = g.measureText(s, bf) + 86f
+            g.withPose(Pose(alpha = clamp01(k), scale = lerp(1.5f, 1f, k)), a.cx, cy + 130f) {
+                g.fillRoundRect(a.cx - w / 2, cy + 104f, a.cx + w / 2, cy + 156f, 26f, danger)
+                Icons.draw(g, IconId.LOCK, a.cx - w / 2 + 34f, cy + 130f, 26f, rgb(0xFFFFFF), 2.4f)
+                g.drawText(s, a.cx - w / 2 + 60f, cy + 140f, bf, rgb(0xFFFFFF))
             }
         }
-        // Configuration type (fail2ban) si on parle d'un serveur Linux / SSH, sinon réglage générique
-        val lines = if (Regex("ssh|linux|serveur|fail2ban").containsMatchIn(sb.scenes.joinToString(" ") { it.body + it.items.joinToString(" ") }.lowercase()))
-            listOf("# /etc/fail2ban/jail.local", "[sshd]", "enabled  = true", "maxretry = 5", "findtime = 10m", "bantime  = 1h")
-        else listOf("# Stratégie de verrouillage", "Seuil       = 5 échecs", "Fenêtre     = 10 min", "Verrouillage = 1 h")
-        val top = cy + 220f
-        val h = (lines.size * 40f + 70f).coerceAtMost(a.b - top)
-        if (h > 120f) {
-            card(g, a.l, top, a.r, top + h)
-            listOf(rgb(0xFF5F57), rgb(0xFEBC2E), rgb(0x28C840)).forEachIndexed { i, c -> g.fillCircle(a.l + 30f + i * 22f, top + 26f, 7f, c) }
-            val mf = FontSpec(FontFamily.MONO, 400, 28f)
+        val linux = Regex("ssh|linux|serveur|fail2ban").containsMatchIn(sb.scenes.joinToString(" ") { it.body + it.items.joinToString(" ") }.lowercase())
+        val lines = if (linux) listOf("# /etc/fail2ban/jail.local", "[sshd]", "enabled  = true", "maxretry = 5", "findtime = 10m", "bantime  = 1h")
+        else listOf("# Stratégie de verrouillage", "Seuil        = 5 échecs", "Fenêtre      = 10 min", "Verrouillage = 1 h")
+        val top = cy + 190f
+        val h = (lines.size * 38f + 120f).coerceAtMost(a.b - top - 130f)
+        if (h > 140f) {
+            terminalFrame(g, a.l, top, a.r, top + h, if (linux) "fail2ban · protection SSH" else "Stratégie de sécurité")
+            val mf = FontSpec(FontFamily.MONO, 400, 26f)
+            var yy = top + 92f
             for ((i, l) in lines.withIndex()) {
-                val y = top + 82f + i * 40f
-                if (y > top + h - 10f) break
-                val shown = clamp01((t - 400f - i * 180f) / 200f)
-                if (shown > 0f) g.drawText(l, a.l + 30f, y, mf, if (l.startsWith("#")) muted else if (l.startsWith("[")) accent else ink)
+                if (yy > top + h - 50f) break
+                if (t > 250f + i * 160f) g.drawText(l, a.l + 28f, yy, mf, if (l.startsWith("#")) muted else if (l.startsWith("[")) accent else ink)
+                yy += 38f
             }
+            if (banned && linux && t > 1900f) g.drawText("NOTICE  [sshd] Ban 203.0.113.7", a.l + 28f, (yy + 8f).coerceAtMost(top + h - 18f), mf, rgb(0xFF9AA5))
+            chips(g, listOf("Windows : seuil de verrouillage de compte", "Web : délai progressif + CAPTCHA"), top + h + 18f, t, 2100f, accent, a)
         }
     }
 
+    private fun terminalFrame(g: Gfx, l: Float, tp: Float, r: Float, bt: Float, title: String) {
+        g.fillRoundRect(l, tp, r, bt, 14f, rgb(0x0A0F1C))
+        g.strokeRoundRect(l, tp, r, bt, 14f, 1.5f, 0x2AFFFFFF)
+        g.fillRect(l + 2f, tp + 46f, r - 2f, tp + 48f, 0x18FFFFFF)
+        listOf(rgb(0xFF5F57), rgb(0xFEBC2E), rgb(0x28C840)).forEachIndexed { i, c -> g.fillCircle(l + 26f + i * 22f, tp + 24f, 7f, c) }
+        val f = FontSpec(FontFamily.TEXT, 600, 20f)
+        g.drawText(title, (l + r) / 2 - g.measureText(title, f) / 2, tp + 31f, f, muted)
+    }
+
+    /** Échecs de connexion sur 24 h avec seuil d'alerte, puis la commande qui trouve l'attaquant. */
     private fun chart(g: Gfx, t: Float, a: R) {
-        val h = (a.h * 0.55f).coerceAtMost(420f)
-        val top = a.t + 10f
+        val h = (a.h * 0.5f).coerceIn(300f, 400f)
+        val top = a.t
         card(g, a.l, top, a.r, top + h)
-        val lf = FontSpec(FontFamily.TEXT, 700, 26f)
-        g.drawText("Échecs de connexion / heure", a.l + 28f, top + 46f, lf, muted)
-        val vals = listOf(3, 2, 4, 3, 2, 3, 41, 58, 47, 4, 3, 2, 3, 2)
-        val bw = (a.w - 60f) / vals.size
-        val base = top + h - 30f
-        val maxH = h - 110f
+        val lf = FontSpec(FontFamily.TEXT, 700, 24f)
+        val rf = FontSpec(FontFamily.TEXT, 500, 20f)
+        g.drawText("Échecs d'authentification / heure", a.l + 24f, top + 40f, lf, ink)
+        val srv = "srv-01 · dernières 24 h"
+        g.drawText(srv, a.r - 24f - g.measureText(srv, rf), top + 40f, rf, muted)
+        // exemple : 24 heures, pic entre 2 h et 4 h
+        val vals = listOf(6, 4, 52, 61, 44, 5, 4, 3, 5, 6, 4, 5, 6, 7, 5, 6, 5, 4, 6, 5, 7, 6, 4, 5)
+        val maxV = 61f
+        val base = top + h - 44f
+        val maxH = h - 130f
+        val bw = (a.w - 48f) / vals.size
         for ((i, v) in vals.withIndex()) {
-            val k = Easing.EXPO_OUT.ease(clamp01((t - 200f - i * 60f) / 500f))
-            val bh = maxH * v / 58f * k
-            g.fillRoundRect(a.l + 30f + i * bw + 5f, base - bh, a.l + 30f + (i + 1) * bw - 5f, base, 4f, if (v > 10) danger else accent.withAlpha(0.6f))
+            val k = Easing.EXPO_OUT.ease(clamp01((t - 100f - i * 25f) / 400f))
+            val bh = maxH * v / maxV * k
+            g.fillRoundRect(a.l + 24f + i * bw + 4f, base - bh, a.l + 24f + (i + 1) * bw - 4f, base, 3f, if (v > 20) danger else accent.withAlpha(0.75f))
         }
-        val ak = Easing.BACK_OUT.ease(clamp01((t - 1300f) / 400f))
-        if (ak > 0f) g.withPose(Pose(alpha = clamp01(ak), scale = lerp(1.3f, 1f, ak)), a.r - 180f, top + 100f) {
-            val af = FontSpec(FontFamily.TEXT, 800, 26f)
-            g.fillRoundRect(a.r - 330f, top + 70f, a.r - 26f, top + 130f, 10f, danger.withAlpha(0.22f))
-            g.strokeRoundRect(a.r - 330f, top + 70f, a.r - 26f, top + 130f, 10f, 2f, danger)
-            g.drawText("ALERTE : pic d'échecs", a.r - 314f, top + 109f, af, rgb(0xFFB3BB))
+        val xf = FontSpec(FontFamily.TEXT, 500, 18f)
+        for ((i, lab) in listOf(0 to "00h", 6 to "06h", 12 to "12h", 18 to "18h")) g.drawText(lab, a.l + 24f + i * bw, base + 28f, xf, muted)
+        // seuil d'alerte (pointillés)
+        val ty = base - maxH * 20f / maxV
+        var x = a.l + 24f
+        while (x < a.r - 24f) { g.fillRect(x, ty, x + 12f, ty + 2f, warn.withAlpha(0.8f)); x += 20f }
+        g.drawText("seuil d'alerte", a.r - 24f - g.measureText("seuil d'alerte", xf), ty - 8f, xf, warn)
+        val ak = Easing.BACK_OUT.ease(clamp01((t - 750f) / 350f))
+        if (ak > 0f) g.withPose(Pose(alpha = clamp01(ak), scale = lerp(1.3f, 1f, ak)), a.r - 190f, top + 100f) {
+            val bx = a.r - 360f
+            g.fillRoundRect(bx, top + 62f, a.r - 24f, top + 132f, 10f, danger.withAlpha(0.22f))
+            g.strokeRoundRect(bx, top + 62f, a.r - 24f, top + 132f, 10f, 2f, danger)
+            g.fillCircle(bx + 30f, top + 97f, 13f, danger)
+            g.drawText("!", bx + 26f, top + 105f, FontSpec(FontFamily.TEXT, 900, 22f), rgb(0xFFFFFF))
+            g.drawText("ALERTE · 4 812 échecs", bx + 54f, top + 94f, FontSpec(FontFamily.TEXT, 800, 22f), rgb(0xFFB3BB))
+            g.drawText("depuis 203.0.113.7 à 03 h", bx + 54f, top + 120f, FontSpec(FontFamily.TEXT, 500, 18f), rgb(0xFFB3BB))
         }
-        // Terminal : recherche des échecs dans le journal
-        val tt = top + h + 26f
-        val th = (a.b - tt).coerceAtMost(230f)
-        if (th > 120f) {
-            card(g, a.l, tt, a.r, tt + th)
-            val mf = FontSpec(FontFamily.MONO, 400, 25f)
-            val cmd = "grep \"Failed password\" /var/log/auth.log"
-            val p = clamp01((t - 1700f) / 1200f)
-            g.drawText("$ " + cmd.take((cmd.length * p).toInt()), a.l + 26f, tt + 52f, mf, ok)
+        // Terminal : qui m'attaque ?
+        val tt = top + h + 22f
+        val th = (a.b - tt).coerceAtMost(340f)
+        if (th > 160f) {
+            terminalFrame(g, a.l, tt, a.r, tt + th, "Qui m'attaque ?")
+            val mf = FontSpec(FontFamily.MONO, 400, 22f)
+            val cmd = listOf("$ grep \"Failed password\" /var/log/auth.log \\", "  | awk '{print \$(NF-3)}' | sort | uniq -c | sort -nr")
+            val p = clamp01((t - 1000f) / 900f)
+            var chars = (cmd.sumOf { it.length } * p).toInt()
+            var yy = tt + 84f
+            for (c in cmd) { g.drawText(TextLayout.fit(g, c.take(chars.coerceAtLeast(0)), mf, a.w - 50f, 1, minSize = 14f).lines.firstOrNull() ?: "", a.l + 24f, yy, mf, ok); chars -= c.length; yy += 32f }
             if (p >= 1f) {
-                val outs = listOf("Failed password for root from 203.0.113.7", "Failed password for admin from 203.0.113.7")
-                for ((i, o) in outs.withIndex()) if (tt + 96f + i * 38f < tt + th - 6f) g.drawText(TextLayout.fit(g, o, mf, a.w - 52f, 1, minSize = 18f).lines.first(), a.l + 26f, tt + 96f + i * 38f, mf, rgb(0xFFB3BB))
+                val out = listOf("   4812 203.0.113.7", "    934 198.51.100.23", "      2 10.0.0.25")
+                for ((i, o) in out.withIndex()) {
+                    if (yy > tt + th - 50f) break
+                    if (t < 2000f + i * 150f) continue
+                    if (i == 0) g.fillRect(a.l + 16f, yy - 24f, a.r - 16f, yy + 8f, danger.withAlpha(0.35f))
+                    g.drawText(o, a.l + 24f, yy, mf, if (i == 0) rgb(0xFFFFFF) else ink)
+                    yy += 32f
+                }
+                if (t > 2500f && yy < tt + th - 14f) g.drawText("# Windows : Observateur d'événements → ID 4625", a.l + 24f, yy + 4f, mf, muted)
             }
         }
     }
@@ -587,7 +779,16 @@ internal class InfographicLook(private val sb: Storyboard) : LookRenderer {
                 g.drawText(s2, 540f - w2 / 2 + g.measureText(s1, nf), cy + 250f, nf, accent)
             }
         }
-        val bl = cache.fit(g, "cta/${b.caption}", b.caption, FontSpec(FontFamily.TEXT, 600, 34f), Safe.WIDTH - 60f, 2, 1.3f)
-        g.drawBlock(bl, 540f, cy + 320f, muted, Align.CENTER)
+        val tags = listOfNotNull(sb.hashtag?.let { if (it.startsWith("#")) it else "#$it" }, "#codjia").distinct().joinToString("  ")
+        val tf = FontSpec(FontFamily.TEXT, 500, 26f)
+        val tl = TextLayout.fit(g, tags, tf, Safe.WIDTH - 60f, 1, minSize = 16f)
+        if (t > 800f) g.drawText(tl.lines.first(), 540f - g.measureText(tl.lines.first(), tl.font) / 2, cy + 310f, tl.font, muted)
+    }
+
+    private companion object {
+        /** Séries connues (mot-dièse → nom affiché en haut de la vidéo). */
+        val SERIES = mapOf(
+            "securiteinformatiquepourtous" to "SÉCURITÉ INFORMATIQUE POUR TOUS",
+        )
     }
 }

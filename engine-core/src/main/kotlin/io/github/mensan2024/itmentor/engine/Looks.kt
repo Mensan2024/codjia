@@ -61,10 +61,13 @@ object Looks {
         if (look == Look.MOTION || look.transitions.isEmpty()) return sb.copy(look = look)
         val r = Rand.of(sb.seed, 0x10C4)
         var k = (r.nextInt() ushr 1) % look.transitions.size
-        val scenes = sb.scenes.mapIndexed { i, s ->
-            if (i == sb.scenes.lastIndex || (s.layout == Layout.SCREEN && sb.scenes[i + 1].layout == Layout.SCREEN)) s else {
+        // Infographie : chaque étape déroule un schéma détaillé (graphique, terminal…) : 20 % de temps en plus
+        // (Composer ramène ensuite la vidéo sous 59 s si besoin).
+        val base = if (look == Look.INFOGRAPHIE) sb.scenes.map { if (it.layout == Layout.STEPS) it.copy(durationMs = (it.durationMs * 1.2f).toInt()) else it } else sb.scenes
+        val scenes = base.mapIndexed { i, s ->
+            if (i == base.lastIndex || (s.layout == Layout.SCREEN && base[i + 1].layout == Layout.SCREEN)) s else {
                 val type = look.transitions[k % look.transitions.size]; k++
-                val maxMs = (minOf(s.durationMs, sb.scenes[i + 1].durationMs) * 0.4f).toInt()
+                val maxMs = (minOf(s.durationMs, base[i + 1].durationMs) * 0.4f).toInt()
                 val want = if (type == TransitionType.SLIDE) 650 else 550
                 s.copy(transitionOut = if (type == TransitionType.CUT) Transition.CUT else Transition(type, minOf(want, maxMs)))
             }

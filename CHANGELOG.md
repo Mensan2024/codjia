@@ -2,6 +2,12 @@
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [1.9.0] — 2026-11-25
+### Format « Infographie » enrichi (style des astuces cybersécurité)
+- **Schémas animés par étape**, choisis selon le contenu : attaque en direct (essais de mots de passe, cadenas forcé), barres de combinaisons (26⁶ → 309 millions, phrase de passe → milliards de milliards), chaîne MFA (code à 6 chiffres bloqué), compteur de tentatives et bannissement d'IP avec un terminal fail2ban, graphique des échecs d'authentification avec seuil d'alerte et commande `grep … /var/log/auth.log`.
+- **Chapitres** (« N réflexes », « Comment se défendre ? »), compteur « DÉFENSE n/total », en-tête « ASTUCE NNN · série », fond rouge pour l'attaque et bleu pour la défense, carte de fin « Abonne-toi · Prochaine : Astuce NNN+1 ».
+- **Timing** : les étapes riches reçoivent plus de temps et leurs animations sont resserrées, pour que chaque schéma se termine avant la scène suivante (durée toujours ≤ 59 s).
+
 ## [1.8.0] — 2026-11-25
 ### Application web (iPhone, Android, ordinateur)
 - **CODJIA fonctionne dans le navigateur**, sans rien installer, et s'installe sur l'écran d'accueil comme une application (PWA). Adresse : `https://mensan2024.github.io/codjia/`.
