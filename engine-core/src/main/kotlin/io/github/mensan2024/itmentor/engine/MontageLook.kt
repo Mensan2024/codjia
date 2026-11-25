@@ -11,20 +11,20 @@ internal fun iconForText(text: String, fallback: IconId): IconId {
     return when {
         Regex("mfa|double authentification|2fa|verrou|chiffr").containsMatchIn(t) -> IconId.LOCK
         Regex("mots? de passe|password|clé|cle ").containsMatchIn(t) -> IconId.KEY
-        Regex("surveill|journal|log|alerte|repère|repere").containsMatchIn(t) -> IconId.EYE
+        Regex("surveill|journal|\\blogs?\\b|alerte|repère|repere").containsMatchIn(t) -> IconId.EYE
         Regex("limit|bloqu|pare-feu|firewall|protég|proteg").containsMatchIn(t) -> IconId.SHIELD
         Regex("mail|courriel|message").containsMatchIn(t) -> IconId.MAIL
         Regex("wi-?fi|réseau|reseau|routeur|vlan|switch").containsMatchIn(t) -> IconId.ROUTER
         Regex("mise à jour|mises à jour|update|correctif").containsMatchIn(t) -> IconId.CLOCK
         Regex("code|git|api|script|commande|terminal").containsMatchIn(t) -> IconId.CODE
         Regex("sommeil|dormir|nuit").containsMatchIn(t) -> IconId.MOON
-        Regex("eau|boire|hydrat").containsMatchIn(t) -> IconId.DROP
+        Regex("\\beaux?\\b|boire|hydrat").containsMatchIn(t) -> IconId.DROP
         Regex("marche|sport|cœur|coeur|santé|sante").containsMatchIn(t) -> IconId.HEART
         Regex("légume|fruit|aliment|manger").containsMatchIn(t) -> IconId.LEAF
         Regex("\\bia\\b|prompt|modèle|modele|chatgpt|claude").containsMatchIn(t) -> IconId.BRAIN
-        Regex("audience|abonné|abonne|publication|post|linkedin").containsMatchIn(t) -> IconId.MEGAPHONE
+        Regex("audience|abonné|abonne|publication|\\bposts?\\b|linkedin").containsMatchIn(t) -> IconId.MEGAPHONE
         Regex("cherche|recherche|trouve").containsMatchIn(t) -> IconId.SEARCH
-        Regex("objectif|cible|but\\b").containsMatchIn(t) -> IconId.TARGET
+        Regex("objectif|cible|\\bbut\\b").containsMatchIn(t) -> IconId.TARGET
         Regex("anglais|english|parler|phrase|mot\\b").containsMatchIn(t) -> IconId.CHAT
         else -> fallback
     }

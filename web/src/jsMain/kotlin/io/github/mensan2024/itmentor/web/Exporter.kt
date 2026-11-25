@@ -33,7 +33,7 @@ object Exporter {
                 val r: dynamic = (js("VideoEncoder").isConfigSupported(cfg) as Promise<dynamic>).await()
                 r.supported == true
             } catch (e: Throwable) { false }
-            if (ok) return cfg to VideoFormat(size.first, size.second, 30)
+            if (ok) return Pair(cfg, VideoFormat(size.first, size.second, 30))
         }
         return null
     }

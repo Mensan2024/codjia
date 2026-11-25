@@ -45,14 +45,14 @@ internal class ReelLook(private val sb: Storyboard, private val template: Templa
         return when {
             Regex("mfa|double authentification|2fa|verrou|chiffr").containsMatchIn(t) -> IconId.LOCK
             Regex("mot de passe|password|clé|cle ").containsMatchIn(t) -> IconId.KEY
-            Regex("surveill|journal|log|alerte|repère|repere").containsMatchIn(t) -> IconId.EYE
+            Regex("surveill|journal|\\blogs?\\b|alerte|repère|repere").containsMatchIn(t) -> IconId.EYE
             Regex("limit|bloqu|pare-feu|firewall|protég|proteg").containsMatchIn(t) -> IconId.SHIELD
             Regex("mail|courriel|message").containsMatchIn(t) -> IconId.MAIL
             Regex("wi-?fi|réseau|reseau|routeur|vlan").containsMatchIn(t) -> IconId.ROUTER
             Regex("mise à jour|mises à jour|update|correctif").containsMatchIn(t) -> IconId.CLOCK
             Regex("code|git|api|script|commande").containsMatchIn(t) -> IconId.CODE
             Regex("sommeil|dormir|nuit").containsMatchIn(t) -> IconId.MOON
-            Regex("eau|boire|hydrat").containsMatchIn(t) -> IconId.DROP
+            Regex("\\beaux?\\b|boire|hydrat").containsMatchIn(t) -> IconId.DROP
             Regex("marche|sport|cœur|coeur|santé|sante").containsMatchIn(t) -> IconId.HEART
             Regex("légume|fruit|aliment|manger").containsMatchIn(t) -> IconId.LEAF
             Regex("ia|prompt|modèle|modele|chatgpt|claude").containsMatchIn(t) -> IconId.BRAIN
