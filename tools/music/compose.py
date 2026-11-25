@@ -451,6 +451,8 @@ def write_wav(path, x):
 
 
 if __name__ == "__main__":
+    import compose_pro  # morceaux à la production plus riche (ajoutés après les 8 premiers : ceux-ci restent identiques)
+    TRACKS = TRACKS + compose_pro.PRO_TRACKS
     out = Path(sys.argv[1] if len(sys.argv) > 1 else "build/music")
     out.mkdir(parents=True, exist_ok=True)
     meta = []

@@ -112,6 +112,8 @@ class MainActivity : ComponentActivity() {
 
     // ── Voix off (synthèse vocale hors ligne du téléphone), mélangée à la musique
     private var voiceMode = VoiceMode.AUTO
+    /** Langue de voix à rétablir quand l'utilisateur réactive la voix depuis l'aperçu. */
+    private var lastVoice = VoiceMode.AUTO
     private var voices: OfflineVoices? = null
     private var voicesChecked = false
     private var voiced: Pair<String, VoicedResult>? = null
@@ -373,7 +375,16 @@ class MainActivity : ComponentActivity() {
             show(Step.PREVIEW, animate = false)
         }, lp(0, WRAP, 1f))
         page.addView(actions, lp(MATCH, WRAP, top = dp(10f)))
-        page.addView(button("Générer la vidéo") { show(Step.EXPORT) }, lp(MATCH, WRAP, top = dp(10f)))
+        // Choix explicite de la voix off, directement sur l'aperçu (la langue se règle dans « Musique »).
+        val bottom = hbox()
+        val voiceOn = voiceMode != VoiceMode.NONE
+        bottom.addView(button(if (voiceOn) "Voix : oui" else "Voix : non", primary = false) {
+            if (voiceMode == VoiceMode.NONE) voiceMode = lastVoice else { lastVoice = voiceMode; voiceMode = VoiceMode.NONE }
+            show(Step.PREVIEW, animate = false)
+        }.apply { contentDescription = if (voiceOn) "Voix off activée, toucher pour la couper" else "Voix off coupée, toucher pour l'activer" },
+            lp(0, WRAP, 1f, end = dp(8f)))
+        bottom.addView(button("Générer la vidéo") { show(Step.EXPORT) }, lp(0, WRAP, 2f))
+        page.addView(bottom, lp(MATCH, WRAP, top = dp(10f)))
         previewPaused = false
         if (voiceMode != VoiceMode.NONE) hint.text = "Préparation de la voix off…"
         previewJob = lifecycleScope.launch {
@@ -567,7 +578,7 @@ class MainActivity : ComponentActivity() {
         vrow.addView(label("Voix off", 14f, Brand.MUTED), lp(WRAP, WRAP, end = dp(12f)))
         val vChips = ArrayList<Pair<VoiceMode, TextView>>()
         for (m in VoiceMode.entries) {
-            val c = chip(m.label, voiceMode == m) { voiceMode = m; for ((k, cv) in vChips) cv.setChipSelected(k == voiceMode) }
+            val c = chip(m.label, voiceMode == m) { voiceMode = m; if (m != VoiceMode.NONE) lastVoice = m; for ((k, cv) in vChips) cv.setChipSelected(k == voiceMode) }
             vChips += m to c
             vrow.addView(c, lp(WRAP, WRAP, end = dp(8f)))
         }

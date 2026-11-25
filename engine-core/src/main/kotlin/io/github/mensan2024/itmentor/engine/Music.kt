@@ -13,6 +13,8 @@ enum class MusicCategory(val label: String) {
     TECHNO("Technologique et futuriste"),
     EDUCATIVE("Éducative et pédagogique"),
     NATURE("Nature et environnement"),
+    AFRO("Afro (afrobeats, amapiano)"),
+    CINEMATIQUE("Cinématique et épique"),
 }
 
 /** Origine d'une piste : intégrée à l'appli (licence connue) ou importée par l'utilisateur (sous sa responsabilité). */

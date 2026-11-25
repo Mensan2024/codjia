@@ -129,6 +129,7 @@ Ces trois formats suivent la grammaire des vidéos courtes des réseaux sociaux.
 | Explicatif néon | Fond très sombre, titres condensés en capitales, fenêtres, sous-titres en capitales |
 | Collage | Fond bleu texturé, bandeaux et cartes en papier tenus par des pinces, étiquettes inclinées, accroche en lettres découpées |
 | Cinéma | Dégradé nocturne avec halos, sans-serif mêlé de serif italique, téléphone réaliste |
+| Infographie | `InfographicLook` : rubrique + pastille « ÉTAPE i/n », titre sur deux lignes, un schéma animé choisi selon le sens du texte (cibles, cadenas assailli, barres de robustesse, chaîne MFA, tentatives + fail2ban, graphique d'échecs + grep, terminal, chiffre, comparaison, parcours d'étapes) et l'explication dans un cadre en bas |
 
 ## 6 ter. Démonstrations sur écran simulé (`Simulator.kt`, `Procedures.kt`)
 

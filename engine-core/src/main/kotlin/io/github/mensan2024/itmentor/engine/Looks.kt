@@ -23,7 +23,9 @@ enum class Look(val label: String, val tagline: String, val transitions: List<Tr
     COLLAGE("Collage", "Cartes en papier épinglées, étiquettes et lettres découpées",
         listOf(TransitionType.SLIDE, TransitionType.CUT, TransitionType.ZOOM)),
     CINEMA("Cinéma", "Ambiance nocturne, serif italique, téléphone réaliste",
-        listOf(TransitionType.FADE, TransitionType.DIP, TransitionType.FADE));
+        listOf(TransitionType.FADE, TransitionType.DIP, TransitionType.FADE)),
+    INFOGRAPHIE("Infographie", "Chaque idée expliquée par un schéma animé, explication en bas",
+        listOf(TransitionType.FADE, TransitionType.CUT, TransitionType.FADE));
 
     companion object {
         fun byName(name: String?): Look = entries.firstOrNull { it.name == name } ?: MOTION
@@ -75,6 +77,7 @@ object Looks {
         Look.NEON -> ReelLook(storyboard, template, ReelStyle.NEON)
         Look.COLLAGE -> ReelLook(storyboard, template, ReelStyle.COLLAGE)
         Look.CINEMA -> ReelLook(storyboard, template, ReelStyle.CINEMA)
+        Look.INFOGRAPHIE -> InfographicLook(storyboard)
     }
 }
 
