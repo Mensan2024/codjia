@@ -4,7 +4,7 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la nu
 
 ## [1.8.0] — 2026-11-25
 ### Application web (iPhone, Android, ordinateur)
-- **CODJIA fonctionne dans le navigateur**, sans rien installer, et s'installe sur l'écran d'accueil comme une application (PWA). Adresse : `https://mensan2024.github.io/itmentor-video-prototype/`.
+- **CODJIA fonctionne dans le navigateur**, sans rien installer, et s'installe sur l'écran d'accueil comme une application (PWA). Adresse : `https://mensan2024.github.io/codjia/`.
 - **Même moteur que l'application Android**, compilé en JavaScript : mêmes formats, styles modulables, musiques et règles (tout le texte montré, 30 à 59 s).
 - Même parcours : texte → aperçu animé avec musique → style / musique → génération → enregistrer ou partager.
   - Sur iPhone : « Partager » puis « Enregistrer la vidéo » la met dans Photos.

@@ -75,7 +75,7 @@ Il publie ensuite :
 
 ```bash
 sha256sum -c SHA256SUMS.txt
-gh attestation verify CODJIA-1.0.0.apk -R Mensan2024/itmentor-video-prototype
+gh attestation verify CODJIA-1.0.0.apk -R Mensan2024/codjia
 apksigner verify --print-certs CODJIA-1.0.0.apk   # l'empreinte doit être celle des notes de version
 ```
 

@@ -4,7 +4,7 @@
 
 CODJIA transforme **ton propre texte** en vidéo éducative verticale de 30 à 59 s (MP4, H.264 et AAC), entièrement hors ligne.
 
-**Version web (iPhone, Android, ordinateur) :** https://mensan2024.github.io/itmentor-video-prototype/ — rien à installer, tout se passe sur ton appareil. Sur iPhone : Partager → « Sur l'écran d'accueil » pour l'avoir comme une appli.
+**Version web (iPhone, Android, ordinateur) :** https://mensan2024.github.io/codjia/ — rien à installer, tout se passe sur ton appareil. Sur iPhone : Partager → « Sur l'écran d'accueil » pour l'avoir comme une appli.
 
 - **Domaines :** réseaux (CCNA, CCNP), systèmes (Windows, macOS, Linux, Android), cybersécurité, IA, développement fullstack, santé et longévité, marketing, anglais.
 - **Style unique à chaque vidéo :** un moteur de styles modulables combine palettes, fonds animés, polices, titres, cadres, sous-titres, transitions et mascotte (des milliers de combinaisons, filtrées par des règles de design).
@@ -32,7 +32,7 @@ La licence est GPL-3.0-or-later.
 
 ## Télécharger
 
-La dernière version signée est sur la page [**Releases**](https://github.com/Mensan2024/itmentor-video-prototype/releases/latest) (fichier `CODJIA-x.y.z.apk`, Android 8 ou plus). Chaque APK est accompagné de son empreinte SHA-256 et d'une attestation de provenance. La vérification est expliquée dans [docs/PUBLIER.md](docs/PUBLIER.md#5-vérifier-un-apk-téléchargé-pour-toi-et-tes-utilisateurs).
+La dernière version signée est sur la page [**Releases**](https://github.com/Mensan2024/codjia/releases/latest) (fichier `CODJIA-x.y.z.apk`, Android 8 ou plus). Chaque APK est accompagné de son empreinte SHA-256 et d'une attestation de provenance. La vérification est expliquée dans [docs/PUBLIER.md](docs/PUBLIER.md#5-vérifier-un-apk-téléchargé-pour-toi-et-tes-utilisateurs).
 
 Confidentialité : [PRIVACY.md](PRIVACY.md) (aucune donnée collectée). Historique : [CHANGELOG.md](CHANGELOG.md).
 

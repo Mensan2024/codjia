@@ -1,6 +1,6 @@
 # Politique de confidentialité de CODJIA
 
-*Dernière mise à jour : 24 novembre 2026. Éditeur : Mensan Moréno CODJIA (Ouagadougou, Burkina Faso), via le dépôt GitHub Mensan2024/itmentor-video-prototype.*
+*Dernière mise à jour : 24 novembre 2026. Éditeur : Mensan Moréno CODJIA (Ouagadougou, Burkina Faso), via le dépôt GitHub Mensan2024/codjia.*
 
 **En résumé : CODJIA ne collecte, ne transmet et ne vend aucune donnée.**
 
