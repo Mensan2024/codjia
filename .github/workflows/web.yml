@@ -39,26 +39,32 @@ jobs:
           test -f "$OUT/codjia.js" && test -f "$OUT/index.html" && test -d "$OUT/assets/fonts" && test -f "$OUT/assets/music/music.json"
           mkdir -p site && cp -r "$OUT"/. site/
           (cd site && zip -qr ../codjia-web.zip .)
-      - uses: actions/upload-pages-artifact@v4
-        with:
-          path: site
       - uses: actions/upload-artifact@v5
         with:
           name: codjia-web
           path: codjia-web.zip
 
-  deploy:
+  # Publication : la branche gh-pages contient le site (GitHub Pages la sert à
+  # https://<compte>.github.io/<dépôt>/ une fois Pages activé sur cette branche).
+  publier:
     needs: build
     runs-on: ubuntu-latest
     permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      contents: write
     steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+      - uses: actions/download-artifact@v5
+        with:
+          name: codjia-web
+      - name: Mettre à jour la branche gh-pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir site && cd site && unzip -q ../codjia-web.zip && touch .nojekyll
+          git init -q -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A && git commit -qm "Site CODJIA depuis ${GITHUB_SHA::7}"
+          git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages
 
   # Copie téléchargeable (zip) pour les tests automatiques dans un navigateur.
   zip-de-test:

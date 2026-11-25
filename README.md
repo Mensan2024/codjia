@@ -4,6 +4,8 @@
 
 CODJIA transforme **ton propre texte** en vidéo éducative verticale de 30 à 59 s (MP4, H.264 et AAC), entièrement hors ligne.
 
+**Version web (iPhone, Android, ordinateur) :** https://mensan2024.github.io/itmentor-video-prototype/ — rien à installer, tout se passe sur ton appareil. Sur iPhone : Partager → « Sur l'écran d'accueil » pour l'avoir comme une appli.
+
 - **Domaines :** réseaux (CCNA, CCNP), systèmes (Windows, macOS, Linux, Android), cybersécurité, IA, développement fullstack, santé et longévité, marketing, anglais.
 - **Style unique à chaque vidéo :** un moteur de styles modulables combine palettes, fonds animés, polices, titres, cadres, sous-titres, transitions et mascotte (des milliers de combinaisons, filtrées par des règles de design).
 - **11 formats :** style unique, montage dynamique (tutoriel animé avec sous-titres mot à mot et mascotte), motion design, tableau blanc (main qui écrit), démo à l'écran, personnage animé, éditorial chic, explicatif néon, collage, cinéma, infographie (schémas animés).
@@ -23,6 +25,7 @@ La licence est GPL-3.0-or-later.
 | `engine-core` | Moteur Kotlin pur : chronologie, animations, transitions, texte, 10 templates, planificateur texte → storyboard, variation, musique, détection du domaine, règles de sécurité |
 | `engine-jvm` | Banc d'essai (tests, captures, vidéo de démonstration) |
 | `engine-android` | Rendu Canvas, export Media3 Transformer, décodage audio, catalogue musical |
+| `web` | Application web (PWA) : le moteur compilé en JavaScript, dessin sur canevas, export MP4 par WebCodecs, publication GitHub Pages |
 | `demo-app` | Application de test : contenu → modèle → musique → aperçu → génération |
 | `tools/music` | Compositions musicales originales, reproductibles |
 

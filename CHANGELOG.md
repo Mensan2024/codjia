@@ -2,6 +2,25 @@
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [1.8.0] — 2026-11-25
+### Application web (iPhone, Android, ordinateur)
+- **CODJIA fonctionne dans le navigateur**, sans rien installer, et s'installe sur l'écran d'accueil comme une application (PWA). Adresse : `https://mensan2024.github.io/itmentor-video-prototype/`.
+- **Même moteur que l'application Android**, compilé en JavaScript : mêmes formats, styles modulables, musiques et règles (tout le texte montré, 30 à 59 s).
+- Même parcours : texte → aperçu animé avec musique → style / musique → génération → enregistrer ou partager.
+  - Sur iPhone : « Partager » puis « Enregistrer la vidéo » la met dans Photos.
+- **Tout se passe sur l'appareil** : aucun texte ni vidéo envoyé sur Internet. Fonctionne hors ligne une fois ouverte.
+- Export MP4 1080 × 1920 :
+  - vidéo H.264 encodée par le navigateur (WebCodecs) ;
+  - son AAC, ou Opus si l'AAC n'est pas disponible ;
+  - fichier assemblé par un muxer MP4 écrit pour CODJIA (« faststart », lecture immédiate sur iPhone).
+- Navigateurs : Chrome, Edge, Samsung Internet, Firefox 130+, Safari 16.4+ (iOS 16.4+). Un navigateur trop ancien affiche l'aperçu et explique comment mettre à jour.
+- Tests :
+  - le MP4 assemblé est décodé sans erreur par ffmpeg, avec AAC et avec Opus ;
+  - l'application web a été testée dans Chrome (format téléphone et ordinateur) : une vidéo de 57 s est générée en 40 s, avec image et son.
+### Moteur
+- Moteur 100 % Kotlin commun (sans API Java) : mise en forme des nombres, accents, WAV, angles.
+- Icônes : « bureau » ne déclenche plus la goutte d'eau, « technologie » ne déclenche plus l'œil (mots entiers).
+
 ## [1.7.0] — 2026-11-25
 ### Styles modulables
 - Nouveau format **« Style unique »** : chaque vidéo reçoit une **combinaison nouvelle** de pièces interchangeables, ce qui fait des milliers de styles possibles. Chaque pièce a plusieurs variantes :
