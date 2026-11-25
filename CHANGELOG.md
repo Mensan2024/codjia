@@ -2,6 +2,24 @@
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [1.6.0] — 2026-11-25
+### Musique
+- **La musique ne s'arrête plus et ne redémarre plus au milieu d'une vidéo.** Les morceaux durent maintenant 64 s, plus que la plus longue vidéo (59 s) : ils ne bouclent plus, ni dans l'aperçu ni dans la vidéo exportée. L'aperçu se recale moins souvent sur la musique, donc sans à-coups.
+- **Nouveau catalogue de 13 musiques originales, rythmées et avec basses** (toujours synthétisées par le projet, sans échantillon tiers, licence GPL-3.0) :
+  - Afro Vibes, Amapiano Groove, Tropical Dembow ;
+  - Trap Bass, Drill Night, Phonk Drift ;
+  - Big Drop (EDM), Deep House Pulse, Future Bass, Outrun (synthwave) ;
+  - Boom Bap Study, Lo-fi Beats ;
+  - Epic Trailer.
+- Construites pour les vidéos courtes :
+  - énergie dès le début, le « drop » arrive vers 4 s ;
+  - montée, roulement de caisse claire et impact avant chaque relance ;
+  - aucun silence ;
+  - basses saturées et mixage pensé pour les haut-parleurs de téléphone (moins de sous-graves inaudibles, plus de présence).
+- Choix automatique par domaine revu : trap, drill ou phonk pour la cyber ; EDM ou synthwave pour les réseaux ; afro ou amapiano pour la santé et le marketing…
+- La page Musique ne montre plus que les catégories qui contiennent des musiques.
+- Nouveau test : chaque musique dure plus que la plus longue vidéo, et chaque musique choisie automatiquement existe.
+
 ## [1.5.2] — 2026-11-25
 ### Corrections
 - **Parties du texte perdues.** Quand une partie (« Comment l'éviter : », « Comment se protéger : »…) contenait des phrases plutôt qu'une courte liste, elle était jetée, et la vidéo passait directement à « L'essentiel ». Désormais :

@@ -440,7 +440,7 @@ class MainActivity : ComponentActivity() {
                 if (mp != null && !previewPaused && mpLen > 0 && now - lastSync > 600) runCatching {
                     lastSync = now
                     val expected = if (mixed != null) t.coerceAtMost(mpLen - 1) else t % mpLen
-                    if (kotlin.math.abs(mp.currentPosition - expected) > 250) mp.seekTo(expected.toInt())
+                    if (kotlin.math.abs(mp.currentPosition - expected) > 400) mp.seekTo(expected.toInt())
                 }
                 val target = bufs[flip]
                 withContext(renderThread) {
@@ -575,7 +575,8 @@ class MainActivity : ComponentActivity() {
         val all = chip("Toutes", category == null) { category = null; fill() }
         chipViews += null to all
         chips.addView(all, lp(WRAP, WRAP, end = dp(8f)))
-        for (c in MusicCategory.entries) {
+        // Seules les catégories qui contiennent au moins une musique sont proposées.
+        for (c in MusicCategory.entries.filter { cat -> catalog.any { it.category == cat } || imported.any { it.category == cat } }) {
             val v = chip(c.label, category == c) { category = c; fill() }
             chipViews += c to v
             chips.addView(v, lp(WRAP, WRAP, end = dp(8f)))

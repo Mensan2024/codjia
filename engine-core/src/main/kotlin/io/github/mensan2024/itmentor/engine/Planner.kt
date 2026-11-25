@@ -524,12 +524,17 @@ object CreativeDirector {
         val look: Look get() = storyboard.look
     }
 
+    /** Musiques par domaine (toutes rythmées, avec basses) : la graine en choisit une, différente à chaque génération. */
     private val MUSIC = mapOf(
-        Domain.RESEAUX to listOf("pulse", "synthwave", "cinematic", "horizon"), Domain.SYSTEMES to listOf("pulse", "synthwave", "lofi", "trap"),
-        Domain.CYBER to listOf("trap", "synthwave", "pulse", "cinematic", "momentum"), Domain.IA to listOf("future", "synthwave", "elan", "cinematic"),
-        Domain.FULLSTACK to listOf("lofi", "synthwave", "trap", "future"), Domain.SANTE to listOf("aube", "canopee", "sahel", "afro"),
-        Domain.MARKETING to listOf("future", "afro", "amapiano", "momentum"), Domain.ANGLAIS to listOf("amapiano", "lofi", "afro", "elan"),
-        Domain.GENERAL to listOf("afro", "future", "cinematic", "elan"),
+        Domain.RESEAUX to listOf("edm", "synthwave", "house", "future", "trap"),
+        Domain.SYSTEMES to listOf("synthwave", "house", "hiphop", "trap", "edm"),
+        Domain.CYBER to listOf("trap", "drill", "phonk", "cinematic", "edm"),
+        Domain.IA to listOf("future", "edm", "synthwave", "house"),
+        Domain.FULLSTACK to listOf("hiphop", "lofi", "synthwave", "trap", "house"),
+        Domain.SANTE to listOf("afrobeat", "amapiano", "house", "lofi", "dembow"),
+        Domain.MARKETING to listOf("afrobeat", "amapiano", "edm", "dembow", "future"),
+        Domain.ANGLAIS to listOf("amapiano", "hiphop", "afrobeat", "dembow", "lofi"),
+        Domain.GENERAL to listOf("afrobeat", "edm", "trap", "amapiano", "future"),
     )
 
     /**

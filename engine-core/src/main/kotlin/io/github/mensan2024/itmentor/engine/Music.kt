@@ -7,13 +7,13 @@ import kotlin.math.roundToLong
 /** Catégories de la bibliothèque musicale, dans l'ordre d'affichage. « Sans musique » est un choix à part. */
 enum class MusicCategory(val label: String) {
     DOUCE("Douce et apaisante"),
-    DYNAMIQUE("Dynamique et motivante"),
+    DYNAMIQUE("Dynamique, grosses basses (trap, drill, phonk)"),
     CORPORATE("Professionnelle et corporate"),
     INSPIRANTE("Inspirante et émotionnelle"),
-    TECHNO("Technologique et futuriste"),
-    EDUCATIVE("Éducative et pédagogique"),
+    TECHNO("Électro (EDM, house, future bass, synthwave)"),
+    EDUCATIVE("Hip-hop et lo-fi pour apprendre"),
     NATURE("Nature et environnement"),
-    AFRO("Afro (afrobeats, amapiano)"),
+    AFRO("Afro et tropical (afrobeats, amapiano, dembow)"),
     CINEMATIQUE("Cinématique et épique"),
 }
 
