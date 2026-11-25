@@ -94,7 +94,7 @@ data class VoicedResult(val storyboard: Storyboard, val audio: File, val speechR
 
 /**
  * Synthétise chaque phrase, allonge les scènes si besoin, puis mélange voix et musique (la musique baisse
- * sous la voix). Si la vidéo dépasse 38 s, la lecture est un peu accélérée (jusqu'à 1,3×) ; au-delà de 45 s,
+ * sous la voix). Si la vidéo dépasse 52 s, la lecture est un peu accélérée (jusqu'à 1,3×) ; au-delà de 59 s,
  * c'est refusé.
  */
 object Narrator {
@@ -119,9 +119,9 @@ object Narrator {
             val fitted = Narration.fit(storyboard, clips.mapValues { it.value.durationMs })
             val total = runCatching { Timeline.build(fitted).totalMs }.getOrNull() ?: continue
             best = fitted to clips; bestRate = rate
-            if (total <= 38_000) break
+            if (total <= 52_000) break
         }
-        val (fitted, clips) = best ?: throw StoryboardException("Le texte lu dépasse 45 s, même accéléré à 1,3× : raccourcis ton texte.")
+        val (fitted, clips) = best ?: throw StoryboardException("Le texte lu dépasse 59 s, même accéléré à 1,3× : raccourcis ton texte.")
         val timeline = Timeline.build(fitted)
         val starts = Narration.starts(timeline)
         val voiceTrack = AudioMix.place(timeline.totalMs, clips.map { (id, pcm) -> starts.getValue(id) to pcm })

@@ -2,6 +2,19 @@
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [1.5.0] — 2026-11-25
+- Nouveau format **Montage dynamique** (10 formats ; il revient deux fois plus souvent que les autres). C'est le style des tutoriels animés des réseaux sociaux :
+  - un chapitre numéroté en haut, avec une petite étiquette et le mot clé surligné ;
+  - au centre, une carte qui montre l'action : page qui s'écrit, prompt qui se tape, terminal, téléphone qui coche les étapes, objet en relief avec étiquette, chiffre, « à éviter / à faire », guide final ;
+  - les sous-titres mot à mot, avec le mot prononcé surligné ;
+  - la mascotte CODJIA qui parle, sur un sol en grille.
+- **Tout le message est déroulé**, sans résumé inventé :
+  - toutes les phrases d'explication (une scène par groupe de phrases) ;
+  - toutes les listes et tous leurs éléments ;
+  - la fin ne reprend que la conclusion écrite par l'auteur, sinon « Abonne-toi ».
+  - Avec une démo à l'écran, les étapes de l'auteur sont gardées en plus de la démo.
+- Durée selon le texte : **30 à 59 s**. Un texte très long est resserré plutôt que coupé.
+
 ## [1.4.0] — 2026-11-25
 - Nouveau format **Infographie** (9 formats au total) : chaque idée est expliquée par un schéma animé qui montre le mécanisme. Exemples : cibles d'une attaque, cadenas assailli d'essais avec compteur, barres de robustesse de mots de passe, chaîne « mot de passe deviné › code MFA demandé › accès refusé », tentatives bloquées avec la configuration fail2ban, graphique d'échecs avec alerte et commande `grep`, parcours d'étapes. L'explication s'affiche dans un cadre en bas, et la vidéo se termine par « Abonne-toi » et « Prochaine : Astuce N+1 ».
 - Voix off **au choix** directement sur l'aperçu (bouton « Voix : oui / non ») ; la langue (Auto FR/EN, Français, Anglais) reste réglable dans « Musique ».

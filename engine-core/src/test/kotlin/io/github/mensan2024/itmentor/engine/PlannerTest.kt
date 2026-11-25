@@ -20,7 +20,7 @@ class PlannerTest {
             val p = CreativeDirector.propose(text, seed)
             val sb = Composer.prepare(p.storyboard, p.template, null)
             val tl = Timeline.build(sb) // lève une exception au-delà de 45 s
-            assertTrue("$name/$seed : ${tl.totalMs} ms", tl.totalMs in 15_000L..45_000L)
+            assertTrue("$name/$seed : ${tl.totalMs} ms", tl.totalMs in 15_000L..59_000L)
             assertTrue("$name/$seed : trop peu de scènes", sb.scenes.size >= 3)
             assertEquals(Layout.HERO, sb.scenes.first().layout)
             assertEquals(Layout.CHECKLIST, sb.scenes.last().layout)

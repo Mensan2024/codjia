@@ -51,6 +51,9 @@ data class TextAnalysis(
  * ordre de certaines scènes, variantes de compositions, formulations des titres de section.
  */
 object StoryboardPlanner {
+    /** Durée cible : selon le texte, de 30 s à 59 s au plus (58 s visés pour garder une marge). */
+    const val MIN_MS = 30_000
+    const val SOFT_MAX_MS = 58_000
     private const val NB = ' '
 
     private val TITLE_RE = Regex("^(?:astuce|tip|conseil)\\b[^\\d\\n]{0,40}?0*(\\d{1,4})\\s*[—–:\\-]+\\s*(.+)$", RegexOption.IGNORE_CASE)
@@ -296,36 +299,46 @@ object StoryboardPlanner {
         val introRest = if (heroSub != null) a.intro.drop(1) else a.intro
 
         // 2. Définition / explication.
-        if (introRest.isNotEmpty()) {
-            // Des phrases entières, jusqu'à ~240 caractères : jamais de phrase coupée au milieu.
-            val picked = ArrayList<String>()
-            for (sentence in introRest) { if ((picked.sumOf { it.length + 1 } + sentence.length) > 240 && picked.isNotEmpty()) break; picked += sentence }
-            val body = shorten(picked.joinToString(" "), 260)
-            val defTitle = if (english) pick(listOf("The idea", "In short", "Why it matters"))
+        // Tout le texte est déroulé, sans résumé : les phrases sont regroupées par ~240 caractères (jamais coupées),
+        // une scène d'explication par groupe.
+        val groups = ArrayList<List<String>>()
+        run {
+            var cur = ArrayList<String>()
+            for (sentence in introRest) {
+                if (cur.isNotEmpty() && cur.sumOf { it.length + 1 } + sentence.length > 240) { groups += cur; cur = ArrayList() }
+                cur += sentence
+            }
+            if (cur.isNotEmpty()) groups += cur
+        }
+        for ((gi, picked) in groups.withIndex()) {
+            val body = shorten(picked.joinToString(" "), 300)
+            val defTitle = if (gi > 0) (if (english) "And also" else pick(listOf("Et *aussi*", "À *savoir*", "*Concrètement*")))
+                else if (english) pick(listOf("The idea", "In short", "Why it matters"))
                 else pick(listOf("Le *principe*", "Ce qu’il faut *savoir*", "*Pourquoi* c’est important$NB?", "*Comprendre* en 10 secondes"))
-            scenes += Scene(id = "s-def", layout = Layout.DEFINITION, durationMs = 1,
+            scenes += Scene(id = if (gi == 0) "s-def" else "s-def$gi", layout = Layout.DEFINITION, durationMs = 1,
                 kicker = if (english) "DEFINITION" else pick(listOf("DÉFINITION", "LE SAVIEZ-VOUS$NB?", "EN BREF")),
                 icon = icons[1 % icons.size], shape = listOf(ShapeKind.HEXAGON, ShapeKind.RING, ShapeKind.DIAMOND)[(r.nextInt() ushr 1) % 3],
                 title = defTitle, body = frenchTypo(body), variant = variant())
         }
 
         // 3. Étapes : la plus longue liste (coupée en deux scènes au-delà de 5 éléments).
+        // Toutes les listes, tous les éléments : rien n'est résumé ni coupé (5 éléments au plus par scène).
         val main = a.lists.maxByOrNull { it.second.size }
         val stepScenes = ArrayList<Scene>()
-        if (main != null) {
-            val items = main.second.map { frenchTypo(item(it)) }
-            val chunks = when {
-                items.size >= 7 -> listOf(items.take((items.size + 1) / 2), items.drop((items.size + 1) / 2).take(4))
-                else -> listOf(items.take(if (items.size == 5) 5 else 4))
-            }
-            val baseTitle = main.first?.let { h -> cap(h.trimEnd(':').trim()) }
+        for ((li, list) in a.lists.withIndex()) {
+            val items = list.second.map { frenchTypo(item(it)) }
+            if (items.isEmpty()) continue
+            val nChunks = (items.size + 4) / 5
+            val per = (items.size + nChunks - 1) / nChunks
+            val chunks = items.chunked(per)
+            val baseTitle = list.first?.let { h -> cap(h.trimEnd(':').trim()) }
             for ((k, chunk) in chunks.withIndex()) {
                 val t = when {
                     baseTitle != null && baseTitle.length in 4..42 -> baseTitle + if (chunks.size > 1) " (${k + 1}/${chunks.size})" else ""
                     english -> "Step by step"
                     else -> pick(listOf("Les bons réflexes", "Comment faire$NB?", "Étape par étape", "Passe à l’action"))
                 }
-                stepScenes += Scene(id = "s-steps$k", layout = Layout.STEPS, durationMs = 1, icon = icons.last(),
+                stepScenes += Scene(id = if (li == 0) "s-steps$k" else "s-steps$li-$k", layout = Layout.STEPS, durationMs = 1, icon = icons.last(),
                     title = frenchTypo(emphasize(t, d)), items = chunk.take(5), variant = variant())
             }
         }
@@ -352,15 +365,13 @@ object StoryboardPlanner {
                 if (parts.size >= 2 && parts.all { it.length <= 75 }) parts.take(4) else listOf(c.trimEnd('.'))
             }
         }?.takeIf { it.size >= 2 }
-            ?: main?.second?.let { all ->
-                // Pas de conclusion : on récapitule l'essentiel, en évitant de répéter mot pour mot les étapes.
-                val shown = stepScenes.sumOf { it.items.size }
-                (if (all.size > shown && all.size - shown >= 2) all.drop(shown) else all).map { essence(it) }.take(4)
-            }
+            ?: a.conclusion?.let { listOf(it.trimEnd('.')) }
+            // Pas de conclusion écrite par l'auteur : pas de résumé inventé, la vidéo se termine sur l'appel à s'abonner.
             ?: emptyList()
         val outro = Scene(id = "s-end", layout = Layout.CHECKLIST, durationMs = 1,
             illustration = if (d == Domain.CYBER) IllustrationId.SHIELD_CHECK else IllustrationId.CHECK_CIRCLE,
-            title = if (english) "*Remember*" else pick(listOf("*À retenir*", "*L’essentiel*", "*En résumé*")),
+            title = if (takeaways.isEmpty()) (if (english) "*Follow* for more" else "*Abonne-toi* pour la suite")
+                else if (english) "*Remember*" else pick(listOf("*À retenir*", "*L’essentiel*", "*En résumé*")),
             items = takeaways.map { cap(frenchTypo(it)) },
             subtitle = (a.closing ?: a.conclusion?.takeIf { takeaways.size < 2 })?.let { frenchTypo(shorten(it, 120)) },
             body = if (english) pick(listOf("Share it with a friend", "Save this tip")) else pick(listOf("Partage à quelqu’un qui en a besoin", "Enregistre cette astuce", "Partage cette astuce")),
@@ -373,7 +384,7 @@ object StoryboardPlanner {
         if (seed != 0L && extras.isNotEmpty() && r.next() < 0.35f) middle.add(0, extras.first()) else middle += extras.take(1)
         middle += extras.drop(1).filter { it !in middle }
         scenes += middle
-        if (takeaways.isNotEmpty()) scenes += outro
+        scenes += outro
 
         // Pas assez de matière : au moins une liste pour ne pas faire une vidéo vide.
         if (scenes.size < 3 && a.intro.size >= 2) {
@@ -409,31 +420,38 @@ object StoryboardPlanner {
         val read = readingMs(Marked.strip(s.title), s.subtitle, s.body, s.kicker, *s.items.toTypedArray())
         val (base, lo, hi) = when (s.layout) {
             Layout.HERO -> Triple(2600, 4600, 6200)
-            Layout.DEFINITION -> Triple(2200, 5200, 9500)
-            Layout.STEPS -> Triple(2400, 5600, 9500)
+            Layout.DEFINITION -> Triple(2200, 5200, 14_000)
+            // Chaque élément doit avoir le temps d'être lu : jusqu'à ~3,4 s par élément.
+            Layout.STEPS -> Triple(2400, 5600, (2_000 + 3_400 * s.items.size).coerceIn(9_000, 19_000))
             Layout.COMPARE -> Triple(3200, 5600, 7200)
             Layout.STAT -> Triple(2600, 4400, 6000)
-            Layout.CHECKLIST -> Triple(2400, 5200, 8000)
+            Layout.CHECKLIST -> if (s.items.isEmpty()) Triple(3600, 3600, 3600) else Triple(2400, 5200, 9000)
             Layout.SCREEN -> return s
         }
         return s.copy(durationMs = (base + read).coerceIn(lo, hi))
     }
 
-    /** Garantit ≤ 40 s : on retire d'abord les scènes facultatives, puis on resserre les durées. */
+    /** Durée selon le texte : 30 à 59 s. Au-delà, on retire les scènes facultatives puis on resserre. */
     private fun fit(sb: Storyboard): Storyboard {
         val overlap = 600
         fun total(sc: List<Scene>) = sc.sumOf { it.durationMs } - overlap * (sc.size - 1)
         var scenes = sb.scenes
-        val dropOrder = listOf("s-steps1", "s-stat", "s-cmp", "s-def")
-        // Durée selon le contenu, entre 35 et 45 s si possible. Au-delà de 44 s, on retire les scènes
-        // facultatives puis on resserre ; en deçà de 35 s, on n'étire que modérément (×1,3 au plus) pour garder du rythme.
-        for (id in dropOrder) { if (total(scenes) <= 44_000) break; scenes = scenes.filter { it.id != id } }
+        // Le texte de l'auteur n'est jamais retiré : seul le chiffre clé (déjà présent dans le texte) peut l'être.
+        val dropOrder = listOf("s-stat")
+        // Durée selon le contenu, entre 30 et 59 s. Au-delà de 58 s, on retire les scènes facultatives
+        // puis on resserre ; en deçà de 30 s, on n'étire que modérément (×1,3 au plus) pour garder du rythme.
+        for (id in dropOrder) { if (total(scenes) <= SOFT_MAX_MS) break; scenes = scenes.filter { it.id != id } }
         val t = total(scenes)
-        if (t > 44_000) {
-            val k = (44_000.0 + overlap * (scenes.size - 1)) / scenes.sumOf { it.durationMs }
+        if (t > SOFT_MAX_MS) {
+            val k = (SOFT_MAX_MS.toDouble() + overlap * (scenes.size - 1)) / scenes.sumOf { it.durationMs }
             scenes = scenes.map { it.copy(durationMs = max(3_200, (it.durationMs * k).toInt())) }
-        } else if (t < 35_000) {
-            val k = ((35_500.0 + overlap * (scenes.size - 1)) / scenes.sumOf { it.durationMs }).coerceAtMost(1.3)
+            // Texte très long : on resserre encore (2 s au moins par scène) plutôt que de couper le message.
+            if (total(scenes) > SOFT_MAX_MS) {
+                val k2 = (SOFT_MAX_MS.toDouble() + overlap * (scenes.size - 1)) / scenes.sumOf { it.durationMs }
+                scenes = scenes.map { it.copy(durationMs = max(2_000, (it.durationMs * k2).toInt())) }
+            }
+        } else if (t < MIN_MS) {
+            val k = ((MIN_MS + 500.0 + overlap * (scenes.size - 1)) / scenes.sumOf { it.durationMs }).coerceAtMost(1.3)
             scenes = scenes.map { it.copy(durationMs = (it.durationMs * k).toInt()) }
         }
         return sb.copy(scenes = scenes)
@@ -477,7 +495,9 @@ object CreativeDirector {
         val look = forcedLook ?: run {
             val allowed = Looks.forDomain(domain)
             val fresh = allowed.filter { it !in avoidLooks }.ifEmpty { allowed }
-            fresh[(Rand.of(seed, 0x2C7F).nextInt() ushr 1) % fresh.size]
+            // Le montage dynamique (tutoriel animé) revient deux fois plus souvent que les autres formats.
+            val weighted = fresh + fresh.filter { it == Look.MONTAGE }
+            weighted[(Rand.of(seed, 0x2C7F).nextInt() ushr 1) % weighted.size]
         }
         var sb = StoryboardPlanner.plan(text, seed, template.id).copy(look = look)
         Procedures.match(TextSanitizer.clean(text))?.let { topic -> sb = withDemo(sb, topic, text, seed) }
@@ -485,42 +505,45 @@ object CreativeDirector {
     }
 
     /**
-     * Insère une démonstration à l'écran : couverture, (définition), étapes de la démo, (comparaison ou
-     * chiffre), à retenir. On ajoute les scènes facultatives tant que la vidéo reste sous 42 s.
+     * Insère une démonstration à l'écran sans rien retirer du texte de l'auteur : couverture, explications,
+     * démo pas à pas, puis toutes les étapes, comparaisons et la fin. Si c'est trop long, on resserre la démo,
+     * puis on retire des écrans de démo (la démo illustre, le texte de l'auteur reste entier).
      */
     internal fun withDemo(sb: Storyboard, topic: Procedures.Topic, text: String, seed: Long): Storyboard {
         val demo = Procedures.scenes(Procedures.pick(topic, text, seed))
-        val byLayout = sb.scenes.associateBy { it.layout }
-        val hero = byLayout[Layout.HERO]?.let { it.copy(durationMs = it.durationMs.coerceAtMost(4800)) }
-        val checklist = byLayout[Layout.CHECKLIST]?.let { it.copy(durationMs = it.durationMs.coerceAtMost(6500)) }
+        val soft = StoryboardPlanner.SOFT_MAX_MS
+        val hero = sb.scenes.firstOrNull { it.layout == Layout.HERO }?.let { it.copy(durationMs = it.durationMs.coerceAtMost(4800)) }
+        val defs = sb.scenes.filter { it.layout == Layout.DEFINITION }
+        val after = sb.scenes.filter { it.layout == Layout.STEPS || it.layout == Layout.COMPARE }
+        val stat = sb.scenes.firstOrNull { it.layout == Layout.STAT }
+        val end = sb.scenes.lastOrNull { it.layout == Layout.CHECKLIST }
         fun total(sc: List<Scene>) = sc.sumOf { it.durationMs } - sc.dropLast(1).count { it.layout != Layout.SCREEN } * 600
-        var scenes = listOfNotNull(hero) + demo.dropLast(1) + demo.last().copy(transitionOut = Transition(TransitionType.FADE, 500)) + listOfNotNull(checklist)
-        // Scènes d'explication en plus, si la durée le permet (cible : 35 à 42 s).
-        for (extra in listOf(Layout.DEFINITION, Layout.COMPARE, Layout.STAT)) {
-            val sc = byLayout[extra] ?: continue
-            if (total(scenes) >= 38_000) break
-            val candidate = if (extra == Layout.DEFINITION) listOfNotNull(hero, sc) + scenes.drop(if (hero != null) 1 else 0)
-                else scenes.dropLast(if (checklist != null) 1 else 0) + sc + listOfNotNull(checklist)
-            if (total(candidate) <= 43_000) scenes = candidate
+        fun build(d: List<Scene>, withStat: Boolean): List<Scene> {
+            val shown = if (d.isEmpty()) d else d.dropLast(1) + d.last().copy(transitionOut = Transition(TransitionType.FADE, 500))
+            return listOfNotNull(hero) + defs + shown + after + listOfNotNull(stat.takeIf { withStat }) + listOfNotNull(end)
         }
-        // Un peu court : léger étirement des étapes de la démo (×1,15 au plus, pour garder du rythme).
-        if (total(scenes) < 35_000) {
-            val screenMs = scenes.filter { it.layout == Layout.SCREEN }.sumOf { it.durationMs }.coerceAtLeast(1)
-            val k = (1.0 + (35_500 - total(scenes)).toDouble() / screenMs).coerceAtMost(1.25)
-            scenes = scenes.map { if (it.layout == Layout.SCREEN) it.copy(durationMs = (it.durationMs * k).toInt().coerceAtMost(9500)) else it }
+        var screens = demo
+        var scenes = build(screens, true)
+        if (total(scenes) > soft) scenes = build(screens, false)
+        // Un peu court : léger étirement des écrans de démo (×1,25 au plus, pour garder du rythme).
+        if (total(scenes) < StoryboardPlanner.MIN_MS) {
+            val screenMs = screens.sumOf { it.durationMs }.coerceAtLeast(1)
+            val k = (1.0 + (StoryboardPlanner.MIN_MS + 500 - total(scenes)).toDouble() / screenMs).coerceAtMost(1.25)
+            screens = screens.map { it.copy(durationMs = (it.durationMs * k).toInt().coerceAtMost(9500)) }
+            scenes = build(screens, true)
         }
-        // Trop long : on retire la liste finale, puis on resserre les étapes.
-        // Trop long : on resserre d'abord les étapes de la démo, on ne retire la liste finale qu'en dernier recours.
-        if (total(scenes) > 44_000) {
-            val over = total(scenes) - 43_500
-            val screenMs = scenes.filter { it.layout == Layout.SCREEN }.sumOf { it.durationMs }.coerceAtLeast(1)
+        // Trop long : on resserre les écrans de démo, puis on en retire (en gardant au moins deux écrans).
+        if (total(scenes) > soft) {
+            val over = total(scenes) - (soft - 500)
+            val screenMs = screens.sumOf { it.durationMs }.coerceAtLeast(1)
             val k = (1.0 - over.toDouble() / screenMs).coerceAtLeast(0.75)
-            scenes = scenes.map { if (it.layout == Layout.SCREEN) it.copy(durationMs = (it.durationMs * k).toInt().coerceAtLeast(3_200)) else it }
+            screens = screens.map { it.copy(durationMs = (it.durationMs * k).toInt().coerceAtLeast(3_200)) }
+            scenes = build(screens, false)
         }
-        if (total(scenes) > 44_000 && checklist != null) scenes = scenes - checklist
-        if (total(scenes) > 44_000) {
-            val k = 43_500.0 / total(scenes)
-            scenes = scenes.map { it.copy(durationMs = (it.durationMs * k).toInt().coerceAtLeast(2600)) }
+        while (total(scenes) > soft && screens.size > 2) { screens = screens.dropLast(1); scenes = build(screens, false) }
+        if (total(scenes) > soft) {
+            val k = (soft - 500.0) / total(scenes)
+            scenes = scenes.map { it.copy(durationMs = (it.durationMs * k).toInt().coerceAtLeast(2000)) }
         }
         return sb.copy(scenes = scenes)
     }

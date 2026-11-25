@@ -130,6 +130,7 @@ Ces trois formats suivent la grammaire des vidéos courtes des réseaux sociaux.
 | Collage | Fond bleu texturé, bandeaux et cartes en papier tenus par des pinces, étiquettes inclinées, accroche en lettres découpées |
 | Cinéma | Dégradé nocturne avec halos, sans-serif mêlé de serif italique, téléphone réaliste |
 | Infographie | `InfographicLook` : rubrique + pastille « ÉTAPE i/n », titre sur deux lignes, un schéma animé choisi selon le sens du texte (cibles, cadenas assailli, barres de robustesse, chaîne MFA, tentatives + fail2ban, graphique d'échecs + grep, terminal, chiffre, comparaison, parcours d'étapes) et l'explication dans un cadre en bas |
+| Montage dynamique | `MontageLook` : un plan par idée (une étape = un chapitre numéroté), carte d'action animée (page, prompt, terminal, téléphone, objet en relief, chiffre, à éviter / à faire, guide), sous-titres mot à mot avec le mot prononcé surligné, mascotte originale qui parle, sol en grille |
 
 ## 6 ter. Démonstrations sur écran simulé (`Simulator.kt`, `Procedures.kt`)
 
@@ -143,7 +144,7 @@ Quand le texte parle d'un sujet de la bibliothèque, la vidéo contient une **vr
 - **Libellés.** Les noms des menus et des réglages reprennent ceux des interfaces françaises.
 - **Commandes.** Les sorties sont celles des outils réels (ufw, apt, IOS). Les compteurs, comme le nombre de paquets, sont des exemples réalistes. Aucune sortie n'est fabriquée à partir du texte de l'utilisateur.
 - **Choix du système.** C'est celui que nomme le texte. Sinon, la graine en choisit un, ce qui fait qu'une autre version peut montrer Linux au lieu de Windows.
-- **Durée.** Couverture, puis (définition), étapes de la démo, (comparaison) et « à retenir », entre 35 et 45 s. Les démos des textes courts sont un peu ralenties pour atteindre 35 s.
+- **Durée.** Couverture, explications, étapes de la démo, toutes les étapes de l’auteur, (comparaison) et fin, entre 30 et 59 s selon le texte. Les démos des textes courts sont un peu ralenties pour atteindre 30 s ; un texte long est resserré, jamais coupé.
 
 Ajouter un sujet revient à écrire un `Topic` dans `Procedures.kt` : mots-clés, puis, pour chaque système, des étapes (titre, légende, écran, action).
 

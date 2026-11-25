@@ -51,9 +51,9 @@ class Timeline private constructor(val slots: List<Slot>, val totalMs: Long) {
     }
 
     companion object {
-        /** Une astuce dure de 35 à 45 s selon son contenu ; jamais plus de 45 s. */
-        const val MAX_DURATION_MS = 45_000L
-        const val MAX_DEMO_DURATION_MS = 45_000L
+        /** Une astuce dure de 30 à 59 s selon son contenu ; jamais plus de 59 s. */
+        const val MAX_DURATION_MS = 59_000L
+        const val MAX_DEMO_DURATION_MS = 59_000L
 
         fun limitFor(sb: Storyboard): Long = if (sb.scenes.any { it.layout == Layout.SCREEN }) MAX_DEMO_DURATION_MS else MAX_DURATION_MS
 
