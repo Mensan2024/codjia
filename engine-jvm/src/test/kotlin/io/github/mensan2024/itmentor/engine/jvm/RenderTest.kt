@@ -130,6 +130,41 @@ class RenderTest {
         println("Textes libres : $checked textes vérifiés")
     }
 
+    /** Styles modulables : 24 combinaisons tirées au hasard, vérifiées toutes les 1,2 s sur toute la vidéo. */
+    @Test fun lesStylesModulablesRestentPropres() {
+        val dir = listOf(File("engine-core/src/test/resources/textes"), File("../engine-core/src/test/resources/textes")).first { it.isDirectory }
+        val texts = listOf("astuce_033_phishing_sections.txt", "long_reseau_securise.txt", "anglais_present_perfect.txt", "systemes_linux.txt")
+        var checked = 0
+        for (seed in 101L..124L) {
+            val name = texts[(seed % texts.size).toInt()]
+            val p = io.github.mensan2024.itmentor.engine.CreativeDirector.propose(File(dir, name).readText(), seed, forcedLook = io.github.mensan2024.itmentor.engine.Look.KIT)
+            val r = FrameRenderer(Composer.prepare(p.storyboard, p.template, null), VideoFormat.FULL_HD, p.template)
+            val kit = io.github.mensan2024.itmentor.engine.StyleKit.random(p.storyboard.seed)
+            var t = 600f
+            while (t < r.timeline.totalMs) {
+                if (r.timeline.at(t) is Moment.Single) {
+                    val rec = ArrayList<Pair<String, Rectangle2D>>()
+                    render(r, t, rec)
+                    val boxes = rec.filter { it.second.height in 1.0..300.0 }
+                    for ((text, b) in boxes) {
+                        val ok = b.minX >= Safe.LEFT - 2 && b.maxX <= Safe.RIGHT + 2 && b.minY >= 90.0 && b.maxY <= Safe.BOTTOM
+                        assertTrue("« $text » sort de la zone sûre ($name, graine $seed, ${kit.label}, t=$t) : $b", ok)
+                        checked++
+                    }
+                    for (i in boxes.indices) for (j in i + 1 until boxes.size) {
+                        val a = boxes[i].second; val b = boxes[j].second
+                        val ix = minOf(a.maxX, b.maxX) - maxOf(a.minX, b.minX)
+                        val iy = minOf(a.maxY, b.maxY) - maxOf(a.minY, b.minY)
+                        assertTrue("$name graine $seed (${kit.label}, ${kit.header}, ${kit.captions}, ${kit.titleFx}) t=$t : « ${boxes[i].first} » chevauche « ${boxes[j].first} »",
+                            !(ix > 6 && iy > minOf(a.height, b.height) * 0.45))
+                    }
+                }
+                t += 1200f
+            }
+        }
+        println("Styles modulables : $checked textes vérifiés")
+    }
+
     @Test fun le720pEstLaMemeCompositionQueLe1080p() {
         val hd = renderer(Templates.MODERN_EDUCATION, VideoFormat.HD)
         val fhd = renderer(Templates.MODERN_EDUCATION, VideoFormat.FULL_HD)

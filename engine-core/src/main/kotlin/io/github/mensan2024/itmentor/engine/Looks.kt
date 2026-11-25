@@ -27,6 +27,8 @@ enum class Look(val label: String, val tagline: String, val transitions: List<Tr
     INFOGRAPHIE("Infographie", "Chaque idée expliquée par un schéma animé, explication en bas",
         listOf(TransitionType.FADE, TransitionType.CUT, TransitionType.FADE)),
     MONTAGE("Montage dynamique", "Chapitres numérotés, action animée, sous-titres mot à mot, mascotte",
+        listOf(TransitionType.CUT)),
+    KIT("Style unique", "Une nouvelle combinaison à chaque version : couleurs, fond, titres, sous-titres, mascotte",
         listOf(TransitionType.CUT));
 
     companion object {
@@ -81,6 +83,7 @@ object Looks {
         Look.CINEMA -> ReelLook(storyboard, template, ReelStyle.CINEMA)
         Look.INFOGRAPHIE -> InfographicLook(storyboard)
         Look.MONTAGE -> MontageLook(storyboard)
+        Look.KIT -> MontageLook(storyboard, StyleKit.random(storyboard.seed))
     }
 }
 

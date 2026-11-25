@@ -2,6 +2,30 @@
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [1.7.0] — 2026-11-25
+### Styles modulables
+- Nouveau format **« Style unique »** : chaque vidéo reçoit une **combinaison nouvelle** de pièces interchangeables, ce qui fait des milliers de styles possibles. Chaque pièce a plusieurs variantes :
+
+  | Pièce | Variantes |
+  | --- | --- |
+  | Palettes | 9, dont 3 claires (Charbon orange, Minuit cyan, Violet néon, Noir citron, Marine soleil, Forêt menthe, Crème encre, Blanc bleu, Papier rouge) |
+  | Fonds animés | 8 : grille en perspective, étoiles, aurore, halos, lignes néon, points, papier, planète |
+  | Polices de titre | 6 ; 4 polices pour les sous-titres |
+  | Mot clé du titre | surligné, trait de marqueur, en couleur, machine à écrire |
+  | En-têtes | badge numéroté, pastille centrée, barre de couleur |
+  | Cadres de carte | double, verre, néon, sans cadre |
+  | Sous-titres | karaoké encadré, mot en couleur, mots géants, bandeau |
+  | Entrées de plan | montée, chute, zoom, « pop », avec ou sans éclair à la coupe |
+  | Mascotte | boule à antenne, petit robot, sans mascotte |
+- Des **règles de design** écartent les combinaisons illisibles :
+  - palette claire → fond clair, jamais de néon ;
+  - fond chargé → toujours un cadre ;
+  - pas deux effets forts ensemble…
+- Ce format revient le plus souvent dans la rotation ; « Autre version » donne une nouvelle combinaison. L'aperçu affiche le nom du style tiré (par exemple « Marine soleil · Aurore · Mot en couleur »).
+- Le « Montage dynamique » reste disponible tel quel (c'est l'une des combinaisons, figée).
+- Nouveau test : 24 combinaisons tirées au hasard, vérifiées toutes les 1,2 s sur toute la vidéo (texte dans l'écran, aucun chevauchement) : 32 000 textes contrôlés.
+- Titres placés d'après les mesures réelles de chaque police.
+
 ## [1.6.0] — 2026-11-25
 ### Musique
 - **La musique ne s'arrête plus et ne redémarre plus au milieu d'une vidéo.** Les morceaux durent maintenant 64 s, plus que la plus longue vidéo (59 s) : ils ne bouclent plus, ni dans l'aperçu ni dans la vidéo exportée. L'aperçu se recale moins souvent sur la musique, donc sans à-coups.

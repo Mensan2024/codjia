@@ -40,17 +40,19 @@ internal fun iconForText(text: String, fallback: IconId): IconId {
  * - en bas, la mascotte CODJIA qui « parle ».
  * Tout le texte de l'auteur défile en sous-titres : rien n'est résumé.
  */
-internal class MontageLook(private val sb: Storyboard) : LookRenderer {
-    private val pick = (Rand.of(sb.seed, 0x3A11).nextInt() ushr 1)
-    override val ink = rgb(0xFFFFFF)
-    override val muted = rgb(0x8A8A8F)
-    override val accent = listOf(rgb(0xFF7A33), rgb(0x34D27A), rgb(0x4C8DFF))[pick % 3]
-    override val accent2 = rgb(0xFFD23F)
+internal class MontageLook(private val sb: Storyboard, private val kit: StyleKit = StyleKit.MONTAGE) : LookRenderer {
+    private val pal = kit.palette
+    override val ink = pal.ink
+    override val muted = pal.muted
+    override val accent = pal.accent
+    override val accent2 = pal.accent2
     private val ok = rgb(0x34D27A)
     private val bad = rgb(0xFF4D5E)
-    private val card = rgb(0x1E1E20)
-    private val inner = rgb(0x262628)
-    private val dark = rgb(0x111111)
+    private val card = pal.card
+    private val inner = pal.inner
+    /** Texte sur le cadre de surlignage. */
+    private val dark = pal.onHighlight
+    private val light = pal.light
     private val cache = TextCache()
     private val pageCache = HashMap<String, List<IntRange>>()
     private val domain by lazy { DomainDetector.detect(TextSanitizer.clean(sb.title + " " + sb.scenes.joinToString(" ") { it.title + " " + it.body })) }
@@ -230,11 +232,16 @@ internal class MontageLook(private val sb: Storyboard) : LookRenderer {
         mascot(g, tGlobalMs, speaking, t)
         val sameHeader = i > 0 && ss[i - 1].badge == s.badge && ss[i - 1].title == s.title && ss[i - 1].kind != Kind.HOOK
         if (s.kind == Kind.HOOK) hookHeader(g, s, wi, key) else header(g, s, if (sameHeader) 2000f else t, key)
-        // Entrée de la carte : elle monte avec un léger rebond, puis la caméra pousse doucement.
-        val e = Easing.BACK_OUT.ease(clamp01(t / 420f))
+        // Entrée de la carte selon le style, puis la caméra pousse doucement.
         val push = 1f + 0.02f * Easing.EASE_IN_OUT.ease(clamp01(t / len))
         val top = if (s.kind == Kind.HOOK) 720f else CARD_T
-        g.withPose(Pose(alpha = clamp01(t / 160f), dy = (1 - e) * 90f, scale = lerp(0.9f, 1f, e) * push), 540f, (top + CARD_B) / 2) {
+        val pose = when (kit.motion) {
+            KitMotion.RISE -> { val e = Easing.BACK_OUT.ease(clamp01(t / 420f)); Pose(alpha = clamp01(t / 160f), dy = (1 - e) * 90f, scale = lerp(0.9f, 1f, e) * push) }
+            KitMotion.DROP -> { val e = Easing.BACK_OUT.ease(clamp01(t / 460f)); Pose(alpha = clamp01(t / 140f), dy = -(1 - e) * 110f, scale = lerp(0.94f, 1f, e) * push) }
+            KitMotion.ZOOM -> { val e = Easing.EXPO_OUT.ease(clamp01(t / 380f)); Pose(alpha = clamp01(t / 120f), scale = lerp(0.72f, 1f, e) * push) }
+            KitMotion.POP -> { val e = Easing.BACK_OUT.ease(clamp01(t / 340f)); Pose(alpha = clamp01(t / 90f), scale = (lerp(0.55f, 1f, e)).coerceAtMost(1.01f) * push) }
+        }
+        g.withPose(pose, 540f, (top + CARD_B) / 2) {
             cardFrame(g, top)
             val area = R(CARD_L + 40f, top + 40f, CARD_R - 40f, CARD_B - 40f)
             when (s.kind) {
@@ -249,9 +256,11 @@ internal class MontageLook(private val sb: Storyboard) : LookRenderer {
                 Kind.VERSUS -> versus(g, s, t, area)
                 Kind.END -> endCard(g, s, t, area)
             }
-            sweep(g, top, t)
+            if (kit.frame != KitFrame.FLAT) sweep(g, top, t)
         }
         captions(g, s, wi, key, t)
+        // Éclair lumineux à la coupe (styles qui l'ont).
+        if (kit.flash && t < 140f) g.fillRect(0f, 0f, 1080f, 1920f, (if (light) 0xFFFFFF else 0xFFFFFF).let { (((1f - t / 140f) * 0.22f * 255).toInt() shl 24) or it })
     }
 
     data class R(val l: Float, val t: Float, val r: Float, val b: Float) {
@@ -263,38 +272,112 @@ internal class MontageLook(private val sb: Storyboard) : LookRenderer {
 
     // ───────────────────────────── Décor ─────────────────────────────
 
+    /** Couleur « trait » du décor : blanc sur fond sombre, encre sur fond clair. */
+    private fun line(alpha: Float) = (if (light) pal.ink else rgb(0xFFFFFF)).withAlpha(alpha)
+
     private fun background(g: Gfx, tg: Float) {
-        g.fillVerticalGradient(0f, 0f, 1080f, 1920f, rgb(0x1C1C1E), rgb(0x0B0B0C))
-        for (x in listOf(90f, 990f)) { val y = 168f; g.fillRect(x - 14f, y - 1.5f, x + 14f, y + 1.5f, 0x40FFFFFF); g.fillRect(x - 1.5f, y - 14f, x + 1.5f, y + 14f, 0x40FFFFFF) }
+        g.fillVerticalGradient(0f, 0f, 1080f, 1920f, pal.bgTop, pal.bgBottom)
         val r = Rand.of(sb.seed, 0x77D1)
-        for (k in 0 until 26) {
-            val x = r.next() * 1080f; val y = 200f + r.next() * 1600f; val ph = r.next() * 6.28f
-            g.fillCircle(x, y + 10f * sin(tg * 0.0007f + ph), 2.6f, rgb(0xFFFFFF).withAlpha(0.12f + 0.12f * sin(tg * 0.002f + ph)))
+        when (kit.background) {
+            KitBackground.GRID_FLOOR -> {
+                for (k in 0 until 26) {
+                    val x = r.next() * 1080f; val y = 200f + r.next() * 1600f; val ph = r.next() * 6.28f
+                    g.fillCircle(x, y + 10f * sin(tg * 0.0007f + ph), 2.6f, line(0.12f + 0.12f * sin(tg * 0.002f + ph)))
+                }
+                g.save(); g.clipRect(0f, FLOOR, 1080f, 1920f)
+                g.fillRect(0f, FLOOR, 1080f, 1920f, pal.bgBottom)
+                g.fillRect(0f, FLOOR, 1080f, FLOOR + 2f, line(0.19f))
+                for (k in -9..9) g.line(540f + k * 70f, FLOOR, 540f + k * 330f, 1920f, 1.6f, line(0.13f))
+                var d = 0f
+                while (true) {
+                    val y = FLOOR + 16f * (1 + d) * (1 + d)
+                    if (y > 1920f) break
+                    g.fillRect(0f, y, 1080f, y + 1.6f, line(0.12f)); d += 1f
+                }
+                g.restore()
+                g.fillRadialGlow(540f, FLOOR + 40f, 520f, line(0.13f))
+            }
+            KitBackground.STARS -> {
+                for (k in 0 until 120) {
+                    val x = r.next() * 1080f; val y0 = r.next() * 1920f; val sz = 1f + r.next() * 2.4f; val ph = r.next() * 6.28f
+                    val y = (y0 - tg * 0.01f * sz).mod(1920f)
+                    g.fillCircle(x, y, sz, line(0.2f + 0.5f * (0.5f + 0.5f * sin(tg * 0.002f + ph))))
+                }
+                g.fillRadialGlow(540f, 1700f, 900f, accent.withAlpha(0.12f))
+            }
+            KitBackground.AURORA -> {
+                val w = sin(tg * 0.0006f)
+                g.fillRadialGlow(540f + 220f * w, 1550f, 950f, accent.withAlpha(0.32f))
+                g.fillRadialGlow(220f - 140f * w, 1150f, 700f, accent2.withAlpha(0.26f))
+                g.fillRadialGlow(880f, 260f, 620f, accent.withAlpha(0.12f))
+            }
+            KitBackground.MESH -> {
+                for (k in 0 until 4) {
+                    val ph = k * 1.7f
+                    val x = 540f + 380f * sin(tg * 0.00035f + ph); val y = 960f + 700f * sin(tg * 0.00027f + ph * 1.3f)
+                    g.fillRadialGlow(x, y, 700f, (if (k % 2 == 0) accent else accent2).withAlpha(if (light) 0.16f else 0.22f))
+                }
+            }
+            KitBackground.NEON_LINES -> {
+                val off = (tg * 0.05f) % 160f
+                g.save(); g.rotate(-24f, 540f, 960f)
+                var x = -900f + off
+                while (x < 2000f) { g.fillRect(x, -400f, x + 3f, 2400f, accent.withAlpha(0.14f)); x += 160f }
+                g.restore()
+                g.fillRadialGlow(540f, 300f, 700f, accent2.withAlpha(0.16f))
+                g.fillRadialGlow(540f, 1700f, 800f, accent.withAlpha(0.18f))
+            }
+            KitBackground.DOTS -> {
+                val off = (tg * 0.012f) % 48f
+                var y = 24f - off
+                while (y < 1920f) {
+                    var x = 24f
+                    while (x < 1080f) { g.fillCircle(x, y, 2.2f, line(0.14f)); x += 48f }
+                    y += 48f
+                }
+                g.fillRadialGlow(540f, 900f, 800f, accent.withAlpha(if (light) 0.08f else 0.12f))
+            }
+            KitBackground.PAPER -> {
+                var y = 120f
+                while (y < 1920f) { g.fillRect(0f, y, 1080f, y + 1.5f, line(0.06f)); y += 64f }
+                g.fillRect(150f, 0f, 152f, 1920f, accent.withAlpha(0.18f))
+            }
+            KitBackground.SUNSET -> {
+                val cy = -300f + 30f * sin(tg * 0.0005f)
+                g.fillRadialGlow(540f, cy + 260f, 1100f, accent.withAlpha(0.45f))
+                g.fillCircle(540f, cy, 620f, darken(accent, 0.15f))
+                g.fillRadialGlow(540f, cy - 120f, 600f, accent2.withAlpha(0.6f))
+                g.fillRadialGlow(200f, 1900f, 900f, accent2.withAlpha(0.3f))
+            }
         }
-        // sol en grille, en perspective (point de fuite au-dessus de l'horizon)
-        g.save(); g.clipRect(0f, FLOOR, 1080f, 1920f)
-        g.fillRect(0f, FLOOR, 1080f, 1920f, rgb(0x0A0A0B))
-        g.fillRect(0f, FLOOR, 1080f, FLOOR + 2f, 0x30FFFFFF)
-        for (k in -9..9) g.line(540f + k * 70f, FLOOR, 540f + k * 330f, 1920f, 1.6f, 0x22FFFFFF)
-        var d = 0f
-        while (true) {
-            val y = FLOOR + 16f * (1 + d) * (1 + d)
-            if (y > 1920f) break
-            g.fillRect(0f, y, 1080f, y + 1.6f, 0x20FFFFFF); d += 1f
-        }
-        g.restore()
-        g.fillRadialGlow(540f, FLOOR + 40f, 520f, 0x22FFFFFF)
+        // repères « + » dans les coins
+        for (x in listOf(90f, 990f)) { val y = 168f; g.fillRect(x - 14f, y - 1.5f, x + 14f, y + 1.5f, line(0.25f)); g.fillRect(x - 1.5f, y - 14f, x + 1.5f, y + 14f, line(0.25f)) }
     }
 
-    /** Mascotte CODJIA (originale) : une petite boule à antenne, qui sautille et parle avec les sous-titres. */
+    /** Mascotte CODJIA (originale) : boule à antenne ou petit robot, qui sautille et parle avec les sous-titres. */
     private fun mascot(g: Gfx, tg: Float, speaking: Boolean, tShot: Float) {
+        if (kit.mascot == KitMascot.NONE) return
         val jump = if (tShot < 380f) sin(tShot / 380f * 3.1416f) * 34f else 0f
         val bounce = abs(sin(tg * 0.0045f)) * 14f + jump
         val cx = 540f; val cy = MASCOT_Y - bounce
-        g.fillRadialGlow(cx, MASCOT_Y + 70f, 150f, 0x66000000)
+        g.fillRadialGlow(cx, MASCOT_Y + 70f, 150f, if (light) 0x33000000 else 0x66000000)
         g.fillRadialGlow(cx, cy, 170f, accent.withAlpha(0.35f))
         g.line(cx + 6f, cy - 58f, cx + 22f, cy - 96f, 6f, darken(accent, 0.2f))
         g.fillCircle(cx + 24f, cy - 100f, 12f, accent2)
+        if (kit.mascot == KitMascot.BOT) {
+            g.fillRoundRect(cx - 70f, cy - 58f, cx + 70f, cy + 62f, 34f, darken(accent, 0.25f))
+            g.fillRoundRect(cx - 66f, cy - 64f, cx + 66f, cy + 54f, 32f, accent)
+            g.fillRoundRect(cx - 50f, cy - 38f, cx + 50f, cy + 14f, 18f, rgb(0x14141A))
+            g.fillRadialGlow(cx - 30f, cy - 44f, 40f, 0x66FFFFFF)
+            val blink = ((tg / 2900f) % 1f) > 0.96f
+            for (dx in listOf(-22f, 22f)) {
+                if (blink) g.fillRoundRect(cx + dx - 9f, cy - 14f, cx + dx + 9f, cy - 10f, 2f, accent2)
+                else g.fillRoundRect(cx + dx - 8f, cy - 22f, cx + dx + 8f, cy - 4f, 6f, accent2)
+            }
+            val open = if (speaking) 3f + 7f * abs(sin(tg * 0.025f)) else 2.5f
+            g.fillRoundRect(cx - 14f, cy + 26f, cx + 14f, cy + 28f + open, 4f, rgb(0x14141A))
+            return
+        }
         g.fillCircle(cx, cy, 66f, darken(accent, 0.25f))
         g.fillCircle(cx - 4f, cy - 6f, 60f, accent)
         g.fillRadialGlow(cx - 22f, cy - 30f, 50f, 0x88FFFFFF.toInt())
@@ -317,8 +400,8 @@ internal class MontageLook(private val sb: Storyboard) : LookRenderer {
         g.clipPath(roundPath(CARD_L, top, CARD_R, CARD_B, 30f))
         val x = lerp(CARD_L - 400f, CARD_R + 400f, Easing.EASE_IN_OUT.ease(p))
         g.rotate(18f, x, (top + CARD_B) / 2)
-        g.fillRect(x - 70f, top - 400f, x + 70f, CARD_B + 400f, 0x14FFFFFF)
-        g.fillRect(x - 18f, top - 400f, x + 18f, CARD_B + 400f, 0x18FFFFFF)
+        g.fillRect(x - 70f, top - 400f, x + 70f, CARD_B + 400f, if (light) 0x26FFFFFF else 0x14FFFFFF)
+        g.fillRect(x - 18f, top - 400f, x + 18f, CARD_B + 400f, if (light) 0x33FFFFFF else 0x18FFFFFF)
         g.restore()
     }
 
@@ -327,7 +410,7 @@ internal class MontageLook(private val sb: Storyboard) : LookRenderer {
         object3d(g, s.icon, a.cx, a.cy, 210f, t)
         val kws = keywords(s.caption)
         val spots = listOf(a.l + 170f to a.t + 90f, a.r - 170f to a.t + 150f, a.l + 190f to a.b - 150f, a.r - 180f to a.b - 90f)
-        val f = FontSpec(FontFamily.TEXT, 800, 40f)
+        val f = FontSpec(kit.captionFont.family, kit.captionFont.weight, 40f)
         for ((k, kw) in kws.withIndex()) {
             val (idx, word) = kw
             if (wi < idx) continue
@@ -338,98 +421,190 @@ internal class MontageLook(private val sb: Storyboard) : LookRenderer {
             val text = lab.lines.first()
             val w = g.measureText(text, lab.font) + 44f
             val x = x0.coerceIn(a.l + w / 2, a.r - w / 2)
-            // fil vers l'objet
             g.line(a.cx, a.cy, x, y, 2f, accent.withAlpha(0.35f * kk))
             val isNow = wi == idx
             g.withPose(Pose(scale = lerp(0.3f, 1f, kk) * (if (isNow) 1.06f else 1f), alpha = clamp01(kk * 2)), x, y) {
-                g.fillRoundRect(x - w / 2, y - 36f, x + w / 2, y + 36f, 36f, if (isNow) rgb(0xFFFFFF) else rgb(0x2C2C30))
-                g.strokeRoundRect(x - w / 2, y - 36f, x + w / 2, y + 36f, 36f, 2f, if (isNow) rgb(0xFFFFFF) else accent.withAlpha(0.7f))
+                g.fillRoundRect(x - w / 2, y - 36f, x + w / 2, y + 36f, 36f, if (isNow) pal.highlight else pal.chip)
+                g.strokeRoundRect(x - w / 2, y - 36f, x + w / 2, y + 36f, 36f, 2f, if (isNow) pal.highlight else accent.withAlpha(0.7f))
                 g.drawText(text, x - w / 2 + 22f, y + 14f, lab.font, if (isNow) dark else ink)
             }
         }
     }
 
     private fun cardFrame(g: Gfx, top: Float) {
-        g.fillRoundRect(CARD_L - 18f, top - 18f, CARD_R + 18f, CARD_B + 18f, 40f, rgb(0x141415))
-        g.strokeRoundRect(CARD_L - 18f, top - 18f, CARD_R + 18f, CARD_B + 18f, 40f, 2f, 0x1CFFFFFF)
-        g.fillRoundRect(CARD_L, top, CARD_R, CARD_B, 30f, card)
-        g.strokeRoundRect(CARD_L, top, CARD_R, CARD_B, 30f, 2f, 0x26FFFFFF)
+        when (kit.frame) {
+            KitFrame.DOUBLE -> {
+                g.fillRoundRect(CARD_L - 18f, top - 18f, CARD_R + 18f, CARD_B + 18f, 40f, if (light) darken(pal.bgTop, 0.04f) else darken(card, 0.35f))
+                g.strokeRoundRect(CARD_L - 18f, top - 18f, CARD_R + 18f, CARD_B + 18f, 40f, 2f, line(0.11f))
+                g.fillRoundRect(CARD_L, top, CARD_R, CARD_B, 30f, card)
+                g.strokeRoundRect(CARD_L, top, CARD_R, CARD_B, 30f, 2f, line(0.15f))
+            }
+            KitFrame.GLASS -> {
+                g.fillRoundRect(CARD_L + 8f, top + 16f, CARD_R + 8f, CARD_B + 16f, 34f, if (light) 0x18000000 else 0x44000000)
+                g.fillRoundRect(CARD_L, top, CARD_R, CARD_B, 34f, card.withAlpha(if (light) 0.85f else 0.78f))
+                g.fillVerticalGradient(CARD_L + 20f, top + 2f, CARD_R - 20f, top + 120f, (if (light) 0x66FFFFFF else 0x22FFFFFF), 0x00FFFFFF)
+                g.strokeRoundRect(CARD_L, top, CARD_R, CARD_B, 34f, 2.5f, (if (light) pal.ink else rgb(0xFFFFFF)).withAlpha(if (light) 0.1f else 0.2f))
+            }
+            KitFrame.NEON -> {
+                g.fillRadialGlow(540f, (top + CARD_B) / 2, 700f, accent.withAlpha(0.18f))
+                g.fillRoundRect(CARD_L, top, CARD_R, CARD_B, 26f, card)
+                g.strokeRoundRect(CARD_L - 6f, top - 6f, CARD_R + 6f, CARD_B + 6f, 30f, 8f, accent.withAlpha(0.25f))
+                g.strokeRoundRect(CARD_L, top, CARD_R, CARD_B, 26f, 3f, accent)
+            }
+            KitFrame.FLAT -> {}
+        }
     }
 
     // ───────────────────────────── En-têtes ─────────────────────────────
 
-    /** Badge numéroté en relief + étiquette espacée + titre dont le mot clé est surligné. */
+    private fun titleFont(size: Float) = FontSpec(kit.titleFont.family, kit.titleFont.weight, size * kit.titleFont.size / 66f)
+
+    /** En-tête : badge numéroté, pastille centrée ou barre de couleur, selon le style. */
     private fun header(g: Gfx, s: Shot, t: Float, key: String) {
         val a = Easing.EXPO_OUT.ease(clamp01(t / 300f))
-        var x = Safe.LEFT
         val by = 255f
-        s.badge?.let { b ->
-            val k = Easing.BACK_OUT.ease(clamp01(t / 420f))
-            g.withPose(Pose(scale = lerp(0.4f, 1f, k), alpha = clamp01(k * 2)), x + 52f, by + 52f) {
-                g.fillRoundRect(x + 4f, by + 10f, x + 108f, by + 112f, 26f, 0x66000000)
-                g.fillRoundRect(x, by, x + 104f, by + 104f, 26f, rgb(0xFFFFFF))
-                val nf = fitSize(g, b, FontSpec(FontFamily.DISPLAY, 900, 60f), 80f)
-                g.drawText(b, x + 52f - g.measureText(b, nf) / 2, by + 52f + g.metrics(nf).ascent / 2.4f, nf, dark)
-            }
-            x += 132f
-        }
         val kf = FontSpec(FontFamily.MONO, 700, 26f)
-        val maxW = Safe.RIGHT - x
-        val kick = TextLayout.fit(g, s.kicker, kf, maxW - 60f, 1, minSize = 18f)
-        g.withPose(Pose(alpha = a), x, by) { g.drawTracked(kick.lines.firstOrNull() ?: "", x, by + 26f, kick.font, muted, 5f) }
-        // Titre sur une ligne si possible, sinon deux lignes en assez grand (jamais minuscule).
-        val one = TextLayout.fit(g, s.title, FontSpec(FontFamily.TEXT, 800, 66f), maxW - 40f, 1, minSize = 50f)
-        val fits = one.lines.size == 1 && !one.lines[0].endsWith("…") && g.measureText(one.lines[0], one.font) <= maxW - 40f
-        val tl = if (fits) one else TextLayout.fit(g, s.title, FontSpec(FontFamily.TEXT, 800, 50f), maxW - 40f, 2, lineHeightFactor = 1.08f, minSize = 34f)
-        val kw = keyOf(s.title)
-        var hit = false
-        for ((li, line) in tl.lines.withIndex()) {
-            val k = if (!hit && kw != null && line.split(' ').any { it.trim(',', '.', ':', '!', '?') == kw }) { hit = true; kw } else null
-            highlightLine(g, line, k, x, by + 94f + li * tl.font.size * 1.12f, tl.font, a)
+        when (kit.header) {
+            KitHeader.CHIP -> {
+                val label = (listOfNotNull(s.badge?.let { "N° $it" }, s.kicker.takeIf { it.isNotEmpty() }).joinToString("  ·  ")).ifEmpty { "CODJIA" }
+                val k = TextLayout.fit(g, label, kf, Safe.WIDTH - 120f, 1, minSize = 18f)
+                val w = g.measureTracked(k.lines.first(), k.font, 4f) + 56f
+                val kk = Easing.BACK_OUT.ease(clamp01(t / 420f))
+                g.withPose(Pose(scale = lerp(0.6f, 1f, kk), alpha = clamp01(kk * 2)), 540f, by + 10f) {
+                    g.fillRoundRect(540f - w / 2, by - 18f, 540f + w / 2, by + 38f, 28f, accent.withAlpha(0.18f))
+                    g.strokeRoundRect(540f - w / 2, by - 18f, 540f + w / 2, by + 38f, 28f, 2f, accent)
+                    g.drawTracked(k.lines.first(), 540f - w / 2 + 28f, by + 19f, k.font, accent, 4f)
+                }
+                val tl = fitTitle(g, s.title, Safe.WIDTH - 40f)
+                val kw = keyOf(s.title)
+                var hit = false
+                for ((li, ln) in tl.lines.withIndex()) {
+                    val kk2 = if (!hit && kw != null && ln.split(' ').any { it.trim(',', '.', ':', '!', '?') == kw }) { hit = true; kw } else null
+                    val lw = lineWidth(g, ln, kk2, tl.font)
+                    titleLine(g, ln, kk2, 540f - lw / 2, titleBase(g, tl, by + 66f, li), tl.font, a, t)
+                }
+            }
+            KitHeader.BAR -> {
+                val x = Safe.LEFT + 30f
+                g.fillRoundRect(Safe.LEFT, by - 6f, Safe.LEFT + 10f, by + 150f * a, 5f, accent)
+                val label = (listOfNotNull(s.badge?.let { "$it" }, s.kicker.takeIf { it.isNotEmpty() }).joinToString("  /  "))
+                val k = TextLayout.fit(g, label, kf, Safe.RIGHT - x - 40f, 1, minSize = 18f)
+                g.withPose(Pose(alpha = a), x, by) { g.drawTracked(k.lines.firstOrNull() ?: "", x, by + 26f, k.font, accent, 5f) }
+                val tl = fitTitle(g, s.title, Safe.RIGHT - x - 20f)
+                val kw = keyOf(s.title)
+                var hit = false
+                for ((li, ln) in tl.lines.withIndex()) {
+                    val kk2 = if (!hit && kw != null && ln.split(' ').any { it.trim(',', '.', ':', '!', '?') == kw }) { hit = true; kw } else null
+                    titleLine(g, ln, kk2, x, titleBase(g, tl, by + 44f, li), tl.font, a, t)
+                }
+            }
+            KitHeader.BADGE -> {
+                var x = Safe.LEFT
+                s.badge?.let { b ->
+                    val k = Easing.BACK_OUT.ease(clamp01(t / 420f))
+                    g.withPose(Pose(scale = lerp(0.4f, 1f, k), alpha = clamp01(k * 2)), x + 52f, by + 52f) {
+                        g.fillRoundRect(x + 4f, by + 10f, x + 108f, by + 112f, 26f, if (light) 0x33000000 else 0x66000000)
+                        g.fillRoundRect(x, by, x + 104f, by + 104f, 26f, pal.highlight)
+                        val nf = fitSize(g, b, FontSpec(FontFamily.DISPLAY, 900, 60f), 80f)
+                        g.drawText(b, x + 52f - g.measureText(b, nf) / 2, by + 52f + g.metrics(nf).ascent / 2.4f, nf, dark)
+                    }
+                    x += 132f
+                }
+                val maxW = Safe.RIGHT - x
+                val kick = TextLayout.fit(g, s.kicker, kf, maxW - 60f, 1, minSize = 18f)
+                g.withPose(Pose(alpha = a), x, by) { g.drawTracked(kick.lines.firstOrNull() ?: "", x, by + 26f, kick.font, muted, 5f) }
+                val tl = fitTitle(g, s.title, maxW - 40f)
+                val kw = keyOf(s.title)
+                var hit = false
+                for ((li, ln) in tl.lines.withIndex()) {
+                    val k = if (!hit && kw != null && ln.split(' ').any { it.trim(',', '.', ':', '!', '?') == kw }) { hit = true; kw } else null
+                    titleLine(g, ln, k, x, titleBase(g, tl, by + 44f, li), tl.font, a, t)
+                }
+            }
         }
     }
 
-    /** Une ligne de titre, avec le mot clé dans un cadre blanc (texte noir). */
-    private fun highlightLine(g: Gfx, line: String, kw: String?, x0: Float, base: Float, f: FontSpec, a: Float) {
+    /** Ligne de base d'une ligne de titre : sous le haut donné, d'après les mesures réelles de la police. */
+    private fun titleBase(g: Gfx, tl: TextBlock, top: Float, li: Int): Float {
+        val m = g.metrics(tl.font)
+        return top + m.ascent + li * (m.ascent + m.descent) * 1.06f
+    }
+
+    /** Titre sur une ligne si possible, sinon deux lignes en assez grand (jamais minuscule). */
+    private fun fitTitle(g: Gfx, title: String, maxW: Float): TextBlock {
+        val pad = if (kit.titleFx == KitTitleFx.HIGHLIGHT) 24f else 0f
+        val one = TextLayout.fit(g, title, titleFont(66f), maxW - pad, 1, minSize = titleFont(50f).size)
+        val fits = one.lines.size == 1 && !one.lines[0].endsWith("…") && g.measureText(one.lines[0], one.font) <= maxW - pad
+        return if (fits) one else TextLayout.fit(g, title, titleFont(50f), maxW - pad, 2, lineHeightFactor = 1.08f, minSize = titleFont(34f).size)
+    }
+
+    private fun lineWidth(g: Gfx, line: String, kw: String?, f: FontSpec): Float =
+        g.measureText(line, f) + if (kw != null && kit.titleFx == KitTitleFx.HIGHLIGHT) 12f else 0f
+
+    /** Une ligne de titre ; le mot clé est traité selon le style (cadre, trait de marqueur, couleur, machine à écrire). */
+    private fun titleLine(g: Gfx, line: String, kw: String?, x0: Float, base: Float, f: FontSpec, a: Float, t: Float) {
         var x = x0
         val words = line.split(' ')
         var hit = false
-        g.withPose(Pose(alpha = a, dx = (1 - a) * 24f), x0, base) {
-            for ((wi, w) in words.withIndex()) {
-                val isKey = !hit && kw != null && w.trim(',', '.', ':', '!', '?') == kw
-                val ww = g.measureText(w, f)
-                if (isKey) {
-                    hit = true
-                    g.fillRoundRect(x - 10f, base - f.size * 0.86f, x + ww + 10f, base + f.size * 0.22f, 10f, rgb(0xFFFFFF))
-                    g.drawText(w, x, base, f, dark)
-                } else g.drawText(w, x, base, f, ink)
-                if (wi < words.lastIndex) x += ww + g.measureText(" ", f) + if (isKey) 12f else 0f
+        val typed = if (kit.titleFx == KitTitleFx.TYPEWRITER) (clamp01(t / (line.length * 35f + 1f)) * line.length).toInt() else line.length
+        var used = 0
+        g.withPose(Pose(alpha = a, dx = if (kit.header == KitHeader.CHIP) 0f else (1 - a) * 24f), x0, base) {
+            for ((wi, w0) in words.withIndex()) {
+                val w = w0.take((typed - used).coerceAtLeast(0))
+                used += w0.length + 1
+                val isKey = !hit && kw != null && w0.trim(',', '.', ':', '!', '?') == kw
+                val ww = g.measureText(w0, f)
+                if (w.isNotEmpty()) when {
+                    isKey && kit.titleFx == KitTitleFx.HIGHLIGHT -> {
+                        g.fillRoundRect(x - 10f, base - f.size * 0.86f, x + ww + 10f, base + f.size * 0.22f, 10f, pal.highlight)
+                        g.drawText(w, x, base, f, dark)
+                    }
+                    isKey && kit.titleFx == KitTitleFx.MARKER -> {
+                        val k = Easing.EXPO_OUT.ease(clamp01((t - 250f) / 450f))
+                        g.fillRoundRect(x - 6f, base - f.size * 0.2f, x - 6f + (ww + 12f) * k, base + f.size * 0.14f, 8f, accent.withAlpha(0.5f))
+                        g.drawText(w, x, base, f, ink)
+                    }
+                    isKey -> g.drawText(w, x, base, f, accent)
+                    else -> g.drawText(w, x, base, f, ink)
+                }
+                if (isKey) hit = true
+                if (wi < words.lastIndex) x += ww + g.measureText(" ", f) + if (isKey && kit.titleFx == KitTitleFx.HIGHLIGHT) 12f else 0f
             }
+            if (kit.titleFx == KitTitleFx.TYPEWRITER && typed < line.length) g.fillRect(x + 4f, base - f.size * 0.75f, x + 9f, base + 6f, accent)
         }
     }
 
-    /** Accroche : le titre en grand, aligné à gauche, mot à mot ; le mot clé surligné. */
+    /** Accroche : le titre en grand, aligné à gauche, mot à mot ; le mot clé mis en valeur selon le style. */
     private fun hookHeader(g: Gfx, s: Shot, wi: Int, key: String) {
-        val bl = cache.fit(g, "hk/$key", s.title, FontSpec(FontFamily.TEXT, 800, 84f), Safe.WIDTH - 40f, 4, 1.1f)
+        val bl = cache.fit(g, "hk/$key", s.title, titleFont(84f), Safe.WIDTH - 40f, 4, 1.1f)
         val kw = keyOf(s.title)
         val titleWords = bl.lines.sumOf { l -> l.split(' ').count { it.isNotBlank() } }
         val shown = (wi + 1).coerceIn(0, titleWords)
         var count = 0
         val top = 230f
-        for ((li, line) in bl.lines.withIndex()) {
+        for ((li, ln) in bl.lines.withIndex()) {
             val base = g.baselineOf(bl, top, li)
             var x = Safe.LEFT
-            for (w in line.split(' ')) {
+            for (w in ln.split(' ')) {
                 if (w.isBlank()) continue
                 count++
                 val ww = g.measureText(w, bl.font)
                 val vis = count <= shown || wi >= titleWords
                 val isKey = kw != null && w.trim(',', '.', ':', '!', '?') == kw
-                if (isKey && vis) {
-                    g.fillRoundRect(x - 10f, base - bl.font.size * 0.86f, x + ww + 10f, base + bl.font.size * 0.22f, 12f, rgb(0xFFFFFF))
-                    g.drawText(w, x, base, bl.font, dark)
-                } else g.drawText(w, x, base, bl.font, if (vis) ink else rgb(0x3A3A3E))
-                x += ww + g.measureText(" ", bl.font) + if (isKey) 12f else 0f
+                when {
+                    !vis -> g.drawText(w, x, base, bl.font, pal.dim.withAlpha(0.6f))
+                    isKey && kit.titleFx == KitTitleFx.HIGHLIGHT -> {
+                        g.fillRoundRect(x - 10f, base - bl.font.size * 0.86f, x + ww + 10f, base + bl.font.size * 0.22f, 12f, pal.highlight)
+                        g.drawText(w, x, base, bl.font, dark)
+                    }
+                    isKey && kit.titleFx == KitTitleFx.MARKER -> {
+                        g.fillRoundRect(x - 6f, base - bl.font.size * 0.2f, x + ww + 6f, base + bl.font.size * 0.14f, 8f, accent.withAlpha(0.5f))
+                        g.drawText(w, x, base, bl.font, ink)
+                    }
+                    isKey -> g.drawText(w, x, base, bl.font, accent)
+                    else -> g.drawText(w, x, base, bl.font, ink)
+                }
+                x += ww + g.measureText(" ", bl.font) + if (isKey && kit.titleFx == KitTitleFx.HIGHLIGHT) 12f else 0f
             }
         }
         if (s.kicker.isNotEmpty()) {
@@ -457,11 +632,13 @@ internal class MontageLook(private val sb: Storyboard) : LookRenderer {
     /** Avancement dans le mot prononcé (0 au début du mot), pour le petit « pop » du surlignage. */
     private var wordFrac = 0f
 
-    /** Une ou deux lignes de sous-titres ; le mot prononcé est dans un cadre blanc, les suivants en gris. */
+    /** Sous-titres selon le style : karaoké encadré, mot en couleur, mots géants ou bandeau. */
     private fun captions(g: Gfx, s: Shot, wi: Int, key: String, t: Float) {
         if (s.words.isEmpty() || wi < 0) return
-        val f = FontSpec(FontFamily.TEXT, 800, 56f)
+        val pop = kit.captions == KitCaptions.POP
+        val f = if (pop) FontSpec(kit.captionFont.family, kit.captionFont.weight, kit.captionFont.size * 1.35f) else kit.captionFont
         val maxW = Safe.WIDTH - 60f
+        val maxWords = if (pop) 3 else 7
         val pages = pageCache.getOrPut(key) {
             val out = ArrayList<IntRange>()
             var start = 0
@@ -469,10 +646,10 @@ internal class MontageLook(private val sb: Storyboard) : LookRenderer {
                 var lines = 1; var w = 0f; var end = start
                 while (end < s.words.size) {
                     val ww = g.measureText(s.words[end] + " ", f) + 16f
-                    if (w + ww > maxW) { if (lines == 2 || end == start) break; lines++; w = 0f }
+                    if (w + ww > maxW) { if (lines == 2 || end == start || pop) break; lines++; w = 0f }
                     w += ww; end++
-                    if (end - start >= 3 && Regex("[.!?:;]$").containsMatchIn(s.words[end - 1])) break
-                    if (end - start >= 7) break
+                    if (end - start >= (if (pop) 1 else 3) && Regex("[.!?:;]$").containsMatchIn(s.words[end - 1])) break
+                    if (end - start >= maxWords) break
                 }
                 if (end == start) end = start + 1
                 out += start until end; start = end
@@ -487,28 +664,53 @@ internal class MontageLook(private val sb: Storyboard) : LookRenderer {
             cur += k; w += ww
         }
         if (cur.isNotEmpty()) lines += cur
-        val lh = 78f
+        val lh = f.size * 1.36f
         var y = CAP_Y - (lines.size - 1) * lh / 2 + 20f
         val sp = g.measureText(" ", f)
+        if (kit.captions == KitCaptions.BAR) {
+            val h = lines.size * lh + 34f
+            g.fillRoundRect(Safe.LEFT - 10f, y - f.size * 0.95f - 8f, Safe.RIGHT + 10f, y - f.size * 0.95f - 8f + h, 22f, pal.card.withAlpha(0.92f))
+            g.fillRoundRect(Safe.LEFT - 10f, y - f.size * 0.95f - 8f, Safe.LEFT - 2f, y - f.size * 0.95f - 8f + h, 4f, accent)
+        }
+        val pageStart = page.first
+        val popIn = if (pop) Easing.BACK_OUT.ease(clamp01((wordFracPage(s, wi, pageStart)) * 4f)) else 1f
         for (ln in lines) {
             val total = ln.sumOf { g.measureText(s.words[it], f).toDouble() }.toFloat() + sp * (ln.size - 1) + 16f
             var x = 540f - total / 2
-            for (k in ln) {
-                val word = s.words[k]
-                val ww = g.measureText(word, f)
-                if (k == wi) {
-                    val pop = 1f + 0.1f * (1f - Easing.EXPO_OUT.ease(clamp01(wordFrac * 3f)))
-                    g.withPose(Pose(scale = pop), x + ww / 2, y - 17f) {
-                        g.fillRoundRect(x - 8f, y - 48f, x + ww + 8f, y + 14f, 10f, rgb(0xFFFFFF))
-                        g.drawText(word, x, y, f, dark)
+            g.withPose(Pose(scale = if (pop) lerp(0.7f, 1f, popIn).coerceAtMost(1.02f) else 1f), 540f, y - f.size * 0.35f) {
+                for (k in ln) {
+                    val word = s.words[k]
+                    val ww = g.measureText(word, f)
+                    val now = k == wi
+                    when (kit.captions) {
+                        KitCaptions.BOX -> if (now) {
+                            val pp = 1f + 0.1f * (1f - Easing.EXPO_OUT.ease(clamp01(wordFrac * 3f)))
+                            g.withPose(Pose(scale = pp), x + ww / 2, y - 17f) {
+                                g.fillRoundRect(x - 8f, y - f.size * 0.86f, x + ww + 8f, y + 14f, 10f, pal.highlight)
+                                g.drawText(word, x, y, f, dark)
+                            }
+                            x += 16f
+                        } else g.drawText(word, x, y, f, if (k < wi) ink else pal.dim)
+                        KitCaptions.COLOR, KitCaptions.BAR -> {
+                            if (!light && kit.captions == KitCaptions.COLOR) g.drawText(word, x + 3f, y + 4f, f, 0x55000000)
+                            g.drawText(word, x, y, f, if (now) accent else if (k < wi) ink else pal.dim)
+                            if (now && kit.captions == KitCaptions.BAR) g.fillRoundRect(x, y + 10f, x + ww * Easing.EXPO_OUT.ease(clamp01(wordFrac * 2f)), y + 16f, 3f, accent)
+                        }
+                        KitCaptions.POP -> {
+                            if (!light) g.drawText(word, x + 4f, y + 5f, f, 0x55000000)
+                            g.drawText(word, x, y, f, if (now) accent else ink)
+                        }
                     }
-                    x += 16f
-                } else g.drawText(word, x, y, f, if (k < wi) ink else rgb(0x5A5A60))
-                x += ww + sp
+                    x += ww + sp
+                }
             }
             y += lh
         }
     }
+
+    /** Pour les « mots géants » : avancement depuis l'arrivée du groupe de mots affiché (pour le faire surgir). */
+    private fun wordFracPage(s: Shot, wi: Int, pageStart: Int): Float =
+        if (wi == pageStart) wordFrac else 1f
 
     // ───────────────────────────── Cartes ─────────────────────────────
 
@@ -563,9 +765,9 @@ internal class MontageLook(private val sb: Storyboard) : LookRenderer {
         g.save()
         g.rotate(deg, cx, y)
         g.withPose(Pose(scale = lerp(1.6f, 1f, k), alpha = clamp01(k * 2)), cx, y) {
-            g.fillRoundRect(cx - w / 2, y - 28f, cx + w / 2, y + 28f, 10f, darken(color, 0.7f))
+            g.fillRoundRect(cx - w / 2, y - 28f, cx + w / 2, y + 28f, 10f, if (light) lighten(color, 0.85f) else darken(color, 0.7f))
             g.strokeRoundRect(cx - w / 2, y - 28f, cx + w / 2, y + 28f, 10f, 3f, color)
-            g.drawText(text, cx - w / 2 + 18f, y + 12f, f, lighten(color, 0.3f))
+            g.drawText(text, cx - w / 2 + 18f, y + 12f, f, if (light) darken(color, 0.35f) else lighten(color, 0.3f))
         }
         g.restore()
     }
@@ -609,9 +811,9 @@ internal class MontageLook(private val sb: Storyboard) : LookRenderer {
         val tf = FontSpec(FontFamily.TEXT, 700, 30f)
         val tw = tabs.map { g.measureText(it, tf) + 48f }
         var x = a.cx - tw.sum() / 2
-        g.fillRoundRect(x - 8f, a.t + 6f, x + tw.sum() + 8f, a.t + 70f, 32f, rgb(0x2E2E31))
+        g.fillRoundRect(x - 8f, a.t + 6f, x + tw.sum() + 8f, a.t + 70f, 32f, pal.chip)
         for ((k, tab) in tabs.withIndex()) {
-            if (k == 2) g.fillRoundRect(x, a.t + 12f, x + tw[k], a.t + 64f, 26f, rgb(0x4A4A4E))
+            if (k == 2) g.fillRoundRect(x, a.t + 12f, x + tw[k], a.t + 64f, 26f, accent.withAlpha(0.35f))
             g.drawText(tab, x + 24f, a.t + 49f, tf, if (k == 2) ink else muted)
             x += tw[k]
         }
@@ -641,7 +843,7 @@ internal class MontageLook(private val sb: Storyboard) : LookRenderer {
             val w = g.measureText(lab.lines.first(), lab.font) + 44f
             val y = bb + 70f
             if (kk > 0f) g.withPose(Pose(scale = kk, alpha = clamp01(kk)), a.cx, y + 28f) {
-                g.fillRoundRect(a.cx - w / 2, y, a.cx + w / 2, y + 58f, 29f, rgb(0xFFFFFF))
+                g.fillRoundRect(a.cx - w / 2, y, a.cx + w / 2, y + 58f, 29f, pal.highlight)
                 g.drawText(lab.lines.first(), a.cx - w / 2 + 22f, y + 40f, lab.font, dark)
             }
         }
@@ -668,7 +870,7 @@ internal class MontageLook(private val sb: Storyboard) : LookRenderer {
             val oa = clamp01((t - 400f - typeMs - 250f - k * 220f) / 200f)
             if (oa <= 0f || oy > a.b - 90f) break
             val ob = TextLayout.fit(g, l, of, a.w - 80f, 1, minSize = 18f)
-            val col = when { l.startsWith("#") -> muted; Regex("Failed|refus|denied|erreur", RegexOption.IGNORE_CASE).containsMatchIn(l) -> rgb(0xFF9AA5); else -> rgb(0xD6D6DA) }
+            val col = when { l.startsWith("#") -> rgb(0x8A8A8F); Regex("Failed|refus|denied|erreur", RegexOption.IGNORE_CASE).containsMatchIn(l) -> rgb(0xFF9AA5); else -> rgb(0xD6D6DA) }
             g.withPose(Pose(alpha = oa), a.l, oy) { g.drawText(ob.lines.first(), a.l + 36f, oy + 24f, ob.font, col) }
             oy += 42f
         }
@@ -744,7 +946,7 @@ internal class MontageLook(private val sb: Storyboard) : LookRenderer {
         if (unit.isNotEmpty()) {
             val uf = fitSize(g, unit, FontSpec(FontFamily.TEXT, 800, 60f), a.w - 80f)
             val w = g.measureText(unit, uf)
-            g.fillRoundRect(a.cx - w / 2 - 14f, a.cy + 100f, a.cx + w / 2 + 14f, a.cy + 180f, 12f, rgb(0xFFFFFF))
+            g.fillRoundRect(a.cx - w / 2 - 14f, a.cy + 100f, a.cx + w / 2 + 14f, a.cy + 180f, 12f, pal.highlight)
             g.drawText(unit, a.cx - w / 2, a.cy + 162f, uf, dark)
         }
     }
@@ -759,9 +961,9 @@ internal class MontageLook(private val sb: Storyboard) : LookRenderer {
             val col = if (good) ok else bad
             val kk = if (k == rows - 1) Easing.BACK_OUT.ease(clamp01(t / 420f)) else 1f
             g.withPose(Pose(scale = lerp(0.8f, 1f, kk), alpha = clamp01(kk * 2)), a.cx, y + rowH / 2) {
-                g.fillRoundRect(a.l + 10f, y, a.r - 10f, y + rowH, 22f, darken(col, 0.82f))
+                g.fillRoundRect(a.l + 10f, y, a.r - 10f, y + rowH, 22f, if (light) lighten(col, 0.88f) else darken(col, 0.82f))
                 g.strokeRoundRect(a.l + 10f, y, a.r - 10f, y + rowH, 22f, 3f, col)
-                g.fillCircle(a.l + 90f, y + rowH / 2, 40f, darken(col, 0.6f))
+                g.fillCircle(a.l + 90f, y + rowH / 2, 40f, if (light) lighten(col, 0.7f) else darken(col, 0.6f))
                 Icons.draw(g, if (good) IconId.CHECK else IconId.CROSS, a.l + 90f, y + rowH / 2, 40f, col, 3.4f)
                 val bl = TextLayout.fit(g, s.items.getOrElse(k) { s.main }, FontSpec(FontFamily.TEXT, 700, 38f), a.w - 220f, 3, lineHeightFactor = 1.2f, minSize = 24f)
                 g.drawBlock(bl, a.l + 160f, y + rowH / 2 - bl.height / 2, ink)

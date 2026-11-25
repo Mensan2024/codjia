@@ -131,6 +131,7 @@ Ces trois formats suivent la grammaire des vidéos courtes des réseaux sociaux.
 | Cinéma | Dégradé nocturne avec halos, sans-serif mêlé de serif italique, téléphone réaliste |
 | Infographie | `InfographicLook` : rubrique + pastille « ÉTAPE i/n », titre sur deux lignes, un schéma animé choisi selon le sens du texte (cibles, cadenas assailli, barres de robustesse, chaîne MFA, tentatives + fail2ban, graphique d'échecs + grep, terminal, chiffre, comparaison, parcours d'étapes) et l'explication dans un cadre en bas |
 | Montage dynamique | `MontageLook` : un plan par idée (une étape = un chapitre numéroté), carte d'action animée (page, prompt, terminal, téléphone, objet en relief, chiffre, à éviter / à faire, guide), sous-titres mot à mot avec le mot prononcé surligné, mascotte originale qui parle, sol en grille |
+| Style unique | `MontageLook` avec un `StyleKit` tiré par `StyleKit.random(graine)` : palette, fond, polices, traitement du mot clé, en-tête, cadre, sous-titres, entrée des plans, mascotte. Règles de design dans `StyleKit.random` ; test `lesStylesModulablesRestentPropres` (24 combinaisons) |
 
 ## 6 ter. Démonstrations sur écran simulé (`Simulator.kt`, `Procedures.kt`)
 

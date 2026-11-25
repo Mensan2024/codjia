@@ -40,6 +40,7 @@ import io.github.mensan2024.itmentor.engine.DomainDetector
 import io.github.mensan2024.itmentor.engine.FrameRenderer
 import io.github.mensan2024.itmentor.engine.ImportPolicy
 import io.github.mensan2024.itmentor.engine.Look
+import io.github.mensan2024.itmentor.engine.StyleKit
 import io.github.mensan2024.itmentor.engine.VoiceMode
 import io.github.mensan2024.itmentor.engine.android.Narrator
 import io.github.mensan2024.itmentor.engine.android.OfflineVoices
@@ -347,7 +348,8 @@ class MainActivity : ComponentActivity() {
     private fun previewPage(): View {
         val page = vbox()
         val music = choice.track?.let { if (choice.hasAudio) it.title else "${it.title} (coupée)" } ?: "Sans musique"
-        val info = label("Version $generation · ${look.label}${if (hasDemo) " + démo à l'écran" else ""} · $music · voix ${voiceMode.label}", 13f, Brand.MUTED)
+        val styleName = if (look == Look.KIT) "${look.label} (${StyleKit.random(content.seed).label})" else look.label
+        val info = label("Version $generation · $styleName${if (hasDemo) " + démo à l'écran" else ""} · $music · voix ${voiceMode.label}", 13f, Brand.MUTED)
         page.addView(info)
         val img = ImageView(this).apply {
             scaleType = ImageView.ScaleType.FIT_CENTER

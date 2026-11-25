@@ -557,8 +557,9 @@ object CreativeDirector {
         val look = forcedLook ?: run {
             val allowed = Looks.forDomain(domain)
             val fresh = allowed.filter { it !in avoidLooks }.ifEmpty { allowed }
-            // Le montage dynamique (tutoriel animé) revient deux fois plus souvent que les autres formats.
-            val weighted = fresh + fresh.filter { it == Look.MONTAGE }
+            // Les styles modulables (une combinaison nouvelle à chaque fois) reviennent le plus souvent,
+            // puis le montage dynamique ; les autres formats gardent leur place.
+            val weighted = fresh + fresh.filter { it == Look.MONTAGE } + List(4) { fresh.filter { it == Look.KIT } }.flatten()
             weighted[(Rand.of(seed, 0x2C7F).nextInt() ushr 1) % weighted.size]
         }
         var sb = StoryboardPlanner.plan(text, seed, template.id).copy(look = look)

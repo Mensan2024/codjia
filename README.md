@@ -5,7 +5,8 @@
 CODJIA transforme **ton propre texte** en vidéo éducative verticale de 30 à 59 s (MP4, H.264 et AAC), entièrement hors ligne.
 
 - **Domaines :** réseaux (CCNA, CCNP), systèmes (Windows, macOS, Linux, Android), cybersécurité, IA, développement fullstack, santé et longévité, marketing, anglais.
-- **10 formats qui changent à chaque génération :** montage dynamique (tutoriel animé avec sous-titres mot à mot et mascotte), motion design, tableau blanc (main qui écrit), démo à l'écran, personnage animé, éditorial chic, explicatif néon, collage, cinéma, infographie (schémas animés).
+- **Style unique à chaque vidéo :** un moteur de styles modulables combine palettes, fonds animés, polices, titres, cadres, sous-titres, transitions et mascotte (des milliers de combinaisons, filtrées par des règles de design).
+- **11 formats :** style unique, montage dynamique (tutoriel animé avec sous-titres mot à mot et mascotte), motion design, tableau blanc (main qui écrit), démo à l'écran, personnage animé, éditorial chic, explicatif néon, collage, cinéma, infographie (schémas animés).
 - **Tout ton texte est montré**, sans résumé, en 30 à 59 s selon sa longueur.
 - **Voix off au choix** (oui/non, français, anglais ou automatique) et 13 musiques originales rythmées, avec basses (afro, trap, phonk, EDM, house…), plus longues que la vidéo : jamais de coupure.
 - **Démonstrations pas à pas** sur Windows, macOS, Ubuntu et console Cisco, pour les sujets de la bibliothèque.
