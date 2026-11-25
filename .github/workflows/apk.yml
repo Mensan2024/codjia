@@ -29,6 +29,8 @@ jobs:
         with:
           # Vérifie que gradle-wrapper.jar est bien celui publié par Gradle (anti-substitution).
           validate-wrappers: true
+      - name: ffmpeg (vérification des MP4 fabriqués par la version web)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
       - name: Tests du moteur puis compilation de l'application
         run: |
           chmod +x gradlew
