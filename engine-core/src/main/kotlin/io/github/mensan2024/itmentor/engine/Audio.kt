@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package io.github.mensan2024.itmentor.engine
 
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -22,7 +20,7 @@ class Pcm(val sampleRate: Int, val channels: Int, val samples: ShortArray) {
 /** Lecture et écriture WAV (PCM 16 bits, mono ou stéréo). */
 object Wav {
     fun read(bytes: ByteArray): Pcm {
-        val b = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
+        val b = LeReader(bytes)
         require(bytes.size >= 12 && tag(bytes, 0) == "RIFF" && tag(bytes, 8) == "WAVE") { "Fichier WAV invalide" }
         var pos = 12
         var channels = 0
@@ -57,16 +55,25 @@ object Wav {
 
     fun write(pcm: Pcm): ByteArray {
         val dataSize = pcm.samples.size * 2
-        val b = ByteBuffer.allocate(44 + dataSize).order(ByteOrder.LITTLE_ENDIAN)
-        b.put("RIFF".toByteArray()).putInt(36 + dataSize).put("WAVE".toByteArray())
-        b.put("fmt ".toByteArray()).putInt(16).putShort(1).putShort(pcm.channels.toShort()).putInt(pcm.sampleRate)
-            .putInt(pcm.sampleRate * 2 * pcm.channels).putShort((2 * pcm.channels).toShort()).putShort(16)
-        b.put("data".toByteArray()).putInt(dataSize)
-        for (s in pcm.samples) b.putShort(s)
-        return b.array()
+        val out = ByteArray(44 + dataSize)
+        var p = 0
+        fun str(t: String) { for (ch in t) out[p++] = ch.code.toByte() }
+        fun i32(v: Int) { out[p++] = v.toByte(); out[p++] = (v shr 8).toByte(); out[p++] = (v shr 16).toByte(); out[p++] = (v shr 24).toByte() }
+        fun i16(v: Int) { out[p++] = v.toByte(); out[p++] = (v shr 8).toByte() }
+        str("RIFF"); i32(36 + dataSize); str("WAVE")
+        str("fmt "); i32(16); i16(1); i16(pcm.channels); i32(pcm.sampleRate); i32(pcm.sampleRate * 2 * pcm.channels); i16(2 * pcm.channels); i16(16)
+        str("data"); i32(dataSize)
+        for (sv in pcm.samples) i16(sv.toInt())
+        return out
     }
 
-    private fun tag(bytes: ByteArray, at: Int) = String(bytes, at, 4, Charsets.US_ASCII)
+    /** Lecture petit-boutiste (sans java.nio, pour tourner aussi dans le navigateur). */
+    private class LeReader(private val b: ByteArray) {
+        fun getInt(i: Int): Int = (b[i].toInt() and 0xFF) or ((b[i + 1].toInt() and 0xFF) shl 8) or ((b[i + 2].toInt() and 0xFF) shl 16) or (b[i + 3].toInt() shl 24)
+        fun getShort(i: Int): Short = ((b[i].toInt() and 0xFF) or (b[i + 1].toInt() shl 8)).toShort()
+    }
+
+    private fun tag(bytes: ByteArray, at: Int) = buildString { for (k in 0 until 4) append((bytes[at + k].toInt() and 0xFF).toChar()) }
 }
 
 object AudioMix {

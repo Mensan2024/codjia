@@ -69,7 +69,7 @@ internal class EditorialLook(private val sb: Storyboard) : LookRenderer {
         g.withPose(Pose(alpha = a), L, y) {
             val left = (sc.kicker ?: "CODJIA").uppercase()
             g.drawTracked(left, L, y, caps, pal.ink, 4f)
-            val right = "N° %02d".format(index + 1)
+            val right = "N° ${Fmt.pad(index + 1, 2)}"
             g.drawTracked(right, R - g.measureTracked(right, caps, 4f), y, caps, pal.muted, 4f)
         }
         rule(g, L, R, y + 26f, t, 100f, 1.5f)
@@ -170,7 +170,7 @@ internal class EditorialLook(private val sb: Storyboard) : LookRenderer {
             val a = fade(t, d, 1000f)
             val (label, detail) = splitLabel(Marked.strip(item))
             g.withPose(Pose(alpha = a, dy = (1 - a) * 26f), L, top) {
-                val num = "%02d".format(i + 1)
+                val num = Fmt.pad(i + 1, 2)
                 g.drawText(num, L, top + 26f + g.metrics(nf).ascent, nf, pal.accent)
                 val tx = L + 170f
                 val lb = cache.fit(g, "${sc.id}/l$i", label, serif.withSize(54f), R - tx, 2, 1.1f)

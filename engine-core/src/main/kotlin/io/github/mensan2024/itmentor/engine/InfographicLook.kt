@@ -30,7 +30,7 @@ internal class InfographicLook(private val sb: Storyboard) : LookRenderer {
     private val cache = TextCache()
     private val domain by lazy { DomainDetector.detect(TextSanitizer.clean(sb.title + " " + sb.scenes.joinToString(" ") { it.title + " " + it.body })) }
     private val astuceNo: Int? = (listOf(sb.title) + sb.scenes.take(1).flatMap { listOf(it.kicker ?: "", it.title) })
-        .firstNotNullOfOrNull { Regex("(?i)astuce\\D{0,30}?0*(\\d{1,4})").find(Marked.strip(it))?.groupValues?.get(1)?.toIntOrNull() }
+        .firstNotNullOfOrNull { Regex("astuce\\D{0,30}?0*(\\d{1,4})", RegexOption.IGNORE_CASE).find(Marked.strip(it))?.groupValues?.get(1)?.toIntOrNull() }
 
     enum class Diagram { HERO_ICON, STEPLIST, TARGETS, LOCK_ATTACK, SHIELD, BARS, CHAIN, ATTEMPTS, CHART, TERMINAL, NUMBER, VERSUS, CHECKS, TEXT, CTA }
 
@@ -78,7 +78,7 @@ internal class InfographicLook(private val sb: Storyboard) : LookRenderer {
 
     /** « les comptes, les serveurs SSH ou les interfaces » → cibles affichées. */
     private fun targets(body: String): List<String> {
-        val m = Regex("(?i)(?:cibler|viser|toucher|concerne[r]?)\\s+(.+)").find(body) ?: return emptyList()
+        val m = Regex("(?:cibler|viser|toucher|concerne[r]?)\\s+(.+)", RegexOption.IGNORE_CASE).find(body) ?: return emptyList()
         return m.groupValues[1].trimEnd('.').split(Regex(",\\s*|\\s+ou\\s+|\\s+et\\s+"))
             .map { it.trim().removePrefix("les ").removePrefix("des ").removePrefix("la ").removePrefix("le ").replaceFirstChar { c -> c.uppercase() } }
             .filter { it.length in 3..40 }.take(3).takeIf { it.size >= 2 } ?: emptyList()
@@ -149,7 +149,7 @@ internal class InfographicLook(private val sb: Storyboard) : LookRenderer {
         val b = bs[i]
         // Rubrique en haut (fixe)
         val hf = FontSpec(FontFamily.TEXT, 800, 24f)
-        val left = (astuceNo?.let { "ASTUCE %03d".format(it) } ?: "CODJIA")
+        val left = (astuceNo?.let { "ASTUCE ${Fmt.pad(it, 3)}" } ?: "CODJIA")
         g.drawTracked(left, Safe.LEFT, 172f, hf, accent, 2f)
         g.drawTracked(domain.label.uppercase(), Safe.LEFT + g.measureTracked(left, hf, 2f) + 30f, 172f, hf.copy(weight = 600), muted, 2f)
         val e = Easing.EXPO_OUT.ease(clamp01(t / 300f))
@@ -258,7 +258,7 @@ internal class InfographicLook(private val sb: Storyboard) : LookRenderer {
         }
         val n = (Easing.EASE_IN.ease(clamp01(t / 3200f)) * 8412).toInt()
         val cf = FontSpec(FontFamily.TEXT, 800, 42f)
-        val label = "Essais : " + "%,d".format(n).replace(',', ' ')
+        val label = "Essais : " + Fmt.thousands(n)
         g.drawText(label, cx - g.measureText(label, cf) / 2, cy + 190f, cf, danger)
     }
 
@@ -579,7 +579,7 @@ internal class InfographicLook(private val sb: Storyboard) : LookRenderer {
         }
         astuceNo?.let {
             val nf = FontSpec(FontFamily.TEXT, 700, 38f)
-            val s1 = "Prochaine : "; val s2 = "Astuce %03d".format(it + 1)
+            val s1 = "Prochaine : "; val s2 = "Astuce ${Fmt.pad(it + 1, 3)}"
             val w2 = g.measureText(s1, nf) + g.measureText(s2, nf)
             val a2 = clamp01((t - 500f) / 400f)
             g.withPose(Pose(alpha = a2), 540f, cy + 240f) {

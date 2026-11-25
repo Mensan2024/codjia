@@ -5,3 +5,8 @@ local.properties
 out/
 *.iml
 __pycache__/
+
+# Application web
+web/build/
+web/.gradle/
+web/.kotlin/

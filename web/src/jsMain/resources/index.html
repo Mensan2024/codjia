@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CODJIA — ton texte devient une vidéo</title>
+<meta name="description" content="Transforme ton texte en vidéo éducative verticale (MP4) avec musique. Gratuit, libre, tout se passe sur ton appareil.">
+<meta name="theme-color" content="#0B1220">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CODJIA">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<style>
+  :root { --bg:#0B1220; --surface:#16243A; --surface2:#1E2F4A; --text:#F5F7FA; --muted:#9AA8BD; --saffron:#F5B301; --teal:#2DD4BF; --danger:#FB7185; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin:0; background:var(--bg); color:var(--text); font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  #app { max-width: 760px; margin: 0 auto; padding: max(14px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
+  .loading { padding: 40vh 0; text-align:center; color:var(--muted); }
+  header.top { display:flex; align-items:center; gap:12px; }
+  .brand { font-weight:800; letter-spacing:.06em; font-size:20px; cursor:pointer; flex:1; }
+  h1 { font-size:24px; margin:10px 0 8px; }
+  .page { display:flex; flex-direction:column; gap:12px; }
+  .muted { color:var(--muted); margin:0; } .small { font-size:13px; } .center { text-align:center; }
+  .warn { color:#111; background:var(--saffron); padding:10px 12px; border-radius:12px; margin:0; font-size:14px; }
+  textarea.text { width:100%; min-height:42vh; resize:vertical; background:var(--surface); color:var(--text); border:1.5px solid var(--surface2); border-radius:14px; padding:14px; font:15px/1.5 inherit; font-family: inherit; }
+  textarea.text:focus { outline: 2px solid var(--saffron); }
+  .counter { color:var(--muted); font-size:12px; margin-top:-6px; }
+  .chips { display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; flex-wrap:nowrap; }
+  .chip { flex:0 0 auto; background:var(--surface); color:var(--text); border:1.5px solid var(--surface2); border-radius:999px; padding:8px 14px; font-size:14px; cursor:pointer; }
+  .chip.on { background:var(--saffron); color:#111; border-color:var(--saffron); font-weight:700; }
+  .btn { background:var(--surface); color:var(--text); border:1.5px solid var(--surface2); border-radius:14px; padding:13px 14px; font-size:15px; font-weight:700; cursor:pointer; text-align:center; text-decoration:none; transition: transform .08s; }
+  .btn:active { transform: scale(.97); }
+  .btn.primary { background:var(--saffron); color:#111; border-color:var(--saffron); }
+  .btn.ghost { background:transparent; }
+  .btn.small { padding:7px 12px; font-size:13px; border-radius:10px; }
+  .btn.wide { width:100%; }
+  .link { background:none; border:0; color:var(--muted); font-size:15px; cursor:pointer; padding:8px; }
+  .row { display:flex; gap:8px; } .row > * { flex:1; }
+  .stage { display:flex; justify-content:center; }
+  canvas.preview { width:min(100%, calc(62vh * 9 / 16)); aspect-ratio: 9 / 16; border-radius:16px; background:#000; cursor:pointer; }
+  .hint { text-align:center; color:var(--muted); font-size:12px; margin-top:-6px; }
+  .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap:10px; }
+  .look { background:var(--surface); border:3px solid var(--surface); border-radius:14px; padding:6px; cursor:pointer; }
+  .look.selected { border-color:var(--saffron); }
+  canvas.thumb { width:100%; aspect-ratio: 9/16; border-radius:10px; background:var(--surface2); display:block; }
+  .look-name { font-weight:700; font-size:14px; margin-top:6px; } .look-tag { color:var(--muted); font-size:11px; }
+  .list { display:flex; flex-direction:column; gap:8px; }
+  .track { display:flex; align-items:center; gap:12px; background:var(--surface); border:2px solid var(--surface); border-radius:14px; padding:10px 12px; cursor:pointer; }
+  .track.selected { border-color:var(--saffron); }
+  .play { width:42px; height:42px; border-radius:50%; border:0; background:var(--surface2); color:var(--text); font-size:15px; cursor:pointer; flex:0 0 auto; }
+  .t-title { font-weight:700; } .t-sub { color:var(--muted); font-size:12px; }
+  .pct { font-size:46px; font-weight:800; text-align:center; margin-top:18px; }
+  .bar { height:10px; background:var(--surface2); border-radius:5px; overflow:hidden; } .fill { height:100%; width:0; background:var(--saffron); transition: width .2s; }
+  .result { display:flex; flex-direction:column; gap:10px; }
+  video.out { width:min(100%, calc(60vh * 9 / 16)); align-self:center; border-radius:14px; background:#000; }
+  .privacy { color:var(--muted); font-size:11px; text-align:center; margin-top:22px; }
+  .toast { position:fixed; left:50%; bottom:calc(24px + env(safe-area-inset-bottom)); transform:translateX(-50%); background:#000d; color:#fff; padding:12px 16px; border-radius:12px; max-width:90vw; font-size:14px; z-index:9; }
+  .card.error { background:var(--surface); padding:16px; border-radius:14px; color:var(--danger); }
+</style>
+</head>
+<body>
+<div id="app"><div class="loading">Chargement de CODJIA…</div></div>
+<noscript>CODJIA a besoin de JavaScript pour fabriquer tes vidéos sur ton appareil.</noscript>
+<script src="codjia.js"></script>
+</body>
+</html>

@@ -80,7 +80,7 @@ class Timeline private constructor(val slots: List<Slot>, val totalMs: Long) {
             val total = slots.last().endMs
             if (total > maxDurationMs) {
                 throw StoryboardException(
-                    "La vidéo durerait ${"%.1f".format(total / 1000.0)} s : le maximum est ${maxDurationMs / 1000} s"
+                    "La vidéo durerait ${Fmt.one(total / 1000.0)} s : le maximum est ${maxDurationMs / 1000} s"
                 )
             }
             return Timeline(slots, total)

@@ -97,7 +97,7 @@ internal class ReelLook(private val sb: Storyboard, private val template: Templa
                     phoneish && i % 2 == 0 -> if (Regex("code|mot de passe|pin|mfa").containsMatchIn(it.lowercase())) Visual.PHONE_KEYPAD else Visual.PHONE_SETTINGS
                     else -> listOf(Visual.ICON, Visual.WINDOW_TEXT, Visual.PHONE_SETTINGS)[(i + accentPick) % 3]
                 }
-                Beat("%02d  %s".format(i + 1, punch(label, 4)), plain(it), v, main = label, detail = detail, list = sc.items.map { x -> splitLabel(plain(x)).first },
+                Beat("${Fmt.pad(i + 1, 2)}  ${punch(label, 4)}", plain(it), v, main = label, detail = detail, list = sc.items.map { x -> splitLabel(plain(x)).first },
                     number = i, icon = iconFor(it, listOf(IconId.SHIELD, IconId.CHECK, IconId.TARGET, IconId.BULB)[(i + icon.ordinal) % 4]))
             }
             Layout.STAT -> listOf(Beat(punch(sc.title), plain(sc.title) + (if (sc.body.isNotEmpty()) " " + plain(sc.body) else ""), Visual.NUMBER, main = sc.statValue ?: "", icon = icon))

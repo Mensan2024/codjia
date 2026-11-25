@@ -57,7 +57,7 @@ internal class MontageLook(private val sb: Storyboard, private val kit: StyleKit
     private val pageCache = HashMap<String, List<IntRange>>()
     private val domain by lazy { DomainDetector.detect(TextSanitizer.clean(sb.title + " " + sb.scenes.joinToString(" ") { it.title + " " + it.body })) }
     private val astuceNo: Int? = (listOf(sb.title) + sb.scenes.take(1).flatMap { listOf(it.kicker ?: "", it.title) })
-        .firstNotNullOfOrNull { Regex("(?i)astuce\\D{0,30}?0*(\\d{1,4})").find(Marked.strip(it))?.groupValues?.get(1)?.toIntOrNull() }
+        .firstNotNullOfOrNull { Regex("astuce\\D{0,30}?0*(\\d{1,4})", RegexOption.IGNORE_CASE).find(Marked.strip(it))?.groupValues?.get(1)?.toIntOrNull() }
 
     enum class Kind { HOOK, KEYWORDS, DOC, PROMPT, TERMINAL, PHONE, OBJECT, NUMBER, VERSUS, END }
 
@@ -984,7 +984,7 @@ internal class MontageLook(private val sb: Storyboard, private val kit: StyleKit
             g.fillRoundRect(gx - gw / 2 + 14f, gy - gh / 2 + 18f, gx + gw / 2 + 14f, gy + gh / 2 + 18f, 20f, 0x77000000)
             g.fillRoundRect(gx - gw / 2, gy - gh / 2, gx + gw / 2, gy + gh / 2, 20f, rgb(0xF4F4F2))
             g.drawText("GUIDE", gx - gw / 2 + 36f, gy - gh / 2 + 90f, FontSpec(FontFamily.HEAVY, 400, 52f), dark)
-            val sub = astuceNo?.let { "ASTUCE %03d".format(it) } ?: "CODJIA"
+            val sub = astuceNo?.let { "ASTUCE ${Fmt.pad(it, 3)}" } ?: "CODJIA"
             g.drawTracked(sub, gx - gw / 2 + 38f, gy - gh / 2 + 150f, FontSpec(FontFamily.MONO, 700, 22f), rgb(0x555555), 3f)
             for (i in 0 until 5) {
                 val ly = gy - gh / 2 + 205f + i * 44f
@@ -1013,7 +1013,7 @@ internal class MontageLook(private val sb: Storyboard, private val kit: StyleKit
         astuceNo?.let {
             if (s.items.isNotEmpty()) return@let
             val nf = FontSpec(FontFamily.MONO, 700, 26f)
-            val txt = "PROCHAINE : ASTUCE %03d".format(it + 1)
+            val txt = "PROCHAINE : ASTUCE ${Fmt.pad(it + 1, 3)}"
             val al = clamp01((t - 1100f) / 300f)
             if (al > 0f) g.withPose(Pose(alpha = al), a.cx, a.t + 10f) { g.drawTracked(txt, a.cx - g.measureTracked(txt, nf, 3f) / 2, a.t + 20f, nf, accent, 3f) }
         }

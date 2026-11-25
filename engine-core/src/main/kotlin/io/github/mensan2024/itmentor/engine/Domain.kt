@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package io.github.mensan2024.itmentor.engine
 
-import java.text.Normalizer
-
 /** Domaines de CODJIA : l'informatique, l'IA, et quelques compétences transverses. */
 enum class Domain(val label: String, val kicker: String) {
     RESEAUX("Réseaux informatiques", "ASTUCE RÉSEAUX"),
@@ -58,8 +56,21 @@ object DomainDetector {
             "speaking" to 3, "listening" to 3, "present perfect" to 3, "irregular" to 3, "word" to 1, "learn" to 1, "the" to 1, "you" to 1),
     )
 
+    private const val ACCENTED = "àâäáãåçéèêëíìîïñóòôöõúùûüýÿœæÀÂÄÁÃÅÇÉÈÊËÍÌÎÏÑÓÒÔÖÕÚÙÛÜÝŸ"
+    private const val PLAIN = "aaaaaaceeeeiiiinooooouuuuyy\u0000\u0000AAAAAACEEEEIIIINOOOOOUUUUYY"
+
+    /** Retire les accents (sans java.text.Normalizer, pour tourner aussi dans le navigateur). */
+    fun stripAccents(s: String): String = buildString(s.length) {
+        for (c in s) {
+            when (c) {
+                'œ' -> append("oe"); 'æ' -> append("ae"); 'Œ' -> append("OE"); 'Æ' -> append("AE")
+                else -> { val i = ACCENTED.indexOf(c); append(if (i >= 0) PLAIN[i] else c) }
+            }
+        }
+    }
+
     fun normalize(text: String): String =
-        Normalizer.normalize(text.lowercase(), Normalizer.Form.NFD).replace(Regex("\\p{M}+"), "")
+        stripAccents(text.lowercase())
             .replace('’', '\'').replace(Regex("\\s+"), " ")
 
     private val patterns: Map<Domain, List<Pair<Regex, Int>>> = KEYWORDS.mapValues { (_, keys) ->
