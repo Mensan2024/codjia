@@ -420,7 +420,7 @@ private fun previewPage(): HTMLElement {
     page.appendChild(el("div", "tags").add(el("span", "tag accent", styleName()), dur))
     if (Store.get("tip") != "0") {
         val tip = el("div", "tip")
-        tip.add(el("span", "", "Touche l'aperçu pour mettre en pause. Voix, Format, Musique et Autre version sont dans la barre du bas."),
+        tip.add(el("span", "", "Touche l'aperçu pour le mettre en pause."),
             button("Compris", "") { Store.set("tip", "0"); tip.remove() })
         page.appendChild(tip)
     }

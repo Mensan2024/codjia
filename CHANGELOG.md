@@ -2,6 +2,11 @@
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [2.4.1]
+
+### Corrigé (version web)
+- Barre du bas : fond opaque (le texte de confidentialité ne passe plus derrière les boutons), message de confirmation placé au-dessus de la barre, libellés jamais coupés, astuce de première utilisation compacte.
+
 ## [2.4.0]
 
 ### Ajouté (version web)
