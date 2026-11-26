@@ -2,6 +2,11 @@
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [2.4.2]
+
+### Corrigé (version web)
+- Aperçu sur petit écran : la barre de lecture n'est plus recouverte par la barre du bas (marge basse suffisante).
+
 ## [2.4.1]
 
 ### Corrigé (version web)
