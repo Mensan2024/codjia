@@ -247,7 +247,7 @@ private fun textPage(): HTMLElement {
     val page = el("main", "page")
     val hero = el("section", "hero")
     hero.add(el("h1", "", "Ton texte devient une vidéo"),
-        el("p", "lead", "Colle ton astuce, ta leçon ou ton message. CODJIA crée une vidéo verticale animée, avec musique et voix off si tu veux."))
+        el("p", "lead", "Colle ton texte : CODJIA en fait une vidéo animée."))
     page.appendChild(hero)
     val card = el("div", "card editor")
     val area = el("textarea", "text") as org.w3c.dom.HTMLTextAreaElement
@@ -274,10 +274,8 @@ private fun textPage(): HTMLElement {
     area.addEventListener("input", { refresh() })
     card.add(area, meta)
     page.appendChild(card)
-    page.appendChild(el("div", "label", "Exemples"))
-    val chips = el("div", "chips")
-    for ((name, text) in Examples.ALL) chips.appendChild(button(name, "chip") { area.value = text; refresh() })
-    page.appendChild(chips)
+    val ex = Examples.ALL.first().second
+    page.appendChild(el("div", "chips").add(button("Essayer un exemple", "chip") { area.value = ex; refresh() }))
     refresh()
     val go = button("Créer ma vidéo", "btn primary wide big", Ic.sparkle) {
         App.audio.context() // geste de l'utilisateur : le son pourra être joué (iPhone)
@@ -349,14 +347,8 @@ private suspend fun plan(status: (String, Int?) -> Unit): Pair<Storyboard, Pcm?>
 
 private fun previewPage(): HTMLElement {
     val page = el("main", "page preview-page")
-    val music = App.choice.track?.let { if (App.choice.hasAudio) it.title else "${it.title} (coupée)" } ?: "Sans musique"
-    val hasDemo = App.content.scenes.any { it.layout == Layout.SCREEN }
-    val tags = el("div", "tags")
-    tags.add(el("span", "tag", "Version ${App.generation}"), el("span", "tag accent", styleName() + if (hasDemo) " + démo" else ""),
-        el("span", "tag", "♪ $music"))
     val dur = el("span", "tag", "…")
-    tags.appendChild(dur)
-    page.appendChild(tags)
+    page.appendChild(el("div", "tags").add(dur))
 
     val stage = el("div", "stage")
     val canvas = el("canvas", "preview")
@@ -376,16 +368,8 @@ private fun previewPage(): HTMLElement {
         button("Oui", "seg-btn" + if (App.voiceOn) " on" else "") { if (!App.voiceOn) { App.voiceOn = true; show(Step.PREVIEW) } })
     voiceRow.appendChild(seg)
     page.appendChild(voiceRow)
-    if (App.voiceOn) {
-        val langs = el("div", "chips center")
-        for (m in listOf(VoiceMode.AUTO, VoiceMode.FR, VoiceMode.EN)) langs.appendChild(button(m.label, "chip" + if (App.voiceMode == m) " on" else "") {
-            App.voiceMode = m; show(Step.PREVIEW)
-        })
-        page.appendChild(langs)
-    }
-
     val grid = el("div", "actions")
-    grid.add(button("Style", "tile", Ic.palette) { show(Step.STYLE) }, button("Musique", "tile", Ic.music) { show(Step.MUSIC) },
+    grid.add(button("Musique", "tile", Ic.music) { show(Step.MUSIC) },
         button("Autre version", "tile", Ic.dice) { try { propose(true); show(Step.PREVIEW) } catch (e: Throwable) { toast(e.message ?: "Erreur") } })
     page.appendChild(grid)
     if (!Exporter.supported()) page.appendChild(el("p", "warn", "Ce navigateur affiche l'aperçu mais ne sait pas encore fabriquer la vidéo MP4. Utilise Chrome, Edge, Firefox récent ou Safari 16.4+ (iPhone : iOS 16.4 ou plus)."))

@@ -2,6 +2,11 @@
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [2.0.2]
+
+### Modifié
+- Web : interface épurée. Accueil : un seul exemple (« Essayer un exemple »), texte d'introduction court. Aperçu : plus de pastilles de détails, plus de choix de langue, seulement Voix off, Musique, Autre version et Générer.
+
 ## [2.0.1]
 
 ### Corrigé
