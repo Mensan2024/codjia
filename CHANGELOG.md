@@ -2,6 +2,14 @@
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [2.3.0]
+
+### Ajouté
+- Démonstrations visuelles par domaine dans le format Infographie, toutes étiquetées « Simulation » ou « Illustration » : trajet d'un paquet avec TTL (réseaux), VLAN isolés par un commutateur (réseaux), prompt vague contre prompt précis (IA), éditeur de code avec erreur puis correction (développement), rythme cardiaque et quatre habitudes (santé), SMS piégé vers faux site (hameçonnage).
+
+### Corrigé
+- Un texte sur l'hameçonnage n'affiche plus le schéma des mots de passe, hors sujet.
+
 ## [2.2.0]
 
 ### Ajouté

@@ -34,7 +34,7 @@ internal class InfographicLook(private val sb: Storyboard, private val kit: Styl
     private val astuceNo: Int? = (listOf(sb.title) + sb.scenes.take(1).flatMap { listOf(it.kicker ?: "", it.title) })
         .firstNotNullOfOrNull { Regex("astuce\\D{0,30}?0*(\\d{1,4})", RegexOption.IGNORE_CASE).find(Marked.strip(it))?.groupValues?.get(1)?.toIntOrNull() }
 
-    enum class Diagram { CHAPTER, HERO_ICON, STEPLIST, TARGETS, LOCK_ATTACK, SHIELD, BARS, CHAIN, ATTEMPTS, CHART, TERMINAL, NUMBER, VERSUS, CHECKS, TEXT, CTA }
+    enum class Diagram { CHAPTER, HERO_ICON, STEPLIST, TARGETS, LOCK_ATTACK, SHIELD, BARS, CHAIN, ATTEMPTS, CHART, TERMINAL, NUMBER, VERSUS, CHECKS, TEXT, CTA, PACKETS, PROMPT, EDITOR, PULSE, PHISHING, VLAN }
 
     data class Beat(val chip: String, val l1: String, val l2: String, val caption: String, val diagram: Diagram,
                     val main: String = "", val detail: String? = null, val list: List<String> = emptyList(), val index: Int = 0, val good: Boolean = true, val icon: IconId = IconId.BULB, val attack: Boolean = false)
@@ -72,8 +72,15 @@ internal class InfographicLook(private val sb: Storyboard, private val kit: Styl
             Regex("surveill|journal|auth\\.log|alerte|échecs|echecs|détecte|detecte").containsMatchIn(t) -> Diagram.CHART
             Regex("limite|limitation|tentative|verrouill|bloque|bannir|fail2ban").containsMatchIn(t) -> Diagram.ATTEMPTS
             Regex("\\bmfa\\b|\\b2fa\\b|double authentification|authentification à deux|code reçu|application d'authentification").containsMatchIn(t) -> Diagram.CHAIN
+            (Regex("phishing|hameçon|hamecon|sms piégé|sms pieg|lien suspect|faux site|usurp|cliquer sur un lien").containsMatchIn(t) ||
+                phishingContext && Regex("message|sms|lien|expéditeur|expediteur|demande de|signale|banque|colis").containsMatchIn(t)) -> Diagram.PHISHING
             Regex("mots? de passe|passphrase|robuste").containsMatchIn(t) -> Diagram.BARS
             Regex("^(sudo|git|ls|df|ssh|apt|systemctl|docker|npm|show|vlan|ufw|chmod)\\b").containsMatchIn(t) -> Diagram.TERMINAL
+            domain == Domain.RESEAUX && Regex("vlan").containsMatchIn(t) -> Diagram.VLAN
+            domain == Domain.RESEAUX && Regex("paquet|ttl|traceroute|routage|\\bping\\b|passerelle").containsMatchIn(t) -> Diagram.PACKETS
+            domain == Domain.IA && Regex("prompt|consigne|précis|vague|exactement|chatgpt").containsMatchIn(t) -> Diagram.PROMPT
+            domain == Domain.FULLSTACK && Regex("code|fonction|bug|erreur|variable|python|javascript|\\bapi\\b|programme|test").containsMatchIn(t) -> Diagram.EDITOR
+            domain == Domain.SANTE -> Diagram.PULSE
             else -> fallback
         }
     }
@@ -156,7 +163,7 @@ internal class InfographicLook(private val sb: Storyboard, private val kit: Styl
     private fun beatAt(sc: Scene, t: Float): Triple<Int, Float, Float> {
         val bs = beats(sc)
         // Les schémas riches (graphique + terminal, fail2ban, MFA, mots de passe) ont besoin de plus de temps pour se dérouler.
-        val rich = setOf(Diagram.CHART, Diagram.ATTEMPTS, Diagram.CHAIN, Diagram.BARS, Diagram.LOCK_ATTACK)
+        val rich = setOf(Diagram.PACKETS, Diagram.VLAN, Diagram.PROMPT, Diagram.EDITOR, Diagram.PULSE, Diagram.PHISHING, Diagram.CHART, Diagram.ATTEMPTS, Diagram.CHAIN, Diagram.BARS, Diagram.LOCK_ATTACK)
         val w = bs.map {
             (0.7f + 0.3f * (it.caption.length.coerceIn(30, 180) / 100f)) * (if (it.diagram in rich) 1.4f else 1f) +
                 (if (it.diagram == Diagram.CTA) -0.3f else 0f) + (if (it.diagram == Diagram.CHAPTER) -0.25f else 0f)
@@ -325,8 +332,27 @@ internal class InfographicLook(private val sb: Storyboard, private val kit: Styl
             Diagram.VERSUS -> versus(g, b, t, a, key)
             Diagram.CHECKS -> checks(g, b, t, a, key)
             Diagram.TEXT -> textCard(g, b, t, a, key)
+            Diagram.PACKETS -> domainDiagram(g, a) { l, tp, r, bt -> demos.packets(g, t, l, tp, r, bt) }
+            Diagram.PROMPT -> domainDiagram(g, a) { l, tp, r, bt -> demos.prompt(g, t, l, tp, r, bt) }
+            Diagram.EDITOR -> domainDiagram(g, a) { l, tp, r, bt -> demos.editor(g, t, l, tp, r, bt) }
+            Diagram.VLAN -> domainDiagram(g, a) { l, tp, r, bt -> demos.vlan(g, t, l, tp, r, bt) }
+            Diagram.PULSE -> domainDiagram(g, a) { l, tp, r, bt -> demos.pulse(g, t, l, tp, r, bt) }
+            Diagram.PHISHING -> domainDiagram(g, a) { l, tp, r, bt -> demos.phishing(g, t, l, tp, r, bt) }
             Diagram.CTA, Diagram.CHAPTER -> {}
         }
+    }
+
+    private val phishingContext by lazy {
+        Regex("phishing|hameçon|hamecon|sms piégé|sms pieg|lien suspect|faux site", RegexOption.IGNORE_CASE)
+            .containsMatchIn(sb.title + " " + sb.scenes.joinToString(" ") { it.title + " " + it.body })
+    }
+
+    private val demos by lazy { DomainDiagrams(ink, muted, accent, danger, ok, warn) }
+
+    /** Les démonstrations sont dessinées pour 560 px de haut ; réduites si la zone est plus basse. */
+    private fun domainDiagram(g: Gfx, a: R, draw: (Float, Float, Float, Float) -> Unit) {
+        val s = (a.h / 560f).coerceIn(0.5f, 1f)
+        g.withPose(Pose(scale = s), a.cx, a.t) { draw(a.l, a.t, a.r, a.t + 560f) }
     }
 
     private fun card(g: Gfx, l: Float, tp: Float, r: Float, bt: Float, border: Int = 0x26FFFFFF) {
