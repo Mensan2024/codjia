@@ -43,6 +43,7 @@ object ArtDirector {
             d("bible-enseignement", "Enseignement au tableau", Look.TABLEAU, Mood.WARM, listOf("lofi", "cinematic"), 1, "idéal pour expliquer un passage point par point"),
         ),
         ContentFamily.PERSONAL to listOf(
+            d("perso-elan", "Élan", Look.ELAN, Mood.ENERGETIC, listOf("cinematic", "hiphop", "afrobeat"), 2, "soleil levant et chaîne de progression : énergie posée, sans flash"),
             d("perso-montage", "Élan dynamique", Look.MONTAGE, Mood.ENERGETIC, listOf("hiphop", "future", "afrobeat"), 3, "chapitres numérotés et sous-titres mot à mot : progression visible"),
             d("perso-neon", "Affiche motivation", Look.NEON, Mood.ENERGETIC, listOf("future", "hiphop", "edm"), 3, "titres percutants, rythme soutenu"),
             d("perso-collage", "Collage inspirant", Look.COLLAGE, Mood.WARM, listOf("afrobeat", "amapiano", "cinematic"), 2, "cartes en papier, étiquettes, côté humain"),

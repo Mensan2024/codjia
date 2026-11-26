@@ -2,6 +2,15 @@
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [2.5.3]
+
+### Ajouté
+- **Format « Élan »** (famille développement personnel, première direction recommandée) : soleil qui se lève lentement, titres condensés en majuscules, grands numéros, chaîne de points qui se remplit de scène en scène, cases cochées en conclusion. Trois ambiances (aube, or, vert), énergique mais sans flash.
+
+### Corrigé
+- Les lignes sans puce écrites après une liste ne sont plus numérotées comme une étape de plus (« Quatre habitudes » n'affiche plus 5 étapes) : elles passent dans leur propre scène, dans l'ordre de l'auteur.
+- Une conclusion de type définition (« la discipline, c'est choisir… ») n'est plus coupée en deux puces.
+
 ## [2.5.2]
 
 ### Ajouté

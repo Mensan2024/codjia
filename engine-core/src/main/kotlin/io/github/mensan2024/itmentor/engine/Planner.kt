@@ -50,7 +50,7 @@ data class TextAnalysis(
 )
 
 /** Une partie du texte : un en-tête facultatif (« Comment l'éviter »), des phrases d'explication et/ou une liste. */
-data class TextSection(val header: String?, val prose: List<String>, val items: List<String>)
+data class TextSection(val header: String?, val prose: List<String>, val items: List<String>, val tailCount: Int = 0)
 
 /**
  * Transforme un texte libre (astuce, post LinkedIn, notes de cours) en storyboard prêt à habiller.
@@ -157,7 +157,11 @@ object StoryboardPlanner {
                     // Puces + lignes courtes = la liste ; les paragraphes longs restent des explications.
                     val items = rw.entries.filter { it.first || isShort(it.second) }.map { it.second }
                     val prose = rw.entries.filter { !it.first && !isShort(it.second) }.flatMap { sentences(it.second) }
-                    TextSection(rw.header, prose, items)
+                    // Lignes sans puce APRÈS la dernière puce : elles restent dans la liste (rien n'est perdu) mais le planificateur
+                    // les montre à part, dans l'ordre, au lieu de les numéroter comme une étape de plus.
+                    val lastBullet = rw.entries.indexOfLast { it.first }
+                    val tail = rw.entries.drop(lastBullet + 1).count { !it.first && isShort(it.second) }
+                    TextSection(rw.header, prose, items, tail)
                 }
                 rw.header != null && texts.size >= 2 && texts.all(::isShort) -> TextSection(rw.header, emptyList(), texts)
                 else -> TextSection(rw.header, texts.flatMap { sentences(it) }, emptyList())
@@ -390,7 +394,8 @@ object StoryboardPlanner {
             val allItems = sec.items.map { frenchTypo(item(it)) }
             // Paragraphes longs en fin de liste (avertissement, précision) : ils gardent leur place, mais dans une scène de lecture
             // à eux plutôt qu'en puce trop dense, pour que chaque mot de l'auteur reste lisible.
-            val tailLong = allItems.takeLastWhile { it.length > 120 }.let { if (allItems.size - it.size >= 2) it else emptyList() }
+            val tailN = maxOf(sec.tailCount, allItems.takeLastWhile { it.length > 120 }.size)
+            val tailLong = allItems.takeLast(tailN).let { if (allItems.size - it.size >= 2) it else emptyList() }
             val items = allItems.dropLast(tailLong.size)
             if (items.size >= 2) {
                 val nChunks = (items.size + 4) / 5
@@ -445,7 +450,9 @@ object StoryboardPlanner {
             else {
                 // Une seule phrase : on la découpe en idées si chaque morceau reste court.
                 val parts = c.trimEnd('.').split(Regex(",\\s*(?:et\\s+)?|\\s+et\\s+|;\\s*")).map { it.trim() }.filter { it.length >= 3 }
-                if (parts.size >= 2 && parts.all { it.length <= 75 }) parts.take(4) else listOf(c.trimEnd('.'))
+                // Une définition (« la discipline, c'est choisir… ») ne se coupe pas en deux puces : le sens serait perdu.
+                val definition = parts.drop(1).any { Regex("^(?:c['’]est|ce sont|cela|ça)\\b", RegexOption.IGNORE_CASE).containsMatchIn(it) } || parts.first().split(' ').size < 3
+                if (parts.size >= 2 && !definition && parts.all { it.length <= 75 }) parts.take(4) else listOf(c.trimEnd('.'))
             }
         }?.takeIf { it.size >= 2 }
             ?: a.conclusion?.let { listOf(it.trimEnd('.')) }
