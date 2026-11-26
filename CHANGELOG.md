@@ -2,6 +2,11 @@
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [2.4.3]
+
+### Corrigé (version web)
+- Aperçu : la taille de la vidéo laisse toujours la place à la barre de lecture au-dessus de la barre d'outils ; les quatre boutons tiennent sur une ligne même sur un écran de 360 px.
+
 ## [2.4.2]
 
 ### Corrigé (version web)
