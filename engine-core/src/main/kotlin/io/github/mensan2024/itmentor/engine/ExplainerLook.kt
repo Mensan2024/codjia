@@ -39,6 +39,8 @@ internal class ExplainerLook(private val sb: Storyboard, private val variant: In
     private data class Beat(
         val kind: Kind, val tag: String, val name: String, val caption: String,
         val main: String = "", val detail: String? = null, val list: List<String> = emptyList(), val index: Int = 0, val icon: IconId = IconId.BULB,
+        /** Intitulé complet de la partie, tel qu'écrit dans le texte. */
+        val section: String = "",
     )
 
     private fun plain(s: String?) = Marked.strip(s ?: "").replace(' ', ' ').trim()
@@ -61,6 +63,14 @@ internal class ExplainerLook(private val sb: Storyboard, private val variant: In
         return out.ifEmpty { c.take(26) }.replaceFirstChar { it.uppercase() }
     }
 
+    /** Titre complet réparti sur deux lignes équilibrées (rien n'est coupé). */
+    private fun balanced(text: String): Pair<String, String> {
+        val w = plain(text).split(' ').filter { it.isNotBlank() }
+        if (w.size <= 2) return w.joinToString(" ") to ""
+        val k = (w.size + 1) / 2
+        return w.take(k).joinToString(" ") to w.drop(k).joinToString(" ")
+    }
+
     private fun split2(text: String): Pair<String, String> {
         val cut = plain(text).split(Regex(" : | \\(|, | — ")).first().trim().trimEnd('.', '!', ':')
         val w = cut.split(' ').filter { it.isNotBlank() }.take(8)
@@ -74,7 +84,7 @@ internal class ExplainerLook(private val sb: Storyboard, private val variant: In
         when (sc.layout) {
             Layout.HERO -> listOf(Beat(Kind.COVER, astuceNo?.let { "ASTUCE ${Fmt.pad(it, 3)}" } ?: "CODJIA", plain(sc.title), plain(sc.subtitle ?: sc.title),
                 list = sb.scenes.filter { it.layout == Layout.STEPS }.flatMap { it.items }.map { short(splitLabel(plain(it)).first) }.filter { it.length >= 3 }.take(6), icon = sc.iconOrDefault()))
-            Layout.DEFINITION -> listOf(Beat(Kind.DEFINE, "LE PRINCIPE", short(sc.title), plain(sc.body.ifEmpty { sc.subtitle }), main = plain(sc.body.ifEmpty { sc.subtitle })))
+            Layout.DEFINITION -> listOf(Beat(Kind.DEFINE, "LE PRINCIPE", short(sc.title), plain(sc.body.ifEmpty { sc.subtitle }), main = plain(sc.body.ifEmpty { sc.subtitle }), section = plain(sc.title)))
             Layout.STEPS -> {
                 val word = if (domain == Domain.CYBER) "DÉFENSE" else "ÉTAPE"
                 val labels = sc.items.map { short(splitLabel(plain(it)).first) }
@@ -82,16 +92,16 @@ internal class ExplainerLook(private val sb: Storyboard, private val variant: In
                 val total = totalSteps.coerceAtLeast(sc.items.size)
                 sc.items.mapIndexed { i, it ->
                     val (label, detail) = splitLabel(plain(it))
-                    Beat(Kind.STEP, "$word ${n0 + i + 1}/$total", short(label), plain(it), main = label, detail = detail, list = labels, index = i)
+                    Beat(Kind.STEP, "$word ${n0 + i + 1}/$total", short(label), plain(it), main = label, detail = detail, list = labels, index = i, section = plain(sc.title))
                 }
             }
             Layout.STAT -> listOf(Beat(Kind.STAT, tag.ifEmpty { "LE CHIFFRE" }, short(sc.title), plain(sc.title) + (if (sc.body.isNotEmpty()) ". " + plain(sc.body) else ""), main = sc.statValue ?: ""))
             Layout.COMPARE -> sc.compare?.let { c ->
                 listOf(Beat(Kind.VERSUS, "À ÉVITER", short(c.badText()), "${plain(c.badLabel)} : ${c.badText()}. ${plain(c.goodLabel)} : ${c.goodText()}.",
-                    main = c.badText(), detail = c.goodText(), list = listOf(short(c.goodText()))))
+                    main = c.badText(), detail = c.goodText(), list = listOf(short(c.goodText())), section = plain(sc.title)))
             } ?: emptyList()
             Layout.CHECKLIST -> listOfNotNull(
-                if (sc.items.isEmpty()) null else Beat(Kind.CHECK, tag.ifEmpty { "À RETENIR" }, short(sc.title).let { n -> if (n.equals(tag.ifEmpty { "À RETENIR" }, ignoreCase = true)) "L'essentiel" else n }, plain(sc.subtitle).ifEmpty { "${sc.items.size} réflexes simples à appliquer dès aujourd'hui." }, list = sc.items.map(::plain)),
+                if (sc.items.isEmpty()) null else Beat(Kind.CHECK, tag.ifEmpty { "À RETENIR" }, short(sc.title).let { n -> if (n.equals(tag.ifEmpty { "À RETENIR" }, ignoreCase = true)) "L'essentiel" else n }, (listOf(plain(sc.subtitle)) + sc.items.map(::plain)).filter { it.isNotBlank() }.joinToString(". ").replace("..", "."), list = sc.items.map(::plain), section = plain(sc.title)),
                 Beat(Kind.CTA, "CODJIA", "La suite", astuceNo?.let { "Abonne-toi pour l'astuce ${Fmt.pad(it + 1, 3)} !" } ?: plain(sc.body).ifEmpty { "Abonne-toi pour la suite !" }, main = plain(sc.body)),
             )
             Layout.SCREEN -> emptyList()
@@ -128,11 +138,11 @@ internal class ExplainerLook(private val sb: Storyboard, private val variant: In
         val key = "${sc.id}/$i"
         when (b.kind) {
             Kind.COVER -> cover(g, b, t, len, key)
-            Kind.DEFINE -> { card(g, b.tag, b.name, t, key); panel(g, t, "En clair") { define(g, b, t, len, key) } }
-            Kind.STEP -> { card(g, b.tag, b.name, t, key, answer = pop(t, len * 0.45f)); panel(g, t, "Pas à pas") { step(g, b, t, len, key) } }
-            Kind.VERSUS -> { card(g, b.tag, b.name, t, key, strike = pop(t, len * 0.3f), answer = pop(t, len * 0.5f), answerTag = "À FAIRE", answerName = b.list.firstOrNull() ?: "La bonne façon"); panel(g, t, "Comparons") { versus(g, b, t, len, key) } }
+            Kind.DEFINE -> { card(g, b.tag, b.name, t, key); panel(g, t, b.section.ifEmpty { "En clair" }) { define(g, b, t, len, key) } }
+            Kind.STEP -> { card(g, b.tag, b.name, t, key, answer = pop(t, len * 0.45f)); panel(g, t, b.section.ifEmpty { "Pas à pas" }) { step(g, b, t, len, key) } }
+            Kind.VERSUS -> { card(g, b.tag, b.name, t, key, strike = pop(t, len * 0.3f), answer = pop(t, len * 0.5f), answerTag = "À FAIRE", answerName = b.list.firstOrNull() ?: "La bonne façon"); panel(g, t, b.section.ifEmpty { "Comparons" }) { versus(g, b, t, len, key) } }
             Kind.STAT -> { card(g, b.tag, b.name, t, key); panel(g, t, "En chiffres") { stat(g, b, t, len) } }
-            Kind.CHECK -> { card(g, b.tag, b.name, t, key); panel(g, t, "Ta liste") { check(g, b, t, len, key) } }
+            Kind.CHECK -> { card(g, b.tag, b.name, t, key); panel(g, t, b.section.ifEmpty { "Ta liste" }) { check(g, b, t, len, key) } }
             Kind.CTA -> { card(g, b.tag, b.name, t, key); panel(g, t, "") { cta(g, t, len) } }
         }
         progress(g, offsets.getValue(sc.id) + i, t)
@@ -195,7 +205,7 @@ internal class ExplainerLook(private val sb: Storyboard, private val variant: In
                     g.strokeRoundRect(Safe.LEFT, top, Safe.RIGHT, bottom, 36f, 1.5f, 0x24FFFFFF)
                 }
             }
-            if (title.isNotEmpty()) g.drawText(title, Safe.LEFT + 44f, top + 86f, serif, white)
+            if (title.isNotEmpty()) g.drawText(title, Safe.LEFT + 44f, top + 86f, fitSize(g, title, serif, Safe.WIDTH - 88f), white)
             body()
         }
     }
@@ -308,7 +318,7 @@ internal class ExplainerLook(private val sb: Storyboard, private val variant: In
     // ───────────────────────────── Couverture ─────────────────────────────
 
     private fun cover(g: Gfx, b: Beat, t: Float, len: Float, key: String) {
-        val (l1, l2) = split2(b.name)
+        val (l1, l2) = balanced(b.name)
         val a = pop(t)
         g.drawTracked(b.tag, Safe.LEFT, 330f, txt(800, 26f), th.gold, 3f)
         val f1 = fitSize(g, l1, FontSpec(FontFamily.SERIF, 400, 112f), Safe.WIDTH)
@@ -358,7 +368,7 @@ internal class ExplainerLook(private val sb: Storyboard, private val variant: In
         val x0 = Safe.LEFT + 40f; val x1 = Safe.RIGHT - 40f
         val bl = cache.fit(g, "d/$key", b.main, txt(600, 42f), x1 - x0 - 60f, 7, 1.32f)
         g.fillRoundRect(x0, 760f, x1, 760f + maxOf(260f, bl.height + 60f).coerceAtMost(420f), 24f, th.card)
-        val reveal = clamp01((t - 250f) / (len * 0.7f))
+        val reveal = clamp01((t - len * 0.08f) / (len * 0.5f))
         g.drawBlock(bl, x0 + 30f, 790f, white, reveal = reveal, caretColor = th.gold, caretVisible = ((t / 450f).toInt() % 2 == 0))
     }
 
@@ -388,7 +398,7 @@ internal class ExplainerLook(private val sb: Storyboard, private val variant: In
         g.drawTracked(if (b.detail != null) "POURQUOI" else "À RETENIR", rx + 30f, 810f, head, th.gold, 2.4f)
         val body = b.detail ?: b.main
         val bl = cache.fit(g, "s/$key", body, txt(600, 40f), x1 - rx - 60f, 7, 1.32f)
-        g.drawBlock(bl, rx + 30f, 836f, white, reveal = clamp01((t - 200f) / (len * 0.65f)), caretColor = th.gold, caretVisible = ((t / 450f).toInt() % 2 == 0))
+        g.drawBlock(bl, rx + 30f, 836f, white, reveal = clamp01((t - len * 0.08f) / (len * 0.5f)), caretColor = th.gold, caretVisible = ((t / 450f).toInt() % 2 == 0))
     }
 
     private fun versus(g: Gfx, b: Beat, t: Float, len: Float, key: String) {
@@ -434,7 +444,7 @@ internal class ExplainerLook(private val sb: Storyboard, private val variant: In
 
     private fun check(g: Gfx, b: Beat, t: Float, len: Float, key: String) {
         val x0 = Safe.LEFT + 40f; val x1 = Safe.RIGHT - 40f
-        val items = b.list.take(6)
+        val items = b.list.take(8)
         val rh = minOf(96f, 410f / maxOf(1, items.size))
         for ((i, it) in items.withIndex()) {
             val y = 770f + i * rh

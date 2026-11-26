@@ -2,6 +2,17 @@
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [2.2.0]
+
+### Ajouté
+- Quatre formats : Journal télévisé, Flash info, Terminal, BD.
+- Test « chaque format montre tout le texte de l'auteur » (tous formats × textes d'exemple).
+
+### Corrigé
+- Conservation intégrale du texte : les titres de section de l'auteur (« Comment se comporter si tu as cliqué : », « Sur tes propres machines ou avec autorisation : »…) sont conservés tels quels, dans leur ordre, sans remplacement par un titre générique.
+- Frappe du texte terminée avant la fin des scènes courtes ; titres longs et étapes longues non coupés.
+- Logo : seul « CODJIA » reste affiché pendant la lecture.
+
 ## [2.1.1]
 
 ### Ajouté

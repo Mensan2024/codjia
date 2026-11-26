@@ -130,6 +130,41 @@ class RenderTest {
         println("Textes libres : $checked textes vérifiés")
     }
 
+    /**
+     * Conservation intégrale : pour chaque format et chaque texte de référence, tous les mots (4 lettres ou plus)
+     * du texte de l'auteur sont réellement dessinés à l'écran à un moment de la vidéo.
+     */
+    @Test fun chaqueFormatMontreToutLeTexteDeLAuteur() {
+        val dir = listOf(File("engine-core/src/test/resources/textes"), File("../engine-core/src/test/resources/textes")).first { it.isDirectory }
+        fun words(t: String) = Regex("[\\p{L}]{4,}").findAll(t.lowercase().replace('’', '\'')).map { it.value }.toSet()
+        val missingByLook = LinkedHashMap<String, MutableSet<String>>()
+        for (f in dir.listFiles()!!.filter { it.extension == "txt" }.sortedBy { it.name }) {
+            val src = io.github.mensan2024.itmentor.engine.TextSanitizer.clean(f.readText())
+                .lines().filter { !it.trim().startsWith("#") }.mapIndexed { i, l -> if (i == 0) l.substringAfter("—") else l }.joinToString("\n")
+            val want = words(src)
+            for (look in io.github.mensan2024.itmentor.engine.Look.entries) {
+                val p = io.github.mensan2024.itmentor.engine.CreativeDirector.propose(f.readText(), 5L, forcedLook = look)
+                val r = FrameRenderer(Composer.prepare(p.storyboard, p.template, null), VideoFormat(540, 960, 30), p.template)
+                val seen = HashSet<String>()
+                // Certains formats dessinent le texte lettre par lettre : on recolle aussi les morceaux d'une même image.
+                val glued = StringBuilder()
+                var t = 300f
+                while (t < r.timeline.totalMs) {
+                    val rec = ArrayList<Pair<String, Rectangle2D>>()
+                    render(r, t, rec)
+                    for ((txt, _) in rec) seen += words(txt)
+                    glued.append(rec.joinToString("") { it.first }.lowercase().replace('’', '\'')).append('|')
+                    t += 350f
+                }
+                val gl = glued.toString()
+                val miss = (want - seen).filterNot { gl.contains(it) }
+                if (miss.isNotEmpty()) missingByLook.getOrPut(look.name) { LinkedHashSet() }.addAll(miss.map { "${f.name}:$it" })
+            }
+        }
+        missingByLook.forEach { (l, m) -> println("MANQUE $l (${m.size}) : ${m.take(8)}") }
+        assertTrue("Formats qui ne montrent pas tout le texte : ${missingByLook.mapValues { it.value.size }}", missingByLook.isEmpty())
+    }
+
     /** Styles modulables : 24 combinaisons tirées au hasard, vérifiées toutes les 1,2 s sur toute la vidéo. */
     @Test fun lesStylesModulablesRestentPropres() {
         val dir = listOf(File("engine-core/src/test/resources/textes"), File("../engine-core/src/test/resources/textes")).first { it.isDirectory }

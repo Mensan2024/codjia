@@ -87,9 +87,10 @@ internal class ReelLook(private val sb: Storyboard, private val template: Templa
             )
             Layout.DEFINITION -> {
                 val body = plain(sc.body.ifEmpty { sc.subtitle ?: sc.title })
-                listOf(Beat(punch(sc.title), body, if (rs == ReelStyle.CINEMA || r.next() < 0.5f) Visual.WINDOW_TEXT else Visual.ICON, main = body, icon = icon))
+                val cap = if (sc.authorTitle) plain(sc.title).trimEnd(':') + ". " + body else body
+                listOf(Beat(punch(sc.title), cap, if (rs == ReelStyle.CINEMA || r.next() < 0.5f) Visual.WINDOW_TEXT else Visual.ICON, main = body, icon = icon))
             }
-            Layout.STEPS -> sc.items.mapIndexed { i, it ->
+            Layout.STEPS -> (if (sc.authorTitle) listOf(Beat(punch(sc.title, 4), plain(sc.title), Visual.ICON, main = plain(sc.title), icon = icon, weight = 0.8f)) else emptyList()) + sc.items.mapIndexed { i, it ->
                 val (label, detail) = splitLabel(plain(it))
                 val cmd = Regex("^(sudo|git|ls|df|du|ps|ssh|ping|ip|apt|systemctl|docker|npm|show|vlan|interface|ufw|chmod|netstat|nmap|get-|set-)", RegexOption.IGNORE_CASE).containsMatchIn(label)
                 val v = when {

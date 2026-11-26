@@ -131,7 +131,7 @@ internal class MascotLook(private val sb: Storyboard, private val template: Temp
     /** Texte qui s'écrit dans la bulle ; renvoie (bas, parle-t-il ?). */
     private fun spoken(g: Gfx, key: String, text: String, font: FontSpec, x: Float, top: Float, w: Float, lines: Int, t: Float, start: Float, color: Int = paperInk): Pair<Float, Float> {
         val b = cache.fit(g, key, text, font, w, lines, 1.28f)
-        val dur = (b.charCount * 30f).coerceIn(400f, 3600f)
+        val dur = (b.charCount * 16f).coerceIn(300f, 2000f)
         val p = window(t, start, dur)
         if (p > 0f) g.drawBlock(b, x, top, color, reveal = p)
         return top + b.height to (if (p > 0f && p < 1f) 1f else 0f)
@@ -161,7 +161,7 @@ internal class MascotLook(private val sb: Storyboard, private val template: Temp
         val n = sc.items.size.coerceAtLeast(1)
         val avail = limit - 80f - y - 60f
         val row = (avail / n).coerceIn(90f, 190f)
-        val lines = if (row >= 108f) 2 else 1
+        val lines = if (row >= 140f) 3 else if (row >= 108f) 2 else 1
         val bottom = y + 60f + row * n
         bubble(g, Safe.LEFT, y, Safe.RIGHT, bottom, cx, window(t, 400f, 400f))
         val step = ((sc.durationMs * 0.78f - 800f) / n).coerceAtLeast(400f)

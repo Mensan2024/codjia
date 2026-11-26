@@ -32,6 +32,14 @@ enum class Look(val label: String, val tagline: String, val transitions: List<Tr
         listOf(TransitionType.CUT, TransitionType.FADE)),
     EXPLIC_BANDEAU("Explicatif · bandeau", "Simulation haute et légende dans un bandeau",
         listOf(TransitionType.FADE, TransitionType.CUT)),
+    JOURNAL("Journal télévisé", "Incrustation, bandeau de titre et bandeau défilant",
+        listOf(TransitionType.WIPE, TransitionType.CUT)),
+    FLASH("Flash information", "Alerte rouge, titre qui claque, texte en gros",
+        listOf(TransitionType.CUT, TransitionType.ZOOM)),
+    TERMINAL("Terminal hacker", "Le texte est tapé commande par commande dans un terminal",
+        listOf(TransitionType.CUT)),
+    BD("Bande dessinée", "Cases, éclats, bulles et légendes",
+        listOf(TransitionType.SLIDE, TransitionType.CUT)),
     MONTAGE("Montage dynamique", "Chapitres numérotés, action animée, sous-titres mot à mot, mascotte",
         listOf(TransitionType.CUT)),
     KIT("Style unique", "Une nouvelle combinaison à chaque version : couleurs, fond, titres, sous-titres, mascotte",
@@ -94,6 +102,10 @@ object Looks {
         Look.EXPLICATIF -> ExplainerLook(storyboard, 0)
         Look.EXPLIC_BAS -> ExplainerLook(storyboard, 1)
         Look.EXPLIC_BANDEAU -> ExplainerLook(storyboard, 2)
+        Look.JOURNAL -> StageLook(storyboard, StageLook.Style.JOURNAL)
+        Look.FLASH -> StageLook(storyboard, StageLook.Style.FLASH)
+        Look.TERMINAL -> StageLook(storyboard, StageLook.Style.TERMINAL)
+        Look.BD -> StageLook(storyboard, StageLook.Style.BD)
         Look.MONTAGE -> MontageLook(storyboard)
         Look.KIT -> MontageLook(storyboard, StyleKit.random(storyboard.seed))
     }

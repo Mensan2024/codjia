@@ -316,7 +316,7 @@ class SceneRenderer(private val tp: Template) {
                 iconBadge(g, id, Safe.RIGHT - 70f, 300f, 58f, tg, style.accent2)
             }
         }
-        y = max(y + title(g, sc, "title", 90f, titleW, 2, x, y, Align.LEFT, t, exit, 0f), 420f) + 96f
+        y = max(y + title(g, sc, "title", 90f, titleW, 3, x, y, Align.LEFT, t, exit, 0f), 420f) + 96f
 
         val bubbleR = 42f
         val textX = x + bubbleR * 2 + 36f

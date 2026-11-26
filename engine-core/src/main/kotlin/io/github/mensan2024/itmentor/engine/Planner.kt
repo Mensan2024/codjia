@@ -45,6 +45,8 @@ data class TextAnalysis(
     val domain: Domain,
     /** Toutes les parties du texte, dans l'ordre de l'auteur (rien n'est perdu). */
     val sections: List<TextSection> = emptyList(),
+    /** Intitulé de la conclusion tel qu'écrit par l'auteur (« À retenir », « En résumé »…). */
+    val conclusionLabel: String? = null,
 )
 
 /** Une partie du texte : un en-tête facultatif (« Comment l'éviter »), des phrases d'explication et/ou une liste. */
@@ -56,6 +58,7 @@ data class TextSection(val header: String?, val prose: List<String>, val items: 
  * ordre de certaines scènes, variantes de compositions, formulations des titres de section.
  */
 object StoryboardPlanner {
+
     /** Durée cible : selon le texte, de 30 s à 59 s au plus (58 s visés pour garder une marge). */
     const val MIN_MS = 30_000
     const val SOFT_MAX_MS = 58_000
@@ -112,18 +115,25 @@ object StoryboardPlanner {
         // Sections dans l'ordre de l'auteur : en-têtes « … : » (seuls sur leur ligne ou suivis du texte),
         // puces, lignes courtes, paragraphes. Rien n'est jeté : un paragraphe après une liste devient une
         // explication à sa place, et la partie « À retenir » garde toutes ses lignes.
-        class Raw(val header: String?) { val entries = ArrayList<Pair<Boolean, String>>() }
+        class Raw(var header: String?) { val entries = ArrayList<Pair<Boolean, String>>() }
         val raws = ArrayList<Raw>()
         var cur: Raw? = null
         val conclusionParts = ArrayList<String>()
         var inConclusion = false
+        var conclusionLabel: String? = null
         for (line0 in rest) {
             var line = line0
             val c = CONCLUSION_RE.find(line)
-            if (c != null) { inConclusion = true; cur = null; c.groupValues[1].trim().takeIf { it.isNotEmpty() }?.let { conclusionParts += it }; continue }
+            if (c != null) { inConclusion = true; cur = null; conclusionLabel = line.removeSuffix(c.groupValues[1]).trim().trimEnd(':', '!').trim().ifEmpty { null }; c.groupValues[1].trim().takeIf { it.isNotEmpty() }?.let { conclusionParts += it }; continue }
             if (bad.any { it == line } || good.any { it == line }) continue
             if (line.endsWith(":") && line.length <= 70 && BULLET_RE.find(line) == null) {
-                inConclusion = false; cur = Raw(line.trimEnd(':').trim()); raws += cur; continue
+                inConclusion = false
+                val h = line.trimEnd(':').trim()
+                val open = cur
+                // Deux en-têtes qui se suivent (« Action : » puis « Sur tes machines : ») : aucun n'est perdu.
+                if (open != null && open.header != null && open.entries.isEmpty() && raws.lastOrNull() === open) open.header = open.header + " — " + h
+                else { cur = Raw(h); raws += cur }
+                continue
             }
             val sp = SECTION_RE.find(line)
             if (sp != null && BULLET_RE.find(line) == null) {
@@ -139,9 +149,10 @@ object StoryboardPlanner {
         val sections = ArrayList<TextSection>()
         for (rw in raws) {
             if (rw.entries.isEmpty()) continue
+            val hd = rw.header
             val texts = rw.entries.map { it.second }
             val section = when {
-                rw.header != null && looksExplanatory(rw.header) -> TextSection(rw.header, texts.flatMap { sentences(it) }, emptyList())
+                hd != null && looksExplanatory(hd) -> TextSection(hd, texts.flatMap { sentences(it) }, emptyList())
                 rw.entries.any { it.first } -> {
                     // Puces + lignes courtes = la liste ; les paragraphes longs restent des explications.
                     val items = rw.entries.filter { it.first || isShort(it.second) }.map { it.second }
@@ -159,7 +170,7 @@ object StoryboardPlanner {
         val conclusion = conclusionParts.takeIf { it.isNotEmpty() }?.joinToString(" ") { p -> p.trim().let { if (it.endsWith(".") || it.endsWith("!") || it.endsWith("?")) it else "$it." } }
         val closing: String? = null
         val domain = DomainDetector.detect(text)
-        return TextAnalysis(title, number, intro, realLists, bad, good, conclusion, closing, hashtags, domain, sections)
+        return TextAnalysis(title, number, intro, realLists, bad, good, conclusion, closing, hashtags, domain, sections, conclusionLabel)
     }
 
     private fun looksExplanatory(header: String): Boolean {
@@ -344,7 +355,7 @@ object StoryboardPlanner {
         var defCount = 0
         for ((si, sec) in a.sections.withIndex()) {
             val prose = if (sec === introSec && heroSub != null) sec.prose.drop(1) else sec.prose
-            val headed = sec.header?.takeIf { !looksExplanatory(it) && it.length in 3..48 }?.let { cap(it.trimEnd(':').trim()) }
+            val headed = sec.header?.takeIf { it.length in 3..64 }?.let { cap(it.trimEnd(':').trim()) }
             val groups = ArrayList<List<String>>()
             var curG = ArrayList<String>()
             val pieces = prose.flatMap { sn -> if (sn.length <= 240) listOf(sn) else splitLong(sn) }
@@ -368,7 +379,7 @@ object StoryboardPlanner {
                         else -> pick(listOf("DÉFINITION", "LE SAVIEZ-VOUS$NB?", "EN BREF"))
                     },
                     icon = icons[1 % icons.size], shape = listOf(ShapeKind.HEXAGON, ShapeKind.RING, ShapeKind.DIAMOND)[(r.nextInt() ushr 1) % 3],
-                    title = frenchTypo(defTitle), body = frenchTypo(body), variant = variant())
+                    title = frenchTypo(defTitle), body = frenchTypo(body), variant = variant(), authorTitle = headed != null)
                 defCount++
             }
             val items = sec.items.map { frenchTypo(item(it)) }
@@ -378,12 +389,12 @@ object StoryboardPlanner {
                 val chunks = items.chunked(per).let { ch -> if (ch.size > 1 && ch.last().size < 2) ch.dropLast(2) + listOf(ch[ch.size - 2] + ch.last()) else ch }
                 for ((k, chunk) in chunks.withIndex()) {
                     val t = when {
-                        headed != null && headed.length in 4..42 -> headed + if (chunks.size > 1) " (${k + 1}/${chunks.size})" else ""
+                        headed != null && headed.length in 3..64 -> headed + if (chunks.size > 1) " (${k + 1}/${chunks.size})" else ""
                         english -> "Step by step"
                         else -> pick(listOf("Les bons réflexes", "Comment faire$NB?", "Étape par étape", "Passe à l’action"))
                     }
                     val sc = Scene(id = if (stepScenes.isEmpty()) "s-steps$k" else "s-steps$si-$k", layout = Layout.STEPS, durationMs = 1, icon = icons.last(),
-                        title = frenchTypo(emphasize(t, d)), items = chunk, variant = variant())
+                        title = frenchTypo(emphasize(t, d)), items = chunk, variant = variant(), authorTitle = headed != null && headed.length in 3..64)
                     stepScenes += sc
                     scenes += sc
                 }
@@ -428,7 +439,7 @@ object StoryboardPlanner {
         val outro = Scene(id = "s-end", layout = Layout.CHECKLIST, durationMs = 1,
             illustration = if (d == Domain.CYBER) IllustrationId.SHIELD_CHECK else IllustrationId.CHECK_CIRCLE,
             title = if (takeaways.isEmpty()) (if (english) "*Follow* for more" else "*Abonne-toi* pour la suite")
-                else if (english) "*Remember*" else pick(listOf("*À retenir*", "*L’essentiel*", "*En résumé*")),
+                else a.conclusionLabel?.let { "*${cap(it)}*" } ?: (if (english) "*Remember*" else "*À retenir*"),
             items = takeaways.map { cap(frenchTypo(it)) },
             // Pas de doublon : la conclusion n'est en sous-titre que si elle n'est pas déjà la liste.
             subtitle = (a.closing ?: a.conclusion?.takeIf { takeaways.isEmpty() })?.let { frenchTypo(it) },

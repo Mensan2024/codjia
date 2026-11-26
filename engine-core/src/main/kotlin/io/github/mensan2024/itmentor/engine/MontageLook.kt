@@ -153,7 +153,7 @@ internal class MontageLook(private val sb: Storyboard, private val kit: StyleKit
             }
             Layout.DEFINITION -> {
                 val body = plain(sc.body.ifEmpty { sc.subtitle })
-                for ((k, c) in splitCaption(body).withIndex()) {
+                for ((k, c) in splitCaption(if (sc.authorTitle) plain(sc.title).trimEnd(':') + ". " + body else body).withIndex()) {
                     val kind = if ((k + (r.nextInt() ushr 1)) % 2 == 0) Kind.KEYWORDS else Kind.DOC
                     out += Shot(kind, c, kicker = plain(sc.kicker).ifEmpty { "LE PRINCIPE" }.uppercase(), title = short(plain(sc.title)), badge = "$n0",
                         main = c, icon = iconForText(c, sc.iconOrDefault()))
@@ -162,6 +162,7 @@ internal class MontageLook(private val sb: Storyboard, private val kit: StyleKit
             Layout.STEPS -> {
                 val labels = sc.items.map { splitLabel(plain(it)).first }
                 val kick = (plain(sc.title).split(Regex(" \\(")).first().takeIf { it.length in 3..28 } ?: if (domain == Domain.CYBER) "Défense" else "Étape").uppercase()
+                if (sc.authorTitle) out += Shot(Kind.KEYWORDS, plain(sc.title).trimEnd(':') + ".", kicker = kick, title = short(plain(sc.title)), badge = "$n0", main = plain(sc.title), icon = sc.iconOrDefault())
                 for ((i, it) in sc.items.withIndex()) {
                     val (label, detail) = splitLabel(plain(it))
                     val cmd = if (isCommand(label)) label else commandIn(plain(it))

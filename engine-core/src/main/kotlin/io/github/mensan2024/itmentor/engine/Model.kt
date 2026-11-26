@@ -107,6 +107,8 @@ data class Scene(
     val transitionOut: Transition = Transition(TransitionType.FADE, 500),
     /** Étape de démonstration (uniquement pour [Layout.SCREEN]). */
     val demo: DemoStep? = null,
+    /** Vrai si le titre est l'intitulé écrit par l'auteur (à montrer tel quel), faux s'il est généré. */
+    val authorTitle: Boolean = false,
 ) {
     init {
         require(id.isNotBlank()) { "Une scène doit avoir un identifiant" }

@@ -60,7 +60,7 @@ internal class InfographicLook(private val sb: Storyboard, private val kit: Styl
     /** Titre en deux lignes : début en blanc, fin en couleur (2 à 7 mots au total). */
     private fun split2(text: String): Pair<String, String> {
         val cut = plain(text).split(Regex(" : | \\(|, | — ")).first().trim().trimEnd('.', '!', ':')
-        val w = cut.split(' ').filter { it.isNotBlank() }.take(9)
+        val w = cut.split(' ').filter { it.isNotBlank() }.take(14)
         if (w.size <= 2) return w.joinToString(" ") to ""
         val k = (w.size + 1) / 2
         return w.take(k).joinToString(" ") to w.drop(k).joinToString(" ")
@@ -111,7 +111,7 @@ internal class InfographicLook(private val sb: Storyboard, private val kit: Styl
                 val (a, b) = split2(sc.title); val body = plain(sc.body.ifEmpty { sc.subtitle })
                 val tg = targets(body)
                 val d = when { tg.isNotEmpty() -> Diagram.TARGETS; attack || Regex("attaque|essai").containsMatchIn(body.lowercase()) -> Diagram.LOCK_ATTACK; else -> diagramFor(body, Diagram.TEXT) }
-                listOf(Beat("LE PRINCIPE", a, b, body, d, main = body, list = tg, attack = attack || d == Diagram.LOCK_ATTACK))
+                listOf(Beat("LE PRINCIPE", a, b, if (sc.authorTitle) plain(sc.title).trimEnd(':') + ". " + body else body, d, main = body, list = tg, attack = attack || d == Diagram.LOCK_ATTACK))
             }
             Layout.STEPS -> {
                 val defend = domain == Domain.CYBER
@@ -127,11 +127,14 @@ internal class InfographicLook(private val sb: Storyboard, private val kit: Styl
                     Beat("$word ${n0 + i + 1}/$total", a, b, explain(d, plain(it)), d, main = label, detail = detail, list = labels, index = i)
                 }
                 // Écran de chapitre avant la première liste : « Comment se défendre ? 4 réflexes ».
-                if (n0 == 0 && total >= 2) {
+                if (sc.authorTitle && !(n0 == 0 && total >= 2 && plain(sc.title).lowercase().startsWith("comment"))) {
+                    val (c1, c2) = split2(plain(sc.title))
+                    listOf(Beat("${sc.items.size} ${if (defend) "RÉFLEXES" else "ÉTAPES"}", c1, c2, plain(sc.title).trimEnd(':') + ".", Diagram.CHAPTER)) + steps
+                } else if (n0 == 0 && total >= 2) {
                     val header = plain(sc.title).trimEnd('?', ' ', ':').takeIf { it.lowercase().startsWith("comment") }
                     val (c1, c2) = if (header != null) split2("$header ?") else if (defend) "Comment" to "se défendre ?" else "Comment" to "faire ?"
                     val unit = if (defend) "RÉFLEXES" else "ÉTAPES"
-                    listOf(Beat("$total $unit", c1, c2, "${(c1 + " " + c2).trim()} $total ${unit.lowercase()} simples.", Diagram.CHAPTER)) + steps
+                    listOf(Beat("$total $unit", c1, c2, if (header != null) plain(sc.title).trimEnd(':') + "." else "${(c1 + " " + c2).trim()} $total ${unit.lowercase()} simples.", Diagram.CHAPTER)) + steps
                 } else steps
             }
             Layout.STAT -> { val (a, b) = split2(sc.title); listOf(Beat(tag.ifEmpty { "LE CHIFFRE" }, a, b, plain(sc.title) + (if (sc.body.isNotEmpty()) ". " + plain(sc.body) else ""), Diagram.NUMBER, main = sc.statValue ?: "")) }
