@@ -12,7 +12,7 @@ package io.github.mensan2024.itmentor.engine
 internal class ExplainerLook(private val sb: Storyboard, private val variant: Int = 0) : LookRenderer {
     private class Th(val bg1: Int, val bg2: Int, val panel: Int, val card: Int, val cream: Int, val creamInk: Int, val gold: Int, val good: Int)
 
-    private val kit = StyleKit.random(sb.seed)
+    private val kit = StyleKit.random(sb.seed, sb.mood)
     private val th = kit.palette.let { Th(it.bgTop, it.bgBottom, it.card, it.inner, it.highlight, it.onHighlight, it.accent, rgb(0x1FA971)) }
     private val white = kit.palette.ink
     private val dim = kit.palette.muted

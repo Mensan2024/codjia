@@ -214,14 +214,24 @@ class SceneRenderer(private val tp: Template) {
         val numW = 110f
         val textX = x + numW + 40f
         val textW = Safe.RIGHT - 36f - textX
-        val n = sc.items.size.coerceAtLeast(1)
-        val maxH = ((1560f - y) / n - 24f).coerceAtMost(210f)
-        for ((i, item) in sc.items.withIndex()) {
-            val parts = Marked.strip(item).split(LABEL_SEP, limit = 2)
-            val label = block(g, "${sc.id}/ci$i", parts[0], fStepLabel.withSize(44f), textW, 2, 1.2f)
-            val detail = parts.getOrNull(1)?.let { block(g, "${sc.id}/cd$i", it, fItemDetail.withSize(36f), textW, 2, 1.28f) }
-            val h = (label.height + (detail?.height?.plus(8f) ?: 0f) + 56f).coerceAtMost(maxH).coerceAtLeast(120f)
-            val top = y
+        data class Card(val top: Float, val h: Float, val label: TextBlock, val detail: TextBlock?)
+        // Aucune coupure du texte de l'auteur : l'échelle baisse (jusqu'à 60 %) tant que les cartes ne tiennent pas.
+        fun layoutCards(k: Float): List<Card> {
+            val out = ArrayList<Card>(); var yy = y
+            for ((i, item) in sc.items.withIndex()) {
+                val parts = Marked.strip(item).split(LABEL_SEP, limit = 2)
+                val label = block(g, "${sc.id}/ci$i@$k", parts[0], fStepLabel.withSize(44f * k), textW, 4, 1.2f)
+                val detail = parts.getOrNull(1)?.let { block(g, "${sc.id}/cd$i@$k", it, fItemDetail.withSize(36f * k), textW, 5, 1.28f) }
+                val h = (label.height + (detail?.height?.plus(8f) ?: 0f) + 56f * k).coerceAtLeast(120f * k)
+                out += Card(yy, h, label, detail)
+                yy += h + 24f * k
+            }
+            return out
+        }
+        val cards = listOf(1f, 0.88f, 0.78f, 0.7f, 0.62f).map { layoutCards(it) }.firstOrNull { c -> c.last().let { it.top + it.h } <= Safe.BOTTOM - 120f }
+            ?: layoutCards(0.6f)
+        for ((i, c) in cards.withIndex()) {
+            val top = c.top; val h = c.h; val label = c.label; val detail = c.detail
             val delay = 450 + i * 480
             g.withPose(p(sc, t, exit, delay, dur = 650), x, top) {
                 card(g, x, top, Safe.RIGHT, top + h, if (i % 2 == 0) style.accent.withAlpha(0.6f) else style.accent2.withAlpha(0.6f))
@@ -233,7 +243,6 @@ class SceneRenderer(private val tp: Template) {
                 g.drawBlock(label, textX, ty, style.text)
                 detail?.let { d -> g.drawBlock(d, textX, ty + label.height + 8f, style.textMuted) }
             }
-            y += h + 24f
         }
     }
 
@@ -322,15 +331,21 @@ class SceneRenderer(private val tp: Template) {
         val textX = x + bubbleR * 2 + 36f
         val textW = Safe.RIGHT - textX
         data class Row(val top: Float, val label: TextBlock, val detail: TextBlock?, val h: Float)
-        val rows = ArrayList<Row>()
-        for ((i, item) in sc.items.withIndex()) {
-            val parts = Marked.strip(item).split(LABEL_SEP, limit = 2)
-            val label = block(g, "${sc.id}/i$i", parts[0], fStepLabel, textW, 2, 1.22f)
-            val detail = parts.getOrNull(1)?.let { block(g, "${sc.id}/d$i", it, fItemDetail, textW, 2, 1.3f) }
-            val h = max(bubbleR * 2, label.height + (detail?.height?.plus(6f) ?: 0f))
-            rows += Row(y, label, detail, h)
-            y += h + 72f
+        // Tout le texte de l'auteur reste visible : on réduit l'échelle (jusqu'à 62 %) avant de couper quoi que ce soit.
+        fun layoutRows(k: Float): List<Row> {
+            val out = ArrayList<Row>(); var yy = y
+            for ((i, item) in sc.items.withIndex()) {
+                val parts = Marked.strip(item).split(LABEL_SEP, limit = 2)
+                val label = block(g, "${sc.id}/i$i@$k", parts[0], fStepLabel.withSize(48f * k), textW, 4, 1.22f)
+                val detail = parts.getOrNull(1)?.let { block(g, "${sc.id}/d$i@$k", it, fItemDetail.withSize(40f * k), textW, 5, 1.3f) }
+                val h = max(bubbleR * 2, label.height + (detail?.height?.plus(6f) ?: 0f))
+                out += Row(yy, label, detail, h)
+                yy += h + 72f * k
+            }
+            return out
         }
+        val rows = listOf(1f, 0.9f, 0.8f, 0.72f, 0.65f).map { layoutRows(it) }.firstOrNull { r -> r.last().let { it.top + it.h } <= Safe.BOTTOM - 120f }
+            ?: layoutRows(0.62f)
         if (rows.size > 1) {
             val first = rows.first().top + bubbleR
             val last = rows.last().top + bubbleR

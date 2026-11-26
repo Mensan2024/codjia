@@ -21,9 +21,14 @@ class PlannerTest {
             val sb = Composer.prepare(p.storyboard, p.template, null)
             val tl = Timeline.build(sb) // lève une exception au-delà de 45 s
             assertTrue("$name/$seed : ${tl.totalMs} ms", tl.totalMs in 15_000L..59_000L)
-            assertTrue("$name/$seed : trop peu de scènes", sb.scenes.size >= 3)
+            // Une phrase unique (moins de 8 mots) donne un titre et une fin : on n'invente pas de scènes pour la remplir.
+            val tiny = text.split(Regex("\\s+")).size < 8
+            assertTrue("$name/$seed : trop peu de scènes", sb.scenes.size >= if (tiny) 2 else 3)
             assertEquals(Layout.HERO, sb.scenes.first().layout)
-            assertEquals(Layout.CHECKLIST, sb.scenes.last().layout)
+            // Pas de scène finale inventée pour les sujets sensibles ou personnels quand l'auteur n'a écrit aucune conclusion.
+            if (ContentAnalyzer.analyze(text).family.sensitive)
+                assertTrue("$name/$seed : dernière scène ${sb.scenes.last().layout}", sb.scenes.last().layout in listOf(Layout.CHECKLIST, Layout.DEFINITION, Layout.STEPS))
+            else assertEquals(Layout.CHECKLIST, sb.scenes.last().layout)
             for (sc in sb.scenes) {
                 val texts = listOf(sc.title, sc.body, sc.subtitle ?: "", sc.kicker ?: "", sc.statValue ?: "") + sc.items
                 for (t in texts) {
@@ -148,7 +153,9 @@ class VariationTest {
                 seen += look; prev = look
                 recent.addLast(look); while (recent.size > 2) recent.removeFirst()
             }
-            assertTrue("$name : formats trop peu variés $seen", seen.size >= 4)
+            // Les sujets sensibles n'ont que quelques formats admissibles (aucun format bruyant) : on exige toute la palette disponible.
+            val admissible = ArtDirector.all(ContentAnalyzer.analyze(text)).size
+            assertTrue("$name : formats trop peu variés $seen", seen.size >= minOf(4, admissible))
         }
     }
 

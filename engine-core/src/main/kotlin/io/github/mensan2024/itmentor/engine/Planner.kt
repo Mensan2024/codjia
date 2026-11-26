@@ -331,6 +331,9 @@ object StoryboardPlanner {
         fun pick(options: List<String>) = if (seed == 0L) options.first() else options[(r.nextInt() ushr 1) % options.size]
         fun variant() = if (seed == 0L) 0 else (r.nextInt() ushr 1) % 2
         val d = a.domain
+        // Familles sensibles (santé mentale, parole biblique) et développement personnel : aucun appel à l’action inventé.
+        val fam = ContentAnalyzer.analyze(raw).family
+        val noCta = fam.sensitive || fam == ContentFamily.PERSONAL
         val english = d == Domain.ANGLAIS && DomainDetector.normalize(a.title).let { " the " in " $it " || " you " in " $it " || " your " in " $it " }
         val norm = DomainDetector.normalize(raw)
         val icons = ICONS.getValue(d)
@@ -382,7 +385,11 @@ object StoryboardPlanner {
                     title = frenchTypo(defTitle), body = frenchTypo(body), variant = variant(), authorTitle = headed != null)
                 defCount++
             }
-            val items = sec.items.map { frenchTypo(item(it)) }
+            val allItems = sec.items.map { frenchTypo(item(it)) }
+            // Paragraphes longs en fin de liste (avertissement, précision) : ils gardent leur place, mais dans une scène de lecture
+            // à eux plutôt qu'en puce trop dense, pour que chaque mot de l'auteur reste lisible.
+            val tailLong = allItems.takeLastWhile { it.length > 120 }.let { if (allItems.size - it.size >= 2) it else emptyList() }
+            val items = allItems.dropLast(tailLong.size)
             if (items.size >= 2) {
                 val nChunks = (items.size + 4) / 5
                 val per = (items.size + nChunks - 1) / nChunks
@@ -397,6 +404,12 @@ object StoryboardPlanner {
                         title = frenchTypo(emphasize(t, d)), items = chunk, variant = variant(), authorTitle = headed != null && headed.length in 3..64)
                     stepScenes += sc
                     scenes += sc
+                }
+                for ((k, long) in tailLong.withIndex()) {
+                    scenes += Scene(id = "s-note$si-$k", layout = Layout.DEFINITION, durationMs = 1,
+                        kicker = if (english) "GOOD TO KNOW" else "À SAVOIR",
+                        icon = icons[1 % icons.size], shape = ShapeKind.RING,
+                        title = frenchTypo(if (english) "Good to *know*" else "À *savoir*"), body = long, variant = variant())
                 }
             }
         }
@@ -443,7 +456,7 @@ object StoryboardPlanner {
             items = takeaways.map { cap(frenchTypo(it)) },
             // Pas de doublon : la conclusion n'est en sous-titre que si elle n'est pas déjà la liste.
             subtitle = (a.closing ?: a.conclusion?.takeIf { takeaways.isEmpty() })?.let { frenchTypo(it) },
-            body = if (english) pick(listOf("Share it with a friend", "Save this tip")) else pick(listOf("Partage à quelqu’un qui en a besoin", "Enregistre cette astuce", "Partage cette astuce")),
+            body = if (noCta) "" else if (english) pick(listOf("Share it with a friend", "Save this tip")) else pick(listOf("Partage à quelqu’un qui en a besoin", "Enregistre cette astuce", "Partage cette astuce")),
             exit = AnimSpec(AnimType.FADE_OUT, 600, easing = Easing.EASE_IN), variant = variant())
 
         // Ordre : la graine peut avancer le chiffre clé ou la comparaison, pour varier le récit.
@@ -452,7 +465,8 @@ object StoryboardPlanner {
         if (seed != 0L && extras.isNotEmpty() && r.next() < 0.35f) middle.add(0, extras.first()) else middle += extras.take(1)
         middle += extras.drop(1).filter { it !in middle }
         scenes += middle
-        scenes += outro
+        // Sans conclusion de l’auteur ni appel légitime : pas de scène finale inventée.
+        if (!(fam.sensitive && takeaways.isEmpty() && outro.subtitle == null && scenes.size >= 3)) scenes += outro
 
         // Pas assez de matière : au moins une liste pour ne pas faire une vidéo vide.
         if (scenes.size < 3 && a.intro.size >= 2) {
@@ -530,6 +544,11 @@ object StoryboardPlanner {
             val k = ((target + overlap * (scenes.size - 1.0)) / scenes.sumOf { it.durationMs }).coerceAtMost(1.3)
             scenes = scenes.map { it.copy(durationMs = (it.durationMs * k).toInt()) }
         }
+        // Texte très court : plancher de 16 s (le texte reste identique, les scènes restent simplement plus longtemps à l'écran).
+        if (total(scenes) < 16_000) {
+            val k3 = (16_000.0 + overlap * (scenes.size - 1)) / scenes.sumOf { it.durationMs }
+            scenes = scenes.map { it.copy(durationMs = (it.durationMs * k3).toInt()) }
+        }
         // Plafond absolu : texte très long, on resserre encore (2 s au moins par scène) plutôt que de couper.
         if (total(scenes) > SOFT_MAX_MS) {
             val k2 = (SOFT_MAX_MS.toDouble() + overlap * (scenes.size - 1)) / scenes.sumOf { it.durationMs }
@@ -544,7 +563,11 @@ object StoryboardPlanner {
  * Chaque nouvelle génération (nouvelle graine) donne une vidéo différente ; la même graine redonne la même.
  */
 object CreativeDirector {
-    data class Proposal(val storyboard: Storyboard, val template: Template, val musicId: String?, val domain: Domain) {
+    data class Proposal(
+        val storyboard: Storyboard, val template: Template, val musicId: String?, val domain: Domain,
+        /** Ce que CODJIA a compris du texte et la direction artistique retenue (affichées à l'utilisateur). */
+        val profile: ContentProfile, val direction: Direction, val recommended: List<Direction>,
+    ) {
         val look: Look get() = storyboard.look
     }
 
@@ -569,25 +592,21 @@ object CreativeDirector {
         text: String, seed: Long, avoidTemplates: Collection<String> = emptyList(), forcedTemplate: Template? = null,
         avoidLooks: Collection<Look> = emptyList(), forcedLook: Look? = null,
     ): Proposal {
-        val domain = DomainDetector.detect(TextSanitizer.clean(text))
+        val profile = ContentAnalyzer.analyze(text)
+        val domain = profile.domain.takeIf { profile.family != ContentFamily.GENERAL } ?: DomainDetector.detect(TextSanitizer.clean(text))
         val r = Rand.of(seed, 0x1D3A)
         val top = DomainDetector.recommend(text).take(3)
         val template = forcedTemplate ?: run {
             val fresh = top.filter { it.id !in avoidTemplates }.ifEmpty { top }
             fresh[(r.nextInt() ushr 1) % fresh.size]
         }
-        val musics = MUSIC.getValue(domain)
-        val music = musics[(r.nextInt() ushr 1) % musics.size]
-        val look = forcedLook ?: run {
-            val allowed = Looks.forDomain(domain)
-            val fresh = allowed.filter { it !in avoidLooks }.ifEmpty { allowed }
-            // Tous les formats ont la même chance : aucun n'est privilégié.
-            val weighted = fresh
-            weighted[(Rand.of(seed, 0x2C7F).nextInt() ushr 1) % weighted.size]
-        }
-        var sb = StoryboardPlanner.plan(text, seed, template.id).copy(look = look)
+        // La direction artistique vient du sens du texte (famille, ton, objectif), pas d'un tirage parmi tous les formats.
+        val direction = if (forcedLook != null) ArtDirector.manual(profile, forcedLook) else ArtDirector.auto(profile, seed, avoidLooks)
+        val music = direction.music[(r.nextInt() ushr 1) % direction.music.size]
+        val look = direction.look
+        var sb = StoryboardPlanner.plan(text, seed, template.id).copy(look = look, mood = direction.mood)
         Procedures.match(TextSanitizer.clean(text))?.let { topic -> sb = withDemo(sb, topic, text, seed) }
-        return Proposal(sb, template, music, domain)
+        return Proposal(sb, template, music, domain, profile, direction, ArtDirector.recommend(profile))
     }
 
     /**

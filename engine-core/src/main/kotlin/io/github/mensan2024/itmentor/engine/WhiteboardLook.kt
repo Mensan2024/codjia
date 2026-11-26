@@ -138,23 +138,31 @@ internal class WhiteboardLook(private val sb: Storyboard) : LookRenderer {
         val t = write(g, s, "${sc.id}/t", sc.title, fTitle.withSize(80f), Safe.WIDTH, 2, Safe.LEFT, y)
         y += t.height + 60f
         val n = sc.items.size.coerceAtLeast(1)
-        val slot = ((1520f - y) / n).coerceAtMost(260f)
         val textX = Safe.LEFT + 120f
+        val parts = sc.items.map { splitLabel(Marked.strip(it)) }
+        // Tout le texte de l'auteur est écrit : la taille baisse (jusqu'à 60 %) tant que la liste ne tient pas sur le tableau.
+        fun blocks(k: Float) = parts.mapIndexed { i, (label, detail) ->
+            val lb = cache.fit(g, "${sc.id}/l$i@$k", label, fBody.copy(weight = 700).withSize(52f * k), Safe.RIGHT - textX, 3, 1.12f)
+            val db = detail?.let { cache.fit(g, "${sc.id}/d$i@$k", it, fSmall.withSize(40f * k), Safe.RIGHT - textX, 5, 1.15f) }
+            lb to db
+        }
+        fun needed(k: Float) = blocks(k).sumOf { (lb, db) -> maxOf(lb.height + (db?.height?.plus(4f) ?: 0f) + 56f * k, 110f * k).toDouble() }.toFloat()
+        val k = listOf(1f, 0.88f, 0.78f, 0.7f, 0.62f).firstOrNull { y + needed(it) <= 1520f } ?: 0.6f
+        val bl = blocks(k)
         for ((i, item) in sc.items.withIndex()) {
-            val (label, detail) = splitLabel(Marked.strip(item))
-            val cy = y + 44f
+            val (lb, db) = bl[i]
+            val cy = y + 44f * k
             s.add(Script.Stroke(sk.ellipse(Safe.LEFT + 42f, cy, 40f, 38f), 6f, accent, 2.4f))
             val nb = cache.fit(g, "${sc.id}/n$i", "${i + 1}", fKicker.withSize(50f), 60f, 1)
             s.add(Script.Write(nb, listOf(listOf("${i + 1}" to false)), Safe.LEFT + 42f, cy - nb.height / 2, accent, accent, Align.CENTER))
-            val lb = cache.fit(g, "${sc.id}/l$i", label, fBody.copy(weight = 700).withSize(52f), Safe.RIGHT - textX, if (detail == null && slot > 150f) 2 else 1, 1.12f)
-            s.add(Script.Write(lb, MarkedText.runs(lb, Marked.parse(label)), textX, cy - 38f, ink, accent, msPerChar = 34f))
+            s.add(Script.Write(lb, MarkedText.runs(lb, Marked.parse(parts[i].first)), textX, cy - 38f, ink, accent, msPerChar = 34f))
             var bottom = cy - 38f + lb.height
-            if (detail != null && slot > 130f) {
-                val db = cache.fit(g, "${sc.id}/d$i", detail, fSmall.withSize(40f), Safe.RIGHT - textX, if (slot > 200f) 2 else 1, 1.15f)
+            if (db != null) {
+                val detail = parts[i].second!!
                 s.add(Script.Write(db, MarkedText.runs(db, Marked.parse(detail)), textX, bottom + 4f, muted, accent, msPerChar = 26f))
                 bottom += db.height + 4f
             }
-            val adv = minOf(slot, maxOf(bottom - y + 56f, 130f))
+            val adv = maxOf(bottom - y + 56f * k, 110f * k)
             if (i < n - 1) s.add(Script.Stroke(sk.line(Safe.LEFT + 42f, cy + 48f, Safe.LEFT + 42f, y + adv - 6f, 3f), 4f, muted, 2f))
             y += if (i < n - 1) adv else bottom - y + 20f
         }

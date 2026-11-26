@@ -1,0 +1,9 @@
+Cours CCNA : comprendre les VLAN et le trunk
+Un VLAN sépare un réseau physique en plusieurs réseaux logiques. Chaque VLAN forme son propre domaine de diffusion : un paquet de diffusion du VLAN 10 n'atteint pas le VLAN 20.
+Configuration sur un switch Cisco :
+- Crée le VLAN : vlan 20 puis name VENTES
+- Affecte un port : interface fa0/5, switchport mode access, switchport access vlan 20
+- Relie deux switches par un trunk : switchport mode trunk
+- Vérifie : show vlan brief et show interfaces trunk
+Pour que le VLAN 10 parle au VLAN 20, il faut un routeur ou un switch de niveau 3 : c'est le routage inter-VLAN.
+À retenir : un VLAN par service, un trunk entre les switches, un routeur pour les faire communiquer.

@@ -127,6 +127,8 @@ data class Storyboard(
     val seed: Long = 0,
     /** Format de réalisation (tableau blanc, démo, mascotte…). */
     val look: Look = Look.MOTION,
+    /** Ambiance voulue par la direction artistique (filtre les palettes des styles modulables). */
+    val mood: Mood = Mood.ANY,
 ) {
     init {
         require(scenes.isNotEmpty()) { "Le storyboard est vide" }

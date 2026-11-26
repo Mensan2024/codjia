@@ -107,7 +107,7 @@ object Looks {
         Look.TERMINAL -> StageLook(storyboard, StageLook.Style.TERMINAL)
         Look.BD -> StageLook(storyboard, StageLook.Style.BD)
         Look.MONTAGE -> MontageLook(storyboard)
-        Look.KIT -> MontageLook(storyboard, StyleKit.random(storyboard.seed))
+        Look.KIT -> MontageLook(storyboard, StyleKit.random(storyboard.seed, storyboard.mood))
     }
 }
 

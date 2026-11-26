@@ -59,8 +59,14 @@ internal class InfographicLook(private val sb: Storyboard, private val kit: Styl
 
     /** Titre en deux lignes : début en blanc, fin en couleur (2 à 7 mots au total). */
     private fun split2(text: String): Pair<String, String> {
-        val cut = plain(text).split(Regex(" : | \\(|, | — ")).first().trim().trimEnd('.', '!', ':')
-        val w = cut.split(' ').filter { it.isNotBlank() }.take(14)
+        val full = plain(text).trim().trimEnd('.', '!', ':')
+        // Un « titre : suite » se coupe naturellement aux deux-points : rien n'est perdu, la suite passe en couleur.
+        val colon = full.indexOf(" : ")
+        if (colon in 3..60) {
+            val a = full.substring(0, colon).trim(); val b = full.substring(colon + 3).trim()
+            if (a.isNotEmpty() && b.isNotEmpty()) return a to b
+        }
+        val w = full.split(' ').filter { it.isNotBlank() }.take(20)
         if (w.size <= 2) return w.joinToString(" ") to ""
         val k = (w.size + 1) / 2
         return w.take(k).joinToString(" ") to w.drop(k).joinToString(" ")
@@ -228,26 +234,28 @@ internal class InfographicLook(private val sb: Storyboard, private val kit: Styl
         val tf = titleFont(72f)
         for ((k, line) in listOf(b.l1, b.l2).withIndex()) {
             if (line.isEmpty()) continue
-            val bl = cache.fit(g, "t/${sc.id}/$i/$k", line, tf, Safe.WIDTH - 20f, 1)
+            // Le titre de l'auteur n'est jamais coupé : jusqu'à 3 lignes, la taille baisse si besoin.
+            val bl = cache.fit(g, "t/${sc.id}/$i/$k", line, tf, Safe.WIDTH - 20f, 3)
             val a = Easing.EXPO_OUT.ease(clamp01((t - k * 120f) / 420f))
-            val base = g.baselineOf(bl, y, 0)
-            val text = bl.lines.first()
-            val tw = g.measureText(text, bl.font)
-            val x0 = 540f - tw / 2
-            g.withPose(Pose(alpha = a, dy = (1 - a) * 24f), 540f, base) {
-                if (k == 1) when (kit.titleFx) {
-                    KitTitleFx.HIGHLIGHT -> {
-                        val m = g.metrics(bl.font); val p = Easing.EXPO_OUT.ease(clamp01((t - 250f) / 450f))
-                        g.fillRoundRect(x0 - 16f, base - m.ascent - 6f, x0 - 16f + (tw + 32f) * p, base + m.descent + 4f, 12f, pal.highlight)
-                        g.drawText(text, x0, base, bl.font, pal.onHighlight)
-                    }
-                    KitTitleFx.MARKER -> {
-                        val p = Easing.EXPO_OUT.ease(clamp01((t - 250f) / 450f))
-                        g.fillRoundRect(x0 - 6f, base - 8f, x0 - 6f + (tw + 12f) * p, base + 12f, 8f, accent.withAlpha(0.45f))
-                        g.drawText(text, x0, base, bl.font, ink)
-                    }
-                    else -> g.drawText(text, x0, base, bl.font, accent)
-                } else g.drawText(text, x0, base, bl.font, ink)
+            for ((j, text) in bl.lines.withIndex()) {
+                val base = g.baselineOf(bl, y, j)
+                val tw = g.measureText(text, bl.font)
+                val x0 = 540f - tw / 2
+                g.withPose(Pose(alpha = a, dy = (1 - a) * 24f), 540f, base) {
+                    if (k == 1) when (kit.titleFx) {
+                        KitTitleFx.HIGHLIGHT -> {
+                            val m = g.metrics(bl.font); val p = Easing.EXPO_OUT.ease(clamp01((t - 250f) / 450f))
+                            g.fillRoundRect(x0 - 16f, base - m.ascent - 6f, x0 - 16f + (tw + 32f) * p, base + m.descent + 4f, 12f, pal.highlight)
+                            g.drawText(text, x0, base, bl.font, pal.onHighlight)
+                        }
+                        KitTitleFx.MARKER -> {
+                            val p = Easing.EXPO_OUT.ease(clamp01((t - 250f) / 450f))
+                            g.fillRoundRect(x0 - 6f, base - 8f, x0 - 6f + (tw + 12f) * p, base + 12f, 8f, accent.withAlpha(0.45f))
+                            g.drawText(text, x0, base, bl.font, ink)
+                        }
+                        else -> g.drawText(text, x0, base, bl.font, accent)
+                    } else g.drawText(text, x0, base, bl.font, ink)
+                }
             }
             y += bl.height + 4f
         }
@@ -384,10 +392,12 @@ internal class InfographicLook(private val sb: Storyboard, private val kit: Styl
         var y = y0 + 90f
         for ((li, line) in listOf(b.l1, b.l2).withIndex()) {
             if (line.isEmpty()) continue
-            val bl = cache.fit(g, "ch/$key/$li", line, tf, Safe.WIDTH, 1)
+            val bl = cache.fit(g, "ch/$key/$li", line, tf, Safe.WIDTH, 3)
             val a = Easing.EXPO_OUT.ease(clamp01((t - 200f - li * 150f) / 400f))
-            val base = g.baselineOf(bl, y, 0)
-            g.withPose(Pose(alpha = a, dy = (1 - a) * 30f), cx, base) { g.drawText(bl.lines.first(), cx - g.measureText(bl.lines.first(), bl.font) / 2, base, bl.font, if (li == 0) ink else accent) }
+            for ((j, text) in bl.lines.withIndex()) {
+                val base = g.baselineOf(bl, y, j)
+                g.withPose(Pose(alpha = a, dy = (1 - a) * 30f), cx, base) { g.drawText(text, cx - g.measureText(text, bl.font) / 2, base, bl.font, if (li == 0) ink else accent) }
+            }
             y += bl.height + 6f
         }
     }

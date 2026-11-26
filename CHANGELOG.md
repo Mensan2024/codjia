@@ -2,6 +2,21 @@
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [2.5.0]
+
+### Ajouté (moteur)
+- **Compréhension du contenu** (`ContentAnalyzer`) : famille (santé mentale, parole biblique, développement personnel, marketing, réseaux, développement, cybersécurité, IA, santé, anglais), public, objectif, ton, registre, niveau, type de conclusion, indice de confiance et indices relevés. Analyse hors ligne par lexiques pondérés et règles (pas d'IA générative) ; un texte ambigu ou très court est signalé par une confiance basse.
+- **Direction artistique** (`ArtDirector`) : trois propositions par famille (mode « Recommandé »), choix automatique parmi les directions admissibles, mode manuel. Chaque direction porte son ambiance, sa musique et la raison du choix.
+- Sujets sensibles (santé mentale, parole biblique) : formats bruyants exclus (flash, journal, terminal, néon, collage, montage), palettes et animations apaisées, aucun appel à l'action inventé.
+- 8 textes de référence et 10 tests dédiés (six cas types, ambigus, très court).
+
+### Corrigé
+- Aucun mot de l'auteur n'est plus coupé : titres Infographie sur plusieurs lignes, étapes et tableau blanc qui réduisent la taille avant de tronquer, paragraphe d'avertissement en fin de liste affiché dans sa propre scène « À savoir » (ordre conservé).
+- Textes très courts : durée plancher de 16 s.
+
+### Limites connues
+- Les directions réutilisent les 18 formats existants ; les illustrations propres à chaque famille et la bibliothèque de styles étendue restent à construire. L'interface web n'expose pas encore le profil ni les trois recommandations.
+
 ## [2.4.3]
 
 ### Corrigé (version web)

@@ -131,17 +131,32 @@ data class StyleKit(
                 pick(KitHeader.entries), pick(KitFrame.entries), KitCaptions.BOX, pick(KitMotion.entries), KitMascot.NONE, r.next() < 0.3f)
         }
 
-        fun random(seed: Long): StyleKit {
+        private val CALM_PALETTES = setOf("Forêt menthe", "Océan turquoise", "Nuit indigo", "Crème encre", "Blanc bleu", "Marine soleil")
+        private val WARM_PALETTES = setOf("Crème encre", "Papier rouge", "Marine soleil", "Charbon orange", "Forêt menthe")
+        private val CALM_BG = listOf(KitBackground.MESH, KitBackground.GLOW, KitBackground.DOTS, KitBackground.PAPER)
+
+        /** Palettes admises pour une ambiance. */
+        private fun palettesFor(mood: Mood): List<Palette> = when (mood) {
+            Mood.CALM -> PALETTES.filter { it.name in CALM_PALETTES }
+            Mood.WARM -> PALETTES.filter { it.name in WARM_PALETTES }
+            Mood.ENERGETIC -> PALETTES.filter { !it.light }
+            Mood.TECH -> PALETTES.filter { !it.light }
+            Mood.ANY -> PALETTES
+        }
+
+        fun random(seed: Long, mood: Mood = Mood.ANY): StyleKit {
             val r = Rand.of(seed, 0x57E1)
             fun <T> pick(l: List<T>): T = l[(r.nextInt() ushr 1) % l.size]
-            val pal = pick(PALETTES)
-            val bg = pick(if (pal.light) LIGHT_BG else DARK_BG)
+            val calm = mood == Mood.CALM || mood == Mood.WARM
+            val pal = pick(palettesFor(mood))
+            val bg = pick((if (pal.light) LIGHT_BG else DARK_BG).let { l -> if (calm) l.filter { it in CALM_BG }.ifEmpty { l } else l })
             val frames = KitFrame.entries.filter { !(pal.light && it == KitFrame.NEON) && !(bg in BUSY_BG && it == KitFrame.FLAT) }
             val tf = pick(TITLE_FONTS)
             val fxs = KitTitleFx.entries.filter { !(it == KitTitleFx.TYPEWRITER && tf.family == FontFamily.CONDENSED) }
-            val caps = pick(KitCaptions.entries)
-            val motion = pick(KitMotion.entries)
-            val flash = motion != KitMotion.POP && r.next() < 0.5f
+            // Ambiance calme : sous-titres lisibles et posés, entrées douces, aucun éclair à la coupe.
+            val caps = pick(if (calm) listOf(KitCaptions.BOX, KitCaptions.COLOR, KitCaptions.BAR) else KitCaptions.entries)
+            val motion = pick(if (calm) listOf(KitMotion.RISE, KitMotion.ZOOM) else KitMotion.entries)
+            val flash = !calm && motion != KitMotion.POP && r.next() < 0.5f
             val mascots = if (caps == KitCaptions.POP) listOf(KitMascot.BALL, KitMascot.BOT) else KitMascot.entries
             return StyleKit(pal, bg, tf, pick(CAPTION_FONTS), pick(fxs), pick(KitHeader.entries), pick(frames), caps, motion, pick(mascots), flash)
         }

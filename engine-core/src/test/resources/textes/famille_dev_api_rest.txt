@@ -1,0 +1,10 @@
+Tutoriel API REST : lire des données avec une requête GET
+Une API REST permet à ton frontend de demander des données au backend en HTTP. Chaque ressource a une adresse, appelée endpoint.
+Les étapes :
+- Choisis l'endpoint : GET /api/users renvoie la liste des utilisateurs.
+- Envoie la requête avec fetch : fetch("/api/users").
+- Lis la réponse en JSON : const users = await response.json().
+- Vérifie le code de statut : 200 signifie que tout va bien, 404 que la ressource n'existe pas.
+Pour créer un utilisateur, on utilise POST /api/users avec un corps JSON.
+À retenir : GET lit, POST crée, et le code de statut te dit si la requête a réussi.
+#api #javascript
