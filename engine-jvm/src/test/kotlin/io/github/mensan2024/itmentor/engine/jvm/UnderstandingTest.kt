@@ -17,7 +17,7 @@ import java.io.File
 
 /** Étape 2 de la Partie 4 : CODJIA comprend le texte avant de choisir la mise en scène. */
 class UnderstandingTest {
-    private val dir = File("engine-core/src/test/resources/textes")
+    private val dir = listOf(File("engine-core/src/test/resources/textes"), File("../engine-core/src/test/resources/textes")).first { it.isDirectory }
     private fun text(name: String) = File(dir, name).readText()
 
     private val sensitiveBanned = setOf(Look.FLASH, Look.JOURNAL, Look.TERMINAL, Look.BD, Look.NEON, Look.DEMO, Look.MONTAGE, Look.KIT, Look.COLLAGE)
