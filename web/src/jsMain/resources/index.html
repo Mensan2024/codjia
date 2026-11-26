@@ -130,6 +130,11 @@
 <body>
 <div id="app" class="boot"><div class="boot-logo">▶_</div></div>
 <noscript>CODJIA a besoin de JavaScript pour fabriquer tes vidéos sur ton appareil.</noscript>
+<script>
+(function(){function fail(m){var a=document.getElementById('app');if(a&&!window.codjiaReady){a.className='';a.innerHTML='<div style="padding:28px 8px;text-align:center;line-height:1.5"><b>CODJIA ne démarre pas.</b><br>'+m+'<br><br><button onclick="(async()=>{try{for(const k of await caches.keys())await caches.delete(k);for(const r of await navigator.serviceWorker.getRegistrations())await r.unregister()}catch(e){}location.reload()})()" style="padding:12px 20px;border-radius:12px;border:0;font:700 16px system-ui">Réinitialiser et recharger</button></div>'}}
+window.addEventListener('error',function(e){if(!window.codjiaReady)fail('Erreur : '+(e.message||'chargement'))});
+setTimeout(function(){fail('Le chargement est trop long. Vérifie ta connexion.')},15000)})();
+</script>
 <script src="codjia.js"></script>
 </body>
 </html>

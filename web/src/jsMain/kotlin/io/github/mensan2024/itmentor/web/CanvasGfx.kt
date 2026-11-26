@@ -14,17 +14,26 @@ import kotlin.math.PI
 object WebFonts {
     fun family(spec: FontSpec): String = "itm-" + FontCatalog.file(spec.family, spec.weight).substringBeforeLast('.')
 
-    /** Charge toutes les polices ; renvoie quand elles sont prêtes. */
-    suspend fun loadAll(base: String) {
+    private var all: kotlin.js.Promise<dynamic>? = null
+
+    /** Lance le chargement de toutes les polices en parallèle (sans bloquer l'interface). */
+    fun start(base: String) {
+        if (all != null) return
         val files = FontFamily.entries.flatMap { f -> FontCatalog.FILES.getValue(f).values }.distinct()
-        for (file in files) {
+        val loads = files.map { file ->
             val name = "itm-" + file.substringBeforeLast('.')
             val url = "url(${base}assets/fonts/$file)"
             val face: dynamic = js("new FontFace(name, url)")
-            val loaded: dynamic = (face.load() as kotlin.js.Promise<dynamic>).await()
-            document.asDynamic().fonts.add(loaded)
+            (face.load() as kotlin.js.Promise<dynamic>).then { loaded ->
+                document.asDynamic().fonts.add(loaded); Unit
+            }
         }
+        all = kotlin.js.Promise.all(loads.toTypedArray()).then { Unit } as kotlin.js.Promise<dynamic>
     }
+
+    /** Attend que toutes les polices soient prêtes (aperçu et export). */
+    suspend fun ready() { all?.await() }
+
 }
 
 /**

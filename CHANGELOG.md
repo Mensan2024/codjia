@@ -2,6 +2,12 @@
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [2.0.1]
+
+### Corrigé
+- Web : l'interface s'affiche immédiatement ; les polices (≈ 6 Mo) se chargent en parallèle et en arrière-plan au lieu d'être téléchargées l'une après l'autre avant tout affichage.
+- Web : si l'application ne démarre pas (erreur ou chargement > 15 s), un message clair et un bouton « Réinitialiser et recharger » remplacent le logo infini.
+
 ## [2.0.0] — 2026-11-25
 ### Voix off dans la version web
 - **Voix off : oui / non** sur l'aperçu, comme dans l'application Android, avec choix de la langue (auto, français, anglais).

@@ -72,7 +72,7 @@ fun main() {
     setupUpdates()
     val root = document.getElementById("app") as HTMLElement
     launch(onError = { fatal(it) }) {
-        WebFonts.loadAll(base)
+        WebFonts.start(base)   // en parallèle : l'interface s'affiche tout de suite
         // L'interface utilise les mêmes polices que les vidéos.
         val css = document.documentElement.asDynamic().style
         css.setProperty("--font-ui", "\"${WebFonts.family(io.github.mensan2024.itmentor.engine.FontSpec(FontFamily.TEXT, 600, 16f))}\", system-ui, sans-serif")
@@ -425,6 +425,8 @@ private fun startPreview(canvas: dynamic, dur: HTMLElement, overlay: HTMLElement
             window.setTimeout({ if (App.anim == id) show(Step.PREVIEW) }, 2600)
         }
     }) {
+        busy("Chargement des polices…", null)
+        WebFonts.ready()
         val (sb, mixed) = plan(::busy)
         if (App.anim != id) return@launch
         val renderer = FrameRenderer(sb, VideoFormat(w, h, 30), App.template)
@@ -623,6 +625,7 @@ private fun exportPage(): HTMLElement {
         val (sb, mixed) = try { plan { s, _ -> status.textContent = s } } catch (e: Throwable) {
             toast("Voix off impossible (${e.message}) : vidéo sans voix."); App.voiceOn = false; prepared() to null
         }
+        WebFonts.ready()
         val track = App.choice.track?.takeIf { App.choice.hasAudio }
         val pcm = if (mixed == null) track?.let { status.textContent = "Préparation de la musique…"; App.audio.toPcm(App.audio.buffer(it)) } else null
         status.textContent = "Rendu des images…"
