@@ -2,6 +2,12 @@
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [2.6.0]
+
+### Ajouté
+- **Démonstrations intelligentes** : quatre simulations animées déclenchées automatiquement par le contenu du texte, toutes étiquetées « SIMULATION » ou « ILLUSTRATION », sans aucun chiffre inventé : pare-feu (réseaux, cybersécurité, systèmes), entonnoir de conversion (marketing), échange client / serveur API avec codes de statut (développement), progression d'habitude jour après jour (développement personnel, santé).
+- `docs/AUDIT_PARTIE5.md` : audit honnête du moteur (rendu vectoriel 2D procédural, pas d'import d'images ni de vidéos, pas de 3D), architecture proposée de « fournisseurs visuels » avec repli procédural, niveaux de production, décisions à valider.
+
 ## [2.5.4]
 
 ### Ajouté

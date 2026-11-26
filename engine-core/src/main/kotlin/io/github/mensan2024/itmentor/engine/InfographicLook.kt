@@ -34,7 +34,7 @@ internal class InfographicLook(private val sb: Storyboard, private val kit: Styl
     private val astuceNo: Int? = (listOf(sb.title) + sb.scenes.take(1).flatMap { listOf(it.kicker ?: "", it.title) })
         .firstNotNullOfOrNull { Regex("astuce\\D{0,30}?0*(\\d{1,4})", RegexOption.IGNORE_CASE).find(Marked.strip(it))?.groupValues?.get(1)?.toIntOrNull() }
 
-    enum class Diagram { CHAPTER, HERO_ICON, STEPLIST, TARGETS, LOCK_ATTACK, SHIELD, BARS, CHAIN, ATTEMPTS, CHART, TERMINAL, NUMBER, VERSUS, CHECKS, TEXT, CTA, PACKETS, PROMPT, EDITOR, PULSE, PHISHING, VLAN }
+    enum class Diagram { CHAPTER, HERO_ICON, STEPLIST, TARGETS, LOCK_ATTACK, SHIELD, BARS, CHAIN, ATTEMPTS, CHART, TERMINAL, NUMBER, VERSUS, CHECKS, TEXT, CTA, PACKETS, PROMPT, EDITOR, PULSE, PHISHING, VLAN, FIREWALL, FUNNEL, API, STREAK }
 
     data class Beat(val chip: String, val l1: String, val l2: String, val caption: String, val diagram: Diagram,
                     val main: String = "", val detail: String? = null, val list: List<String> = emptyList(), val index: Int = 0, val good: Boolean = true, val icon: IconId = IconId.BULB, val attack: Boolean = false)
@@ -77,6 +77,9 @@ internal class InfographicLook(private val sb: Storyboard, private val kit: Styl
         return when {
             Regex("surveill|journal|auth\\.log|alerte|échecs|echecs|détecte|detecte").containsMatchIn(t) -> Diagram.CHART
             Regex("limite|limitation|tentative|verrouill|bloque|bannir|fail2ban").containsMatchIn(t) -> Diagram.ATTEMPTS
+            Regex("pare-?feu|firewall|\\bufw\\b|iptables|filtrage").containsMatchIn(t) && domain in setOf(Domain.RESEAUX, Domain.CYBER, Domain.SYSTEMES) -> Diagram.FIREWALL
+            domain == Domain.MARKETING && Regex("tunnel|entonnoir|conversion|prospect|convertis|capte|fidélis|fidelis").containsMatchIn(t) -> Diagram.FUNNEL
+            domain == Domain.FULLSTACK && Regex("\\bapi\\b|\\brest\\b|requ[êe]te|\\bhttp\\b|json|endpoint|client-serveur|\\bget\\b|\\bpost\\b|statut|status|\\b200\\b|\\b404\\b").containsMatchIn(t) -> Diagram.API
             Regex("\\bmfa\\b|\\b2fa\\b|double authentification|authentification à deux|code reçu|application d'authentification").containsMatchIn(t) -> Diagram.CHAIN
             (Regex("phishing|hameçon|hamecon|sms piégé|sms pieg|lien suspect|faux site|usurp|cliquer sur un lien").containsMatchIn(t) ||
                 phishingContext && Regex("message|sms|lien|expéditeur|expediteur|demande de|signale|banque|colis").containsMatchIn(t)) -> Diagram.PHISHING
@@ -86,7 +89,9 @@ internal class InfographicLook(private val sb: Storyboard, private val kit: Styl
             domain == Domain.RESEAUX && Regex("paquet|ttl|traceroute|routage|\\bping\\b|passerelle").containsMatchIn(t) -> Diagram.PACKETS
             domain == Domain.IA && Regex("prompt|consigne|précis|vague|exactement|chatgpt").containsMatchIn(t) -> Diagram.PROMPT
             domain == Domain.FULLSTACK && Regex("code|fonction|bug|erreur|variable|python|javascript|\\bapi\\b|programme|test").containsMatchIn(t) -> Diagram.EDITOR
-            domain == Domain.SANTE -> Diagram.PULSE
+            // Habitudes et discipline : progression jour après jour. Santé : pouls, sauf sujets apaisants (santé mentale).
+            (domain == Domain.GENERAL || domain == Domain.SANTE) && Regex("habitude|chaque jour|discipline|routine|régularité|regularite|quotidien|par jour|jour après jour").containsMatchIn(t) -> Diagram.STREAK
+            domain == Domain.SANTE && sb.mood == Mood.ANY -> Diagram.PULSE
             else -> fallback
         }
     }
@@ -169,7 +174,7 @@ internal class InfographicLook(private val sb: Storyboard, private val kit: Styl
     private fun beatAt(sc: Scene, t: Float): Triple<Int, Float, Float> {
         val bs = beats(sc)
         // Les schémas riches (graphique + terminal, fail2ban, MFA, mots de passe) ont besoin de plus de temps pour se dérouler.
-        val rich = setOf(Diagram.PACKETS, Diagram.VLAN, Diagram.PROMPT, Diagram.EDITOR, Diagram.PULSE, Diagram.PHISHING, Diagram.CHART, Diagram.ATTEMPTS, Diagram.CHAIN, Diagram.BARS, Diagram.LOCK_ATTACK)
+        val rich = setOf(Diagram.PACKETS, Diagram.VLAN, Diagram.PROMPT, Diagram.EDITOR, Diagram.PULSE, Diagram.PHISHING, Diagram.FIREWALL, Diagram.FUNNEL, Diagram.API, Diagram.STREAK, Diagram.CHART, Diagram.ATTEMPTS, Diagram.CHAIN, Diagram.BARS, Diagram.LOCK_ATTACK)
         val w = bs.map {
             (0.7f + 0.3f * (it.caption.length.coerceIn(30, 180) / 100f)) * (if (it.diagram in rich) 1.4f else 1f) +
                 (if (it.diagram == Diagram.CTA) -0.3f else 0f) + (if (it.diagram == Diagram.CHAPTER) -0.25f else 0f)
@@ -346,6 +351,10 @@ internal class InfographicLook(private val sb: Storyboard, private val kit: Styl
             Diagram.VLAN -> domainDiagram(g, a) { l, tp, r, bt -> demos.vlan(g, t, l, tp, r, bt) }
             Diagram.PULSE -> domainDiagram(g, a) { l, tp, r, bt -> demos.pulse(g, t, l, tp, r, bt) }
             Diagram.PHISHING -> domainDiagram(g, a) { l, tp, r, bt -> demos.phishing(g, t, l, tp, r, bt) }
+            Diagram.FIREWALL -> domainDiagram(g, a) { l, tp, r, bt -> demos.firewall(g, t, l, tp, r, bt) }
+            Diagram.FUNNEL -> domainDiagram(g, a) { l, tp, r, bt -> demos.funnel(g, t, l, tp, r, bt) }
+            Diagram.API -> domainDiagram(g, a) { l, tp, r, bt -> demos.api(g, t, l, tp, r, bt) }
+            Diagram.STREAK -> domainDiagram(g, a) { l, tp, r, bt -> demos.streak(g, t, l, tp, r, bt) }
             Diagram.CTA, Diagram.CHAPTER -> {}
         }
     }

@@ -272,4 +272,132 @@ internal class DomainDiagrams(
         }
         centered(g, "Vérifie l'expéditeur : ne clique pas.", (l + r) / 2, y2 + 296f, sf.withSize(22f), ink, w - 40f)
     }
+
+    // ───────────────────────────── Pare-feu ─────────────────────────────
+
+    /** Trafic réseau filtré : les paquets conformes aux règles passent, les autres sont refusés. Règles d'exemple, étiquetées. */
+    fun firewall(g: Gfx, t: Float, l: Float, top: Float, r: Float, b: Float) {
+        tag(g, l + 10f, top, "SIMULATION · RÈGLES D'EXEMPLE")
+        val cy = top + 190f
+        val wx = (l + r) / 2
+        centered(g, "Internet", l + 100f, cy - 120f, sf, muted, 170f)
+        centered(g, "Réseau interne", r - 110f, cy - 120f, sf, muted, 200f)
+        // le mur
+        val kw = appear(t, 100f)
+        g.withPose(Pose(alpha = clamp01(kw), scale = lerp(0.8f, 1f, kw)), wx, cy) {
+            g.fillRoundRect(wx - 30f, cy - 100f, wx + 30f, cy + 100f, 12f, accent.withAlpha(0.35f))
+            g.strokeRoundRect(wx - 30f, cy - 100f, wx + 30f, cy + 100f, 12f, 3f, accent)
+            Icons.draw(g, IconId.SHIELD, wx, cy, 24f, accent, 2.6f)
+        }
+        // trois paquets : passe, passe, refusé, en boucle
+        val period = 4200f
+        val lanes = listOf(cy - 60f to true, cy to false, cy + 60f to true)
+        for ((i, lane) in lanes.withIndex()) {
+            val u = (((t - 600f - i * 450f).coerceAtLeast(0f)) % period) / period
+            if (t < 600f + i * 450f) continue
+            val startX = l + 150f; val endX = r - 150f
+            val (ly, ok1) = lane
+            val x = if (u < 0.5f) lerp(startX, wx - 50f, u / 0.5f)
+                else if (ok1) lerp(wx - 50f, endX, (u - 0.5f) / 0.5f)
+                else lerp(wx - 50f, wx - 130f, ((u - 0.5f) / 0.25f).coerceAtMost(1f))
+            val alpha = if (!ok1 && u > 0.75f) 1f - (u - 0.75f) / 0.25f else 1f
+            g.fillRoundRect(x - 26f, ly - 16f, x + 26f, ly + 16f, 6f, (if (ok1) ok else danger).withAlpha(alpha))
+            if (!ok1 && u > 0.5f) g.drawText("✕", wx - 24f, ly + 9f, FontSpec(FontFamily.TEXT, 800, 28f), danger.withAlpha(alpha))
+        }
+        // règles
+        val ky = appear(t, 1500f)
+        g.withPose(Pose(alpha = clamp01(ky)), wx, cy + 170f) {
+            left(g, "443  HTTPS  →  autorisé", l + 60f, cy + 170f, mf.withSize(26f), ok, r - l - 100f)
+            left(g, "23   Telnet →  refusé", l + 60f, cy + 214f, mf.withSize(26f), danger, r - l - 100f)
+        }
+        centered(g, "Le pare-feu compare chaque paquet à ses règles.", wx, cy + 275f, sf.withSize(22f), ink, r - l - 40f)
+    }
+
+    // ───────────────────────────── Marketing : tunnel ─────────────────────────────
+
+    /** Tunnel de conversion générique : le public se réduit à chaque étage. Aucune valeur chiffrée. */
+    fun funnel(g: Gfx, t: Float, l: Float, top: Float, r: Float, b: Float) {
+        tag(g, l + 10f, top, "SCHÉMA · SANS CHIFFRES")
+        val labels = listOf("Visiteurs", "Contacts", "Clients", "Clients fidèles")
+        val cx = (l + r) / 2
+        val maxW = r - l - 60f
+        for (i in labels.indices) {
+            val k = appear(t, 150f + i * 450f, 500f)
+            val wTop = maxW * (1f - i * 0.2f); val wBot = maxW * (1f - (i + 1) * 0.2f)
+            val y0 = top + 70f + i * 96f; val y1 = y0 + 84f
+            g.withPose(Pose(alpha = clamp01(k), dy = (1 - k) * -30f), cx, y0) {
+                val p = PathData().moveTo(cx - wTop / 2, y0).lineTo(cx + wTop / 2, y0).lineTo(cx + wBot / 2, y1).lineTo(cx - wBot / 2, y1).close()
+                g.fillPath(p, (if (i % 2 == 0) accent else warn).withAlpha(0.35f))
+                g.strokePath(p, 3f, if (i % 2 == 0) accent else warn)
+                centered(g, labels[i], cx, y0 + 54f, tf.withSize(28f), ink, wBot - 30f)
+            }
+        }
+        centered(g, "Chaque étape retient une partie du public précédent.", cx, top + 70f + 4 * 96f + 40f, sf.withSize(22f), ink, r - l - 40f)
+    }
+
+    // ───────────────────────────── API REST ─────────────────────────────
+
+    /** Échange client-serveur : une requête, une réponse. Exemple écrit à la main, jamais exécuté. */
+    fun api(g: Gfx, t: Float, l: Float, top: Float, r: Float, b: Float) {
+        tag(g, l + 10f, top, "SIMULATION · EXEMPLE, NON EXÉCUTÉ")
+        val cy = top + 130f
+        val lx = l + 110f; val rx = r - 110f
+        for ((i, p) in listOf(lx to "Client", rx to "Serveur").withIndex()) {
+            val k = appear(t, 100f + i * 150f)
+            g.withPose(Pose(alpha = clamp01(k), scale = lerp(0.8f, 1f, k)), p.first, cy) {
+                g.fillCircle(p.first, cy, 62f, accent.withAlpha(0.18f)); g.strokeCircle(p.first, cy, 62f, 3f, accent)
+                Icons.draw(g, if (i == 0) IconId.CODE else IconId.CPU, p.first, cy, 38f, accent, 2.8f)
+                centered(g, p.second, p.first, cy + 106f, sf, ink, 190f)
+            }
+        }
+        val mid = (lx + rx) / 2
+        val k1 = appear(t, 900f)
+        g.withPose(Pose(alpha = clamp01(k1)), mid, cy) {
+            g.line(lx + 80f, cy - 14f, rx - 80f, cy - 14f, 4f, warn)
+            g.line(rx - 80f, cy - 14f, rx - 100f, cy - 28f, 4f, warn); g.line(rx - 80f, cy - 14f, rx - 100f, cy + 0f, 4f, warn)
+        }
+        val k2 = appear(t, 2200f)
+        g.withPose(Pose(alpha = clamp01(k2)), mid, cy) {
+            g.line(rx - 80f, cy + 22f, lx + 80f, cy + 22f, 4f, ok)
+            g.line(lx + 80f, cy + 22f, lx + 100f, cy + 8f, 4f, ok); g.line(lx + 80f, cy + 22f, lx + 100f, cy + 36f, 4f, ok)
+        }
+        val w = r - l - 12f
+        val ky = cy + 150f
+        val ka = appear(t, 900f)
+        g.withPose(Pose(alpha = clamp01(ka), dy = (1 - ka) * 20f), mid, ky) {
+            card(g, l + 6f, ky, r - 6f, ky + 100f, warn)
+            left(g, "Requête", l + 30f, ky + 34f, sf.withSize(20f), muted, w - 40f)
+            left(g, "GET /api/users/1 HTTP/1.1", l + 30f, ky + 78f, mf.withSize(26f), ink, w - 50f)
+        }
+        val ky2 = ky + 124f
+        val kb = appear(t, 2200f)
+        g.withPose(Pose(alpha = clamp01(kb), dy = (1 - kb) * 20f), mid, ky2) {
+            card(g, l + 6f, ky2, r - 6f, ky2 + 150f, ok)
+            left(g, "Réponse", l + 30f, ky2 + 34f, sf.withSize(20f), muted, w - 40f)
+            left(g, "200 OK", l + 30f, ky2 + 76f, mf.withSize(26f), ok, w - 50f)
+            left(g, "{ \"id\": 1, \"nom\": \"Exemple\" }", l + 30f, ky2 + 120f, mf.withSize(24f), ink, w - 50f)
+        }
+    }
+
+    // ───────────────────────────── Habitudes : progression ─────────────────────────────
+
+    /** Progression jour après jour : des points qui se remplissent. Illustration, aucune donnée ni promesse. */
+    fun streak(g: Gfx, t: Float, l: Float, top: Float, r: Float, b: Float) {
+        tag(g, l + 10f, top, "ILLUSTRATION")
+        val cx = (l + r) / 2
+        val cols = 7; val rows = 3
+        val gap = (r - l - 120f) / (cols - 1)
+        val rad = (gap * 0.32f).coerceAtMost(34f)
+        var n = 0
+        for (row in 0 until rows) for (c in 0 until cols) {
+            val x = l + 60f + c * gap
+            val y = top + 120f + row * (rad * 2 + 46f)
+            val on = appear(t, 300f + n * 120f, 300f)
+            g.strokeCircle(x, y, rad, 3f, accent.withAlpha(0.5f))
+            if (on > 0f) g.fillCircle(x, y, rad * clamp01(on), accent)
+            n++
+        }
+        val my = top + 120f + rows * (rad * 2 + 46f) + 30f
+        centered(g, "Petit à petit, la progression devient visible.", cx, my, sf.withSize(24f), ink, r - l - 40f)
+    }
 }
