@@ -128,10 +128,6 @@ class FrameRenderer(val storyboard: Storyboard, val format: VideoFormat, baseTem
         g.fillRoundRect(Safe.LEFT + 32f, fy + 2f, Safe.LEFT + 50f, fy + 8f, 3f, rgb(0xF5B301))
         val f = FontSpec(FontFamily.TEXT, 800, 28f)
         g.drawTracked(storyboard.footer, Safe.LEFT + 66f, fy, f, ink.withAlpha(0.9f), 2f)
-        storyboard.hashtag?.let { h ->
-            val hf = FontSpec(FontFamily.TEXT, 500, 26f)
-            g.drawText(h, Safe.RIGHT - g.measureText(h, hf), fy, hf, muted)
-        }
     }
 }
 

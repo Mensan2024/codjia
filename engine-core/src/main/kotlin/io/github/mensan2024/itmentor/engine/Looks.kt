@@ -28,6 +28,10 @@ enum class Look(val label: String, val tagline: String, val transitions: List<Tr
         listOf(TransitionType.FADE, TransitionType.CUT, TransitionType.FADE)),
     EXPLICATIF("Explicatif simulé", "Chapitres numérotés, simulation d'interface et explication mot clé par mot clé",
         listOf(TransitionType.FADE, TransitionType.CUT)),
+    EXPLIC_BAS("Explicatif · carte dessous", "Simulation en haut, carte de chapitre dessous, mots clés en bas",
+        listOf(TransitionType.CUT, TransitionType.FADE)),
+    EXPLIC_BANDEAU("Explicatif · bandeau", "Simulation haute et légende dans un bandeau",
+        listOf(TransitionType.FADE, TransitionType.CUT)),
     MONTAGE("Montage dynamique", "Chapitres numérotés, action animée, sous-titres mot à mot, mascotte",
         listOf(TransitionType.CUT)),
     KIT("Style unique", "Une nouvelle combinaison à chaque version : couleurs, fond, titres, sous-titres, mascotte",
@@ -87,7 +91,9 @@ object Looks {
         Look.COLLAGE -> ReelLook(storyboard, template, ReelStyle.COLLAGE)
         Look.CINEMA -> ReelLook(storyboard, template, ReelStyle.CINEMA)
         Look.INFOGRAPHIE -> InfographicLook(storyboard, StyleKit.infographic(storyboard.seed))
-        Look.EXPLICATIF -> ExplainerLook(storyboard)
+        Look.EXPLICATIF -> ExplainerLook(storyboard, 0)
+        Look.EXPLIC_BAS -> ExplainerLook(storyboard, 1)
+        Look.EXPLIC_BANDEAU -> ExplainerLook(storyboard, 2)
         Look.MONTAGE -> MontageLook(storyboard)
         Look.KIT -> MontageLook(storyboard, StyleKit.random(storyboard.seed))
     }

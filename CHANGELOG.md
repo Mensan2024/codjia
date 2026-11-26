@@ -2,6 +2,18 @@
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [2.1.1]
+
+### Ajouté
+- Deux nouvelles mises en page du format explicatif (« carte dessous », « bandeau ») ; le format explicatif prend désormais palette, fond et variantes (légende, cadre, police) du moteur de styles : des centaines de combinaisons.
+- Web : le bouton « Format » revient dans l'aperçu (tous les formats, anciens et nouveaux).
+
+### Modifié
+- Tous les formats ont la même chance d'être proposés (plus de format favorisé).
+- Pied de page : seulement le logo CODJIA (plus de hashtag en bas à droite).
+- Format explicatif : plus de logo ni de texte en haut.
+- Web : choix de musique réduit (une par ambiance), sans filtres.
+
 ## [2.1.0]
 
 ### Ajouté

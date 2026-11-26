@@ -369,7 +369,7 @@ private fun previewPage(): HTMLElement {
     voiceRow.appendChild(seg)
     page.appendChild(voiceRow)
     val grid = el("div", "actions")
-    grid.add(button("Musique", "tile", Ic.music) { show(Step.MUSIC) },
+    grid.add(button("Format", "tile", Ic.palette) { show(Step.STYLE) }, button("Musique", "tile", Ic.music) { show(Step.MUSIC) },
         button("Autre version", "tile", Ic.dice) { try { propose(true); show(Step.PREVIEW) } catch (e: Throwable) { toast(e.message ?: "Erreur") } })
     page.appendChild(grid)
     if (!Exporter.supported()) page.appendChild(el("p", "warn", "Ce navigateur affiche l'aperçu mais ne sait pas encore fabriquer la vidéo MP4. Utilise Chrome, Edge, Firefox récent ou Safari 16.4+ (iPhone : iOS 16.4 ou plus)."))
@@ -456,7 +456,7 @@ private fun stylePage(): HTMLElement {
     val page = el("main", "page")
     page.appendChild(subPage("Style de la vidéo", Step.PREVIEW))
     val n = StyleKit.combinations
-    page.appendChild(el("p", "muted", "Choisis un format. « Style unique » et « Infographie » changent de couleurs, de fond, de polices et d'animations à chaque version : plus de ${fmtBig(n)} combinaisons, toujours lisibles."))
+    page.appendChild(el("p", "muted", "Choisis un format. Chacun change de couleurs, de fond, de polices et d'animations à chaque version : plus de ${fmtBig(n)} combinaisons, toujours lisibles."))
     val grid = el("div", "grid")
     for (l in Look.entries) {
         val cell = el("div", "look" + if (l == App.look) " selected" else "")
@@ -560,16 +560,14 @@ private fun musicPage(): HTMLElement {
         }
         list.appendChild(el("div", "label", "Musiques CODJIA"))
         list.appendChild(row(null, "Sans musique", "Seulement la voix, ou le silence", false, ::fill))
-        for (t in App.catalog.filter { App.category == null || it.category == App.category }) list.appendChild(row(t, t.title, "${t.category.label} · ${t.bpm} BPM", false, ::fill))
+        // Choix réduit : une musique par ambiance (6 au plus), plus celle déjà choisie.
+        val few = (App.catalog.groupBy { it.category }.values.map { it.first() }.take(6) + listOfNotNull(App.choice.track?.takeIf { c -> App.catalog.any { it.id == c.id } })).distinctBy { it.id }
+        for (t in few) list.appendChild(row(t, t.title, "${t.category.label} · ${t.bpm} BPM", false, ::fill))
     }
-    val chips = el("div", "chips")
-    val cats = MusicCategory.entries.filter { c -> App.catalog.any { it.category == c } }
-    chips.appendChild(button("Toutes", "chip" + if (App.category == null) " on" else "") { App.category = null; show(Step.MUSIC) })
-    for (c in cats) chips.appendChild(button(c.label, "chip" + if (App.category == c) " on" else "") { App.category = c; show(Step.MUSIC) })
     val vol = el("div", "chips")
     vol.appendChild(el("span", "muted small vlabel", "Volume"))
     for (v in MusicVolume.entries) vol.appendChild(button(v.label, "chip" + if (App.choice.volume == v) " on" else "") { App.choice = App.choice.copy(volume = v); App.voiced = null; show(Step.MUSIC) })
-    page.add(vol, chips, list)
+    page.add(vol, list)
     page.appendChild(el("p", "muted small", "Musiques CODJIA : compositions originales (licence GPL-3.0). Pour une musique importée, assure-toi d'avoir le droit de l'utiliser."))
     page.appendChild(el("div", "dock").add(button("Valider", "btn primary wide big") { App.audio.stop(); show(Step.PREVIEW) }))
     fill()

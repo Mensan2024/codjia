@@ -9,12 +9,22 @@ package io.github.mensan2024.itmentor.engine
  * - en bas, l'explication en grosse typographie, par groupes de mots, le mot clé sur fond clair.
  * Le texte de l'auteur est toujours entier : il est dit dans les sous-titres et montré dans la simulation.
  */
-internal class ExplainerLook(private val sb: Storyboard) : LookRenderer {
+internal class ExplainerLook(private val sb: Storyboard, private val variant: Int = 0) : LookRenderer {
     private class Th(val bg1: Int, val bg2: Int, val panel: Int, val card: Int, val cream: Int, val creamInk: Int, val gold: Int, val good: Int)
 
-    private val th = THEMES[(Rand.of(sb.seed, 0x3E1).nextInt() ushr 1) % THEMES.size]
-    private val white = rgb(0xF6F3EA)
-    private val dim = rgb(0x8E9ABB)
+    private val kit = StyleKit.random(sb.seed)
+    private val th = kit.palette.let { Th(it.bgTop, it.bgBottom, it.card, it.inner, it.highlight, it.onHighlight, it.accent, rgb(0x1FA971)) }
+    private val white = kit.palette.ink
+    private val dim = kit.palette.muted
+    private val rnd = Rand.of(sb.seed, 0x3E7)
+    /** Variantes de détail, tirées de la graine : légende, cadre, police des titres. */
+    private val capStyle = (rnd.nextInt() ushr 1) % 3
+    private val panelStyle = (rnd.nextInt() ushr 1) % 3
+    private val titleFam = listOf(FontFamily.SERIF, FontFamily.CINEMA, FontFamily.DISPLAY)[(rnd.nextInt() ushr 1) % 3]
+    // Géométrie selon la variante : A carte au-dessus, B carte sous la simulation, C simulation haute et légende en bandeau.
+    private val cardY = when (variant) { 1 -> 1010f; 2 -> 300f; else -> 420f }
+    private val panelDy = when (variant) { 1 -> -310f; 2 -> -120f; else -> 0f }
+    private val capY = if (variant == 2) 1440f else 1470f
     private val bad = rgb(0xFF6B6B)
     override val ink = white
     override val muted = dim
@@ -22,7 +32,7 @@ internal class ExplainerLook(private val sb: Storyboard) : LookRenderer {
     override val accent2 = th.cream
     private val cache = TextCache()
 
-    private val serif = FontSpec(FontFamily.SERIF, 400, 44f)
+    private val serif get() = FontSpec(titleFam, if (titleFam == FontFamily.DISPLAY) 800 else 400, 44f)
     private fun txt(w: Int, s: Float) = FontSpec(FontFamily.TEXT, w, s)
 
     private enum class Kind { COVER, DEFINE, STEP, VERSUS, STAT, CHECK, CTA }
@@ -110,10 +120,7 @@ internal class ExplainerLook(private val sb: Storyboard) : LookRenderer {
 
     override fun scene(g: Gfx, slot: Slot, localMs: Float, tGlobalMs: Float) {
         val sc = slot.scene
-        g.fillVerticalGradient(0f, 0f, 1080f, 1920f, th.bg1, th.bg2)
-        g.fillRadialGlow(900f, 200f, 800f, th.gold.withAlpha(0.06f))
-        g.fillRadialGlow(160f, 1500f, 900f, th.card.withAlpha(0.45f))
-        header(g)
+        KitDecor.background(g, kit, sb.seed, tGlobalMs, corners = false)
         val bs = beats(sc)
         if (bs.isEmpty()) return
         val (i, t, len) = beatAt(sc, localMs)
@@ -134,18 +141,9 @@ internal class ExplainerLook(private val sb: Storyboard) : LookRenderer {
 
     // ───────────────────────────── Éléments communs ─────────────────────────────
 
-    private fun header(g: Gfx) {
-        // Petit toit (logo) à gauche, nom à droite.
-        val p = PathData().moveTo(0f, 38f).lineTo(40f, 4f).lineTo(80f, 38f).moveTo(14f, 40f).lineTo(66f, 40f).moveTo(24f, 28f).lineTo(56f, 28f)
-        g.strokePath(p.transformed(1f, Safe.LEFT, 96f), 3.2f, white)
-        val f = FontSpec(FontFamily.SERIF, 400, 40f)
-        val w = g.measureTracked("CODJIA", f, 5f)
-        g.drawTracked("CODJIA", Safe.RIGHT - w, 140f, f, white, 5f)
-    }
-
     private fun card(g: Gfx, tag: String, name: String, t: Float, key: String, strike: Float = 0f, answer: Float = -1f, answerTag: String = "À FAIRE", answerName: String = "Appliqué") {
         val a = pop(t)
-        val y = 420f; val h = 150f
+        val y = cardY; val h = 150f
         val tf = txt(800, 22f)
         val nf = fitSize(g, name, txt(800, 46f), 400f)
         val w = (maxOf(g.measureTracked(tag, tf, 2.4f), g.measureText(name, nf)) + 64f).coerceIn(280f, 520f)
@@ -187,10 +185,16 @@ internal class ExplainerLook(private val sb: Storyboard) : LookRenderer {
     private fun panel(g: Gfx, t: Float, title: String, body: () -> Unit) {
         val a = pop(t, 80f, 520f)
         val top = 640f; val bottom = 1220f
-        g.withPose(Pose(alpha = a, dy = (1 - a) * 34f), 540f, top) {
-            g.fillRoundRect(Safe.LEFT + 4f, top + 10f, Safe.RIGHT + 4f, bottom + 10f, 36f, 0x33000000)
-            g.fillRoundRect(Safe.LEFT, top, Safe.RIGHT, bottom, 36f, th.panel)
-            g.strokeRoundRect(Safe.LEFT, top, Safe.RIGHT, bottom, 36f, 1.5f, 0x24FFFFFF)
+        g.withPose(Pose(alpha = a, dy = (1 - a) * 34f + panelDy), 540f, top) {
+            when (panelStyle) {
+                1 -> { g.fillRoundRect(Safe.LEFT, top, Safe.RIGHT, bottom, 36f, th.panel.withAlpha(0.8f)); g.strokeRoundRect(Safe.LEFT, top, Safe.RIGHT, bottom, 36f, 2f, 0x44FFFFFF) }
+                2 -> { g.fillRoundRect(Safe.LEFT, top, Safe.RIGHT, bottom, 36f, th.panel); g.strokeRoundRect(Safe.LEFT, top, Safe.RIGHT, bottom, 36f, 4f, th.gold.withAlpha(0.8f)) }
+                else -> {
+                    g.fillRoundRect(Safe.LEFT + 4f, top + 10f, Safe.RIGHT + 4f, bottom + 10f, 36f, 0x33000000)
+                    g.fillRoundRect(Safe.LEFT, top, Safe.RIGHT, bottom, 36f, th.panel)
+                    g.strokeRoundRect(Safe.LEFT, top, Safe.RIGHT, bottom, 36f, 1.5f, 0x24FFFFFF)
+                }
+            }
             if (title.isNotEmpty()) g.drawText(title, Safe.LEFT + 44f, top + 86f, serif, white)
             body()
         }
@@ -274,8 +278,9 @@ internal class ExplainerLook(private val sb: Storyboard) : LookRenderer {
         fun wordW(w: String) = g.measureText(w, f) + (if (hl >= 0 && w === c[hl]) 36f else 0f)
         val a = Easing.EXPO_OUT.ease(clamp01(local / 220f))
         val lh = size * 1.45f
-        val top = 1470f - (lines.size * lh) / 2f
-        g.withPose(Pose(alpha = a, dy = (1 - a) * 18f, scale = 0.94f + 0.06f * a), 540f, 1470f) {
+        if (variant == 2) g.fillRoundRect(Safe.LEFT - 20f, capY - lines.size * lh / 2f - 20f, Safe.RIGHT + 20f, capY + lines.size * lh / 2f + 20f, 30f, th.panel.withAlpha(0.88f))
+        val top = capY - (lines.size * lh) / 2f
+        g.withPose(Pose(alpha = a, dy = (1 - a) * 18f, scale = 0.94f + 0.06f * a), 540f, capY) {
             for ((li, ln) in lines.withIndex()) {
                 val lw = ln.sumOf { wordW(it).toDouble() }.toFloat() + spaceW * (ln.size - 1)
                 var x = 540f - lw / 2f
@@ -283,7 +288,14 @@ internal class ExplainerLook(private val sb: Storyboard) : LookRenderer {
                 for (w in ln) {
                     val isHl = hl >= 0 && w === c[hl]
                     val ww = g.measureText(w, f)
-                    if (isHl) {
+                    if (isHl && capStyle == 1) {
+                        g.drawText(w, x + 18f, base, f, th.gold)
+                        x += ww + 36f + spaceW
+                    } else if (isHl && capStyle == 2) {
+                        g.drawText(w, x + 18f, base, f, white)
+                        g.fillRoundRect(x + 18f, base + 8f, x + 18f + ww, base + 18f, 5f, th.gold)
+                        x += ww + 36f + spaceW
+                    } else if (isHl) {
                         g.fillRoundRect(x, base - size, x + ww + 36f, base + size * 0.33f, 16f, th.cream)
                         g.drawText(w, x + 18f, base, f, th.creamInk)
                         x += ww + 36f + spaceW
@@ -456,14 +468,5 @@ internal class ExplainerLook(private val sb: Storyboard) : LookRenderer {
         val cur = PathData().moveTo(0f, 0f).lineTo(0f, 46f).lineTo(12f, 35f).lineTo(21f, 54f).lineTo(30f, 50f).lineTo(21f, 31f).lineTo(36f, 31f).close()
         g.fillPath(cur.transformed(1f, px, py), white)
         g.strokePath(cur.transformed(1f, px, py), 2.5f, th.bg1)
-    }
-
-    companion object {
-        private val THEMES = listOf(
-            Th(rgb(0x0E1B3F), rgb(0x0A1230), rgb(0x14234D), rgb(0x1E2F5E), rgb(0xF1EBDC), rgb(0x1B2340), rgb(0xD7B15A), rgb(0x2FBF7F)),
-            Th(rgb(0x0D1F22), rgb(0x08151A), rgb(0x12292D), rgb(0x1B3A3F), rgb(0xE8F3EA), rgb(0x10282B), rgb(0x6FD6B8), rgb(0x2FBF7F)),
-            Th(rgb(0x1E1030), rgb(0x120A22), rgb(0x2A1A44), rgb(0x3A2560), rgb(0xF6E9F0), rgb(0x2A1440), rgb(0xFF9EC4), rgb(0x2FBF7F)),
-            Th(rgb(0x1A1A1D), rgb(0x0F0F12), rgb(0x232328), rgb(0x2F2F36), rgb(0xF4F0E6), rgb(0x1B1B1F), rgb(0xFFB020), rgb(0x2FBF7F)),
-        )
     }
 }
