@@ -30,6 +30,7 @@ object ArtDirector {
     /** Toutes les directions de chaque famille (les trois premières sont recommandées). */
     private val CATALOG: Map<ContentFamily, List<Direction>> = mapOf(
         ContentFamily.MENTAL to listOf(
+            d("mental-serenite", "Sérénité", Look.SERENITE, Mood.CALM, listOf("lofi", "cinematic"), 1, "cercle qui respire, texte centré, aucun mouvement brusque"),
             d("mental-editorial", "Apaisant éditorial", Look.EDITORIAL, Mood.CALM, listOf("lofi", "cinematic"), 1, "mise en page sobre, texte posé, sans effet agressif"),
             d("mental-nuit", "Récit nocturne", Look.CINEMA, Mood.CALM, listOf("cinematic", "lofi"), 1, "ambiance douce et intime, adaptée à un sujet personnel"),
             d("mental-tableau", "Tableau pédagogique doux", Look.TABLEAU, Mood.CALM, listOf("lofi", "cinematic"), 1, "une main qui explique calmement, sans surcharge"),

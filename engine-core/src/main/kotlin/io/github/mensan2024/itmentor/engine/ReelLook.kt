@@ -76,7 +76,9 @@ internal class ReelLook(private val sb: Storyboard, private val template: Templa
         val r = Rand.of(sb.seed xor sc.id.hashCode().toLong(), 0x2B1)
         val icon = sc.iconOrDefault()
         val all = (sb.title + " " + sc.title + " " + sc.body + " " + sc.items.joinToString(" ")).lowercase()
-        val phoneish = Regex("téléphone|telephone|smartphone|android|iphone|appli|application|code|mfa|notification|wi-?fi").containsMatchIn(all)
+        // Sujets apaisants (santé mentale, parole) : jamais de faux téléphone « Réglages / Sécurité ». Mots entiers uniquement.
+        val phoneish = sb.mood != Mood.CALM && sb.mood != Mood.WARM &&
+            Regex("\\b(?:téléphone|telephone|smartphone|android|iphone|appli|applications?|code|mfa|notifications?|wi-?fi)\\b").containsMatchIn(all)
         fun plain(s: String) = Marked.strip(s)
         when (sc.layout) {
             Layout.HERO -> listOf(

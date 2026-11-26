@@ -43,7 +43,9 @@ enum class Look(val label: String, val tagline: String, val transitions: List<Tr
     MONTAGE("Montage dynamique", "Chapitres numérotés, action animée, sous-titres mot à mot, mascotte",
         listOf(TransitionType.CUT)),
     KIT("Style unique", "Une nouvelle combinaison à chaque version : couleurs, fond, titres, sous-titres, mascotte",
-        listOf(TransitionType.CUT));
+        listOf(TransitionType.CUT)),
+    SERENITE("Sérénité", "Dégradé doux, cercle qui respire, serif centré : calme et sans à-coup",
+        listOf(TransitionType.FADE, TransitionType.DIP, TransitionType.FADE));
 
     companion object {
         fun byName(name: String?): Look = entries.firstOrNull { it.name == name } ?: MOTION
@@ -107,6 +109,7 @@ object Looks {
         Look.TERMINAL -> StageLook(storyboard, StageLook.Style.TERMINAL)
         Look.BD -> StageLook(storyboard, StageLook.Style.BD)
         Look.MONTAGE -> MontageLook(storyboard)
+        Look.SERENITE -> SerenityLook(storyboard)
         Look.KIT -> MontageLook(storyboard, StyleKit.random(storyboard.seed, storyboard.mood))
     }
 }

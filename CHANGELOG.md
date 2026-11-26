@@ -2,6 +2,15 @@
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [2.5.1]
+
+### Ajouté
+- **Format « Sérénité »** (famille santé mentale, première direction recommandée) : dégradé doux (crépuscule, sable ou sauge), cercle lumineux qui respire (simple décor, aucune consigne), poussières de lumière, serif centré, apparition douce, transitions en fondu. Tout le texte de l'auteur reste affiché (tests de conservation, de zone sûre et de chevauchement passés sur les 24 textes de référence).
+
+### Corrigé
+- Le format Cinéma n'affiche plus de faux téléphone « Réglages / Sécurité » sur les sujets apaisants ; reconnaissance des mots entiers (plus de faux positif sur « code », etc.).
+- Éditorial : plus de lettrine qui coupe un mot court (« Tu », « Il »…).
+
 ## [2.5.0]
 
 ### Ajouté (moteur)

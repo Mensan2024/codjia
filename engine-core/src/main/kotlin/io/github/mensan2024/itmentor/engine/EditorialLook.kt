@@ -138,6 +138,11 @@ internal class EditorialLook(private val sb: Storyboard) : LookRenderer {
         y += 60f
         val body = Marked.strip(sc.body.ifEmpty { sc.subtitle ?: "" })
         if (body.isEmpty()) return
+        // Premier mot trop court (« Tu », « Il », « On »…) : une lettrine couperait le mot, on met le paragraphe sans lettrine.
+        if (body.substringBefore(' ').trim(',', ';', ':').length < 4) {
+            para(g, "${sc.id}/nodrop", body, serif.withSize(58f), L, y, R - L, 9, pal.ink, t, 900f, 1.36f)
+            return
+        }
         // Lettrine : la première lettre en très grand, le texte s'enroule à côté sur trois lignes.
         val first = body.take(1)
         val rest = body.drop(1)
