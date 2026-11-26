@@ -108,12 +108,18 @@ internal class DemoLook(private val sb: Storyboard, private val template: Templa
     /** Fenêtre (ou téléphone) qui apparaît avec un léger zoom. Renvoie la zone de contenu. */
     private fun windowTitle(sc: Scene): String = when (sc.layout) {
         Layout.DEFINITION -> theme.title
-        Layout.STEPS -> if (terminalMode(sc)) theme.title else "Paramètres"
+        Layout.STEPS -> if (terminalMode(sc)) theme.title else if (settingsMode(sc)) "Paramètres" else "Liste d'actions"
         Layout.HERO -> "Notification"
         Layout.STAT -> "Moniteur"
         Layout.COMPARE -> "Analyse de sécurité"
         Layout.CHECKLIST -> "Liste de contrôle"
         Layout.SCREEN -> theme.title
+    }
+
+    /** Interrupteurs seulement si les étapes parlent vraiment de réglages ; sinon, cases à cocher (pas de faux « Paramètres »). */
+    private fun settingsMode(sc: Scene): Boolean {
+        val t = sc.items.joinToString(" ") { Marked.strip(it) }.lowercase()
+        return Regex("\\b(active|activer|désactive|désactiver|desactive|autorise|autoriser|bloque|bloquer|paramètre|paramètres|réglage|réglages|option|options|mode)\\b").containsMatchIn(t)
     }
 
     private fun terminalMode(sc: Scene): Boolean {
@@ -344,6 +350,7 @@ internal class DemoLook(private val sb: Storyboard, private val template: Templa
         val n = parts.size.coerceAtLeast(1)
         val rowH = ((w.h - 20f) / n).coerceIn(120f, 210f)
         val targets = ArrayList<Target>()
+        val settings = settingsMode(sc)
         val step = ((sc.durationMs * 0.8f - 900f) / n).coerceAtLeast(500f)
         for ((i, p) in parts.withIndex()) {
             val (label, detail) = p
@@ -361,9 +368,10 @@ internal class DemoLook(private val sb: Storyboard, private val template: Templa
                 g.drawBlock(lb, w.l + 28f, ty, textCol)
                 ty += lb.height + 6f
                 db?.let { g.drawBlock(it, w.l + 28f, ty, dim) }
-                toggle(g, w.r - 120f, top + rowH / 2 - 2f, on)
+                if (settings) toggle(g, w.r - 120f, top + rowH / 2 - 2f, on)
+                else checkbox(g, w.r - 100f, top + rowH / 2 - 2f, on)
             }
-            targets += Target(clickAt, w.r - 120f + 66f, top + rowH / 2)
+            targets += Target(clickAt, if (settings) w.r - 120f + 66f else w.r - 78f, top + rowH / 2)
         }
         return targets
     }

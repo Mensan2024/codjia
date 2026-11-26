@@ -2,6 +2,14 @@
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [2.6.1]
+
+### Ajouté
+- **Profondeur et mouvement** (formats Sérénité et Lumière) : trois plans de collines en bas de l'image, qui dérivent à des vitesses différentes (parallaxe lente). Le mouvement suit l'horloge globale : il continue sans à-coup d'une scène à l'autre, et remplit le tiers inférieur auparavant vide.
+
+### Corrigé
+- Format Démo : une liste d'actions n'apparaît plus dans une fausse fenêtre « Paramètres » avec des interrupteurs. Les interrupteurs restent réservés aux étapes qui parlent vraiment de réglages ; sinon, fenêtre « Liste d'actions » avec cases cochées une à une par le curseur.
+
 ## [2.6.0]
 
 ### Ajouté

@@ -52,6 +52,7 @@ internal class SerenityLook(private val sb: Storyboard, private val theme: Theme
             val y = ((m[1] - tGlobalMs * m[3] / 1000f) % 1920f + 1920f) % 1920f
             g.fillCircle(m[0] + sin((tGlobalMs / 4000f + m[1]) * 1f) * 14f, y, m[2], pal.accent.withAlpha(if (pal.dark) 0.16f else 0.20f))
         }
+        landscape(g, tGlobalMs)
         when (sc.layout) {
             Layout.HERO -> hero(g, sc, t, tGlobalMs)
             Layout.DEFINITION -> definition(g, sc, t, tGlobalMs)
@@ -64,6 +65,33 @@ internal class SerenityLook(private val sb: Storyboard, private val theme: Theme
     }
 
     // ───────────────────────────── Éléments communs ─────────────────────────────
+
+    /**
+     * Trois plans de collines en bas de l'image, qui dérivent à des vitesses différentes (parallaxe lente) :
+     * ils donnent de la profondeur et remplissent le tiers inférieur sans toucher au texte. Le mouvement
+     * suit l'horloge globale, donc il continue sans à-coup d'une scène à l'autre.
+     */
+    private fun landscape(g: Gfx, tg: Float) {
+        // base (px), amplitude, longueur d'onde, vitesse (rad/ms), opacité
+        val layers = arrayOf(
+            floatArrayOf(1690f, 30f, 760f, 0.00016f, 0.10f),
+            floatArrayOf(1770f, 38f, 540f, 0.00026f, 0.16f),
+            floatArrayOf(1850f, 32f, 400f, 0.00040f, 0.24f),
+        )
+        val tone = if (pal.dark) pal.orb else pal.ink
+        for ((li, l) in layers.withIndex()) {
+            val path = PathData().moveTo(0f, 1920f)
+            var x = 0f
+            while (x <= 1080f + 30f) {
+                val y = l[0] + l[1] * sin(x * 2f * PI.toFloat() / l[2] + tg * l[3] + li * 1.7f) +
+                    0.35f * l[1] * sin(x * 2f * PI.toFloat() / (l[2] * 0.43f) - tg * l[3] * 1.6f)
+                path.lineTo(x, y)
+                x += 30f
+            }
+            path.lineTo(1080f, 1920f).close()
+            g.fillPath(path, tone.withAlpha(l[4] * (if (pal.dark) 0.65f else 0.45f)))
+        }
+    }
 
     private fun fade(t: Float, delay: Float, dur: Float = 1100f) = Easing.EXPO_OUT.ease(window(t, delay, dur))
 
