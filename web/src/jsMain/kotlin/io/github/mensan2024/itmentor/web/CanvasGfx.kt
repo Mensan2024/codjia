@@ -20,15 +20,15 @@ object WebFonts {
     fun start(base: String) {
         if (all != null) return
         val files = FontFamily.entries.flatMap { f -> FontCatalog.FILES.getValue(f).values }.distinct()
-        val loads = files.map { file ->
+        val loads: dynamic = js("[]")
+        for (file in files) {
             val name = "itm-" + file.substringBeforeLast('.')
             val url = "url(${base}assets/fonts/$file)"
             val face: dynamic = js("new FontFace(name, url)")
-            (face.load() as kotlin.js.Promise<dynamic>).then { loaded ->
-                document.asDynamic().fonts.add(loaded); Unit
-            }
+            val p: dynamic = face.load().then({ loaded: dynamic -> document.asDynamic().fonts.add(loaded); 0 })
+            loads.push(p)
         }
-        all = kotlin.js.Promise.all(loads.toTypedArray()).then { Unit } as kotlin.js.Promise<dynamic>
+        all = js("Promise").all(loads).unsafeCast<kotlin.js.Promise<dynamic>>()
     }
 
     /** Attend que toutes les polices soient prêtes (aperçu et export). */
