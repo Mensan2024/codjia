@@ -45,6 +45,8 @@ enum class Look(val label: String, val tagline: String, val transitions: List<Tr
     KIT("Style unique", "Une nouvelle combinaison à chaque version : couleurs, fond, titres, sous-titres, mascotte",
         listOf(TransitionType.CUT)),
     SERENITE("Sérénité", "Dégradé doux, cercle qui respire, serif centré : calme et sans à-coup",
+        listOf(TransitionType.FADE, TransitionType.DIP, TransitionType.FADE)),
+    LUMIERE("Lumière", "Étoile de lumière, tons chauds, serif centré : méditation et parole",
         listOf(TransitionType.FADE, TransitionType.DIP, TransitionType.FADE));
 
     companion object {
@@ -110,6 +112,7 @@ object Looks {
         Look.BD -> StageLook(storyboard, StageLook.Style.BD)
         Look.MONTAGE -> MontageLook(storyboard)
         Look.SERENITE -> SerenityLook(storyboard)
+        Look.LUMIERE -> SerenityLook(storyboard, SerenityLook.Theme.LUMIERE)
         Look.KIT -> MontageLook(storyboard, StyleKit.random(storyboard.seed, storyboard.mood))
     }
 }

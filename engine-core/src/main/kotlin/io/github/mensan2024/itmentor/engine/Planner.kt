@@ -371,6 +371,7 @@ object StoryboardPlanner {
                 val body = picked.joinToString(" ")
                 val defTitle = when {
                     headed != null -> emphasize(headed, d) + if (groups.size > 1) " (${gi + 1}/${groups.size})" else ""
+                    fam == ContentFamily.BIBLE -> if (defCount == 0) "Pour *méditer*" else "À *méditer*"
                     defCount > 0 -> if (english) "And also" else pick(listOf("Et *aussi*", "À *savoir*", "*Concrètement*"))
                     english -> pick(listOf("The idea", "In short", "Why it matters"))
                     else -> pick(listOf("Le *principe*", "Ce qu’il faut *savoir*", "*Pourquoi* c’est important$NB?", "*Comprendre* en 10 secondes"))
@@ -378,6 +379,7 @@ object StoryboardPlanner {
                 scenes += Scene(id = if (defCount == 0) "s-def" else "s-def$si-$gi", layout = Layout.DEFINITION, durationMs = 1,
                     kicker = when {
                         english -> "DEFINITION"
+                        fam == ContentFamily.BIBLE -> "MÉDITATION"
                         headed != null -> pick(listOf("SENSIBILISATION", "LE BON RÉFLEXE", "À SAVOIR"))
                         else -> pick(listOf("DÉFINITION", "LE SAVIEZ-VOUS$NB?", "EN BREF"))
                     },

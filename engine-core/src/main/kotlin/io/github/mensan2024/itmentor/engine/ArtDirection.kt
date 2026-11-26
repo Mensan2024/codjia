@@ -37,6 +37,7 @@ object ArtDirector {
             d("mental-mascotte", "Compagnon bienveillant", Look.MASCOTTE, Mood.CALM, listOf("lofi"), 1, "un personnage qui accompagne, ton rassurant"),
         ),
         ContentFamily.BIBLE to listOf(
+            d("bible-lumiere", "Lumière", Look.LUMIERE, Mood.WARM, listOf("cinematic", "lofi"), 1, "étoile de lumière, tons chauds, texte centré : recueillement"),
             d("bible-contemplatif", "Contemplatif", Look.CINEMA, Mood.WARM, listOf("cinematic", "lofi"), 1, "serif italique et nuit étoilée : recueillement"),
             d("bible-sobre", "Sobre et élégant", Look.EDITORIAL, Mood.WARM, listOf("cinematic", "lofi"), 1, "typographie de livre, le texte reste au centre"),
             d("bible-enseignement", "Enseignement au tableau", Look.TABLEAU, Mood.WARM, listOf("lofi", "cinematic"), 1, "idéal pour expliquer un passage point par point"),

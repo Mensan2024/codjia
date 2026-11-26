@@ -2,6 +2,11 @@
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [2.5.2]
+
+### Ajouté
+- **Format « Lumière »** (famille parole biblique, première direction recommandée) : étoile de lumière, trois ambiances chaudes (nuit étoilée, parchemin, aube ambrée), serif centré. Une référence biblique collée à une citation (« Jean 3:16 ») est isolée sur sa propre ligne, telle que l'auteur l'a écrite, sans rien ajouter ni modifier. Intitulés neutres « Pour méditer » / « MÉDITATION » au lieu de « Le saviez-vous ? ».
+
 ## [2.5.1]
 
 ### Ajouté

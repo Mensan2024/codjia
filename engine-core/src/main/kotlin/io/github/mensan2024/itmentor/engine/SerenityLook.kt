@@ -10,9 +10,16 @@ import kotlin.math.sin
  * diagnostic, aucune promesse), poussières de lumière en dérive, texte serif centré, une idée à la fois.
  * Pas de flash, pas de coupure sèche, pas de mouvement brusque. Trois ambiances : crépuscule, sable, sauge.
  */
-internal class SerenityLook(private val sb: Storyboard) : LookRenderer {
+internal class SerenityLook(private val sb: Storyboard, private val theme: Theme = Theme.SERENITE) : LookRenderer {
+    /** SERENITE : cercle qui respire (bien-être). LUMIERE : étoile de lumière, tons chauds (parole et méditation). */
+    enum class Theme { SERENITE, LUMIERE }
+
     private data class Palette(val top: Int, val bottom: Int, val ink: Int, val muted: Int, val accent: Int, val orb: Int, val dark: Boolean)
-    private val palettes = listOf(
+    private val palettes = if (theme == Theme.LUMIERE) listOf(
+        Palette(rgb(0x120F2B), rgb(0x2A2250), rgb(0xF6EFDD), rgb(0xB9B3D0), rgb(0xE8C170), rgb(0xE8C170), true),   // nuit étoilée
+        Palette(rgb(0xF6EBD3), rgb(0xE4CFA4), rgb(0x2C2218), rgb(0x76654C), rgb(0x9A5B2B), rgb(0xE0A94F), false),  // parchemin
+        Palette(rgb(0x2B1A14), rgb(0x4D2F1F), rgb(0xF8EBD8), rgb(0xCDB59B), rgb(0xF0B35E), rgb(0xF0B35E), true),   // aube ambrée
+    ) else listOf(
         Palette(rgb(0x14213D), rgb(0x1E4050), rgb(0xF4EFE6), rgb(0xA9B7C6), rgb(0x8FD3C1), rgb(0x8FD3C1), true),   // crépuscule
         Palette(rgb(0xF7F0E5), rgb(0xE9DCC9), rgb(0x2B2A28), rgb(0x6F675B), rgb(0xB5654A), rgb(0xE2A98B), false),  // sable
         Palette(rgb(0x1C2A25), rgb(0x2E4639), rgb(0xEEF2EA), rgb(0xA8B8AC), rgb(0xB9D8A5), rgb(0xB9D8A5), true),   // sauge
@@ -65,10 +72,23 @@ internal class SerenityLook(private val sb: Storyboard) : LookRenderer {
         val a = fade(t, 0f, 1600f)
         val breath = 1f + 0.10f * sin(2f * PI.toFloat() * tGlobal / 10_000f)
         val rr = r * breath
+        if (theme == Theme.LUMIERE) { star(g, cx, cy, r * (1f + 0.06f * sin(2f * PI.toFloat() * tGlobal / 8_000f)), a); return }
         g.fillRadialGlow(cx, cy, rr * 2.6f, pal.orb.withAlpha((if (pal.dark) 0.20f else 0.30f) * a))
         g.fillRadialGlow(cx, cy, rr * 1.6f, pal.orb.withAlpha((if (pal.dark) 0.30f else 0.40f) * a))
         g.fillCircle(cx, cy, rr, pal.orb.withAlpha((if (pal.dark) 0.55f else 0.70f) * a))
         g.strokeCircle(cx, cy, rr * 1.18f, 2f, pal.orb.withAlpha(0.45f * a))
+    }
+
+    /** Étoile de lumière à quatre branches (halo + deux losanges très effilés), purement décorative. */
+    private fun star(g: Gfx, cx: Float, cy: Float, r: Float, a: Float) {
+        g.fillRadialGlow(cx, cy, r * 2.8f, pal.orb.withAlpha((if (pal.dark) 0.22f else 0.30f) * a))
+        g.fillRadialGlow(cx, cy, r * 1.5f, pal.orb.withAlpha((if (pal.dark) 0.35f else 0.45f) * a))
+        val k = r * 1.5f; val w = r * 0.16f
+        val path = PathData()
+            .moveTo(cx, cy - k).lineTo(cx + w, cy - w).lineTo(cx + k, cy).lineTo(cx + w, cy + w)
+            .lineTo(cx, cy + k).lineTo(cx - w, cy + w).lineTo(cx - k, cy).lineTo(cx - w, cy - w).close()
+        g.fillPath(path, pal.orb.withAlpha(0.95f * a))
+        g.fillCircle(cx, cy, r * 0.16f, pal.ink.withAlpha(0.9f * a))
     }
 
     private fun kicker(g: Gfx, sc: Scene, t: Float) {
@@ -138,15 +158,34 @@ internal class SerenityLook(private val sb: Storyboard) : LookRenderer {
         g.restore()
     }
 
+    /** Référence biblique (« Jean 3:16 ») collée à la fin d'une citation : isolée sur sa ligne, texte exact de l'auteur. */
+    private val VERSE_REF = Regex("(?<=[»”\"])\\s*((?:[1-3]\\s)?\\p{Lu}[\\p{L}]+(?:\\s\\p{L}+)?\\s\\d{1,3}:\\d{1,3}(?:[-–]\\d{1,3})?)")
+
+    /** Texte coupé en morceaux : (est_référence, texte). Sans référence, un seul morceau. */
+    private fun parts(body: String): List<Pair<Boolean, String>> {
+        val out = ArrayList<Pair<Boolean, String>>()
+        var pos = 0
+        for (m in VERSE_REF.findAll(body)) {
+            val pre = body.substring(pos, m.range.first).trim()
+            if (pre.isNotEmpty()) out += false to pre
+            out += true to m.groupValues[1].trim()
+            pos = m.range.last + 1
+        }
+        val rest = body.substring(pos).trim()
+        if (rest.isNotEmpty()) out += false to rest
+        return out.ifEmpty { listOf(false to body) }
+    }
+
     private fun definition(g: Gfx, sc: Scene, t: Float, tg: Float) {
         kicker(g, sc, t)
-        var k = 1f
         val body = Marked.strip(sc.body.ifEmpty { sc.subtitle ?: "" })
+        val ps = parts(body)
+        var k = 1f
         var endY: Float
         while (true) {
             val tb = cache.fit(g, "${sc.id}/h@$k", Marked.parse(sc.title).plain, serif.withSize(86f * k), W, 3, 1.08f)
-            val bb = cache.fit(g, "${sc.id}/b@$k", body, serif.withSize(54f * k), W - 30f, 14, 1.42f)
-            endY = 500f + tb.height + 76f + bb.height
+            val hs = ps.mapIndexed { i, p -> cache.fit(g, "${sc.id}/p$i@$k", p.second, if (p.first) italic.withSize(50f * k) else serif.withSize(54f * k), W - 30f, 14, 1.42f).height + (if (p.first) 30f else 20f) }
+            endY = 500f + tb.height + 76f + hs.sum()
             if (endY <= bottomLimit || k <= 0.62f) break
             k -= 0.06f
         }
@@ -156,7 +195,11 @@ internal class SerenityLook(private val sb: Storyboard) : LookRenderer {
         val a = Easing.EASE_IN_OUT.ease(window(t, 1000f, 1100f))
         g.fillRect(540f - 60f * a, y, 540f + 60f * a, y + 3f, pal.accent)
         y += 40f
-        if (body.isNotEmpty()) para(g, "${sc.id}/b@$k", body, serif.withSize(54f * k), y, W - 30f, 14, pal.ink, t, 1300f, 1.42f)
+        for ((i, p) in ps.withIndex()) {
+            val f = if (p.first) italic.withSize(50f * k) else serif.withSize(54f * k)
+            val b = para(g, "${sc.id}/p$i@$k", p.second, f, y, W - 30f, 14, if (p.first) pal.accent else pal.ink, t, 1300f + i * 500f, 1.42f)
+            y += b.height + (if (p.first) 30f else 20f)
+        }
         g.restore()
     }
 
