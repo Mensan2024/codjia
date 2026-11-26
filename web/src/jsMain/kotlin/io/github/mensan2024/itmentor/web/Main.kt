@@ -36,6 +36,19 @@ private val base: String = run {
     if (p.endsWith("/")) p else p.substringBeforeLast('/') + "/"
 }
 
+/** Sauvegarde locale (sur l'appareil seulement) : texte saisi et réglages, retrouvés à la prochaine ouverture. */
+private object Store {
+    private const val KEY = "codjia.v1."
+    fun get(k: String): String? = try { window.localStorage.getItem(KEY + k) } catch (e: Throwable) { null }
+    fun set(k: String, v: String) { try { window.localStorage.setItem(KEY + k, v) } catch (e: Throwable) {} }
+}
+
+private fun persist() {
+    Store.set("text", App.userText)
+    Store.set("voice", if (App.voiceOn) "1" else "0")
+    Store.set("vol", App.choice.volume.name)
+}
+
 private enum class Step { TEXT, PREVIEW, STYLE, MUSIC, EXPORT }
 
 private object App {
@@ -44,7 +57,7 @@ private object App {
     var catalog: List<MusicTrack> = emptyList()
     var mine: List<MusicTrack> = emptyList()
     var step = Step.TEXT
-    var userText = Examples.ALL.first().second
+    var userText = Store.get("text") ?: ""
     var seed = 1L
     var generation = 0
     lateinit var content: Storyboard
@@ -56,7 +69,7 @@ private object App {
     var choice = MusicChoice(null)
     var musicLocked = false
     var category: MusicCategory? = null
-    var voiceOn = false
+    var voiceOn = Store.get("voice") == "1"
     var voiceMode = VoiceMode.AUTO
     var voiced: Pair<String, Narration.Voiced>? = null
     var anim = 0          // identifiant de la boucle d'aperçu en cours (0 = aucune)
@@ -80,6 +93,7 @@ fun main() {
         css.setProperty("--font-display", "\"${WebFonts.family(io.github.mensan2024.itmentor.engine.FontSpec(FontFamily.DISPLAY, 900, 16f))}\", system-ui, sans-serif")
         App.catalog = App.audio.catalog()
         App.mine = MyMusic.list()
+        Store.get("vol")?.let { v -> MusicVolume.entries.firstOrNull { it.name == v }?.let { App.choice = App.choice.copy(volume = it) } }
         window.asDynamic().codjiaReady = true   // pour les tests automatiques
         root.classList.remove("boot")
         show(Step.TEXT)
@@ -149,6 +163,7 @@ private object Ic {
     val share = svg("<circle cx='18' cy='5' r='3'/><circle cx='6' cy='12' r='3'/><circle cx='18' cy='19' r='3'/><line x1='8.6' y1='13.5' x2='15.4' y2='17.5'/><line x1='15.4' y1='6.5' x2='8.6' y2='10.5'/>")
     val sparkle = svg("<path d='M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z' fill='currentColor'/><path d='M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z' fill='currentColor'/>")
     val trash = svg("<polyline points='3 6 5 6 21 6'/><path d='M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2'/>")
+    val help = svg("<circle cx='12' cy='12' r='10'/><path d='M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01'/>")
     val back = svg("<polyline points='15 18 9 12 15 6'/>")
 }
 
@@ -198,6 +213,7 @@ private fun topBar(s: Step): HTMLElement {
     brand.addEventListener("click", { if (!App.exporting) show(Step.TEXT) })
     h.appendChild(brand)
     h.appendChild(el("span", "install-slot").also { it.id = "install-slot" })
+    h.appendChild(button("", "icon-btn", Ic.help) { showHelp() }.also { it.title = "Aide : comment ça marche"; it.setAttribute("aria-label", "Aide") })
     wrap.appendChild(h)
     // Étapes : Texte → Aperçu → Vidéo
     val idx = when (s) { Step.TEXT -> 0; Step.PREVIEW, Step.STYLE, Step.MUSIC -> 1; Step.EXPORT -> 2 }
@@ -205,13 +221,37 @@ private fun topBar(s: Step): HTMLElement {
     listOf("Texte", "Aperçu", "Vidéo").forEachIndexed { i, label ->
         val it = el("div", "st" + (if (i == idx) " on" else if (i < idx) " done" else ""))
         it.add(el("span", "dot", "${i + 1}"), el("span", "lab", label))
-        if (i < idx && !App.exporting) it.addEventListener("click", { show(if (i == 0) Step.TEXT else Step.PREVIEW) })
+        if (i < idx && !App.exporting) {
+            it.setAttribute("tabindex", "0"); it.setAttribute("role", "button")
+            it.addEventListener("click", { show(if (i == 0) Step.TEXT else Step.PREVIEW) })
+        }
+        if (i == idx) it.setAttribute("aria-current", "step")
         stepper.appendChild(it)
         if (i < 2) stepper.appendChild(el("span", "bar" + if (i < idx) " done" else ""))
     }
     wrap.appendChild(stepper)
     window.setTimeout({ renderHeaderInstall() }, 0)
     return wrap
+}
+
+/** Aide facultative : cinq étapes courtes, jamais imposée. */
+private fun showHelp() {
+    val bg = el("div", "sheet-bg")
+    val sheet = el("div", "sheet")
+    sheet.appendChild(el("h2", "", "Comment ça marche"))
+    val ol = el("ol")
+    listOf(
+        "Texte" to "Colle ton texte (ou touche « Essayer un exemple »). Les titres, les listes et l'ordre de tes phrases sont conservés.",
+        "Analyse" to "CODJIA repère le sujet, les étapes et la conclusion, puis construit le scénario de la vidéo, sur ton appareil.",
+        "Style" to "Dans l'aperçu, « Format » change l'allure de la vidéo et « Autre version » en propose une nouvelle.",
+        "Musique et voix" to "« Musique » choisit ou importe un morceau ; « Voix » ajoute une voix off. Le bouton est allumé quand l'option est active.",
+        "Vidéo" to "« Générer la vidéo » fabrique le MP4 ; tu peux ensuite l'enregistrer ou le partager.",
+    ).forEach { (t, d) -> ol.appendChild(el("li").also { li -> li.appendChild(el("b", "", "$t : ")); li.appendChild(el("span", "", d)) }) }
+    sheet.appendChild(ol)
+    sheet.appendChild(button("Compris", "btn primary wide") { bg.remove() })
+    bg.appendChild(sheet)
+    bg.addEventListener("click", { e -> if (e.target === bg) bg.remove() })
+    document.body?.appendChild(bg)
 }
 
 private fun isIos(): Boolean = js("/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)") as Boolean
@@ -245,15 +285,20 @@ private fun subPage(title: String, back: Step): HTMLElement {
 
 private fun textPage(): HTMLElement {
     val page = el("main", "page")
-    val hero = el("section", "hero")
-    hero.add(el("h1", "", "Ton texte devient une vidéo"),
-        el("p", "lead", "Colle ton texte : CODJIA en fait une vidéo animée."))
-    page.appendChild(hero)
+    // Présentation courte pour les nouveaux utilisateurs ; réduite dès qu'on écrit, fermable pour de bon.
+    val intro = el("section", "intro")
+    intro.appendChild(el("p").also {
+        it.innerHTML = "<b>Transformez vos idées et vos textes en vidéos captivantes.</b> Choisissez un style, personnalisez votre création et générez une vidéo professionnelle en quelques étapes."
+    })
+    intro.appendChild(button("×", "x") { Store.set("intro", "0"); intro.classList.add("min") }.also { it.title = "Masquer"; it.setAttribute("aria-label", "Masquer la présentation") })
+    if (Store.get("intro") == "0" || App.userText.isNotBlank()) intro.classList.add("min")
+    page.appendChild(intro)
     val card = el("div", "card editor")
     val area = el("textarea", "text") as org.w3c.dom.HTMLTextAreaElement
     area.value = App.userText
     area.maxLength = TextSanitizer.MAX_CHARS
-    area.placeholder = "Ex. : Astuce 028 — Active le pare-feu de ton PC…"
+    area.placeholder = "Colle ou écris ton texte ici… Ex. : Astuce 028 — Active le pare-feu de ton PC…"
+    area.setAttribute("aria-label", "Ton texte")
     val meta = el("div", "editor-meta")
     val counter = el("span", "", "")
     val estimate = el("span", "pill", "")
@@ -263,6 +308,7 @@ private fun textPage(): HTMLElement {
         val words = area.value.split(Regex("\\s+")).count { w -> w.any { it.isLetterOrDigit() } }
         counter.textContent = "$words mots · ${area.value.length} / ${TextSanitizer.MAX_CHARS}"
         window.clearTimeout(timer)
+        if (area.value.isBlank()) { estimate.textContent = "Colle un texte"; return }
         timer = window.setTimeout({
             val ms = try {
                 val p = CreativeDirector.propose(area.value, 7L)
@@ -271,15 +317,25 @@ private fun textPage(): HTMLElement {
             estimate.textContent = if (ms > 0) "Vidéo ≈ ${(ms + 500) / 1000} s" else "Texte trop court"
         }, 350)
     }
-    area.addEventListener("input", { refresh() })
+    area.addEventListener("input", { App.userText = area.value; persist(); refresh() })
+    area.addEventListener("focus", { intro.classList.add("min") })
+    area.addEventListener("blur", { if (area.value.isBlank() && Store.get("intro") != "0") intro.classList.remove("min") })
     card.add(area, meta)
     page.appendChild(card)
-    val ex = Examples.ALL.first().second
-    page.appendChild(el("div", "chips").add(button("Essayer un exemple", "chip") { area.value = ex; refresh() }))
+    // « Essayer un exemple » charge un vrai exemple à chaque touche, et passe au suivant ensuite.
+    var next = (App.userText.length + App.generation) % Examples.ALL.size
+    page.appendChild(el("div", "chips").add(button("Essayer un exemple", "chip") {
+        val (name, txt) = Examples.ALL[next % Examples.ALL.size]
+        next++
+        area.value = txt; App.userText = txt; persist(); refresh()
+        area.scrollTop = 0.0
+        toast("Exemple chargé : $name")
+    }))
     refresh()
     val go = button("Créer ma vidéo", "btn primary wide big", Ic.sparkle) {
+        if (area.value.isBlank()) { toast("Colle d'abord ton texte, ou touche « Essayer un exemple »."); area.focus(); return@button }
         App.audio.context() // geste de l'utilisateur : le son pourra être joué (iPhone)
-        App.userText = area.value
+        App.userText = area.value; persist()
         App.lookLocked = false
         try {
             propose(true)
@@ -345,36 +401,72 @@ private suspend fun plan(status: (String, Int?) -> Unit): Pair<Storyboard, Pcm?>
 
 // ───────────────────────────── 2. Aperçu ─────────────────────────────
 
+private class PreviewUi(val ctrl: HTMLElement, val playBtn: HTMLElement, val seek: HTMLElement, val fill: HTMLElement, val time: HTMLElement)
+
+private fun mmss(ms: Double): String { val s = (ms / 1000).toInt().coerceAtLeast(0); return "${s / 60}:${(s % 60).toString().padStart(2, '0')}" }
+
+/** Bouton de la barre d'outils : icône + libellé court ; allumé quand l'option est active. */
+private fun toolButton(label: String, icon: String, on: Boolean, hint: String, onClick: () -> Unit): HTMLElement {
+    val b = button(label, "tb" + if (on) " on" else "", icon, onClick)
+    b.title = hint
+    b.setAttribute("aria-label", hint)
+    b.setAttribute("aria-pressed", if (on) "true" else "false")
+    return b
+}
+
 private fun previewPage(): HTMLElement {
     val page = el("main", "page preview-page")
     val dur = el("span", "tag", "…")
-    page.appendChild(el("div", "tags").add(dur))
+    page.appendChild(el("div", "tags").add(el("span", "tag accent", styleName()), dur))
+    if (Store.get("tip") != "0") {
+        val tip = el("div", "tip")
+        tip.add(el("span", "", "Touche l'aperçu pour mettre en pause. Voix, Format, Musique et Autre version sont dans la barre du bas."),
+            button("Compris", "") { Store.set("tip", "0"); tip.remove() })
+        page.appendChild(tip)
+    }
 
     val stage = el("div", "stage")
     val canvas = el("canvas", "preview")
-    val overlay = el("div", "overlay")
-    val ovIcon = el("div", "ov-icon").also { it.innerHTML = Ic.pause }
-    val ovText = el("div", "ov-text", "")
+    canvas.setAttribute("aria-label", "Aperçu de la vidéo")
+    val overlay = el("div", "overlay busy")
+    val ovIcon = el("div", "ov-icon")
+    val ovText = el("div", "ov-text", "Préparation de l'aperçu…")
     val ovBar = el("div", "bar"); val ovFill = el("div", "fill"); ovBar.appendChild(ovFill)
+    ovBar.asDynamic().style.visibility = "hidden"
     overlay.add(ovIcon, ovText, ovBar)
     stage.add(canvas, overlay)
     page.appendChild(stage)
 
-    // Voix off : oui / non (comme dans l'application Android), et la langue.
-    val voiceRow = el("div", "card row-card")
-    voiceRow.appendChild(el("div", "row-title").also { it.innerHTML = Ic.mic; it.appendChild(el("span", "", "Voix off")) })
-    val seg = el("div", "seg")
-    seg.add(button("Non", "seg-btn" + if (!App.voiceOn) " on" else "") { if (App.voiceOn) { App.voiceOn = false; show(Step.PREVIEW) } },
-        button("Oui", "seg-btn" + if (App.voiceOn) " on" else "") { if (!App.voiceOn) { App.voiceOn = true; show(Step.PREVIEW) } })
-    voiceRow.appendChild(seg)
-    page.appendChild(voiceRow)
-    val grid = el("div", "actions")
-    grid.add(button("Format", "tile", Ic.palette) { show(Step.STYLE) }, button("Musique", "tile", Ic.music) { show(Step.MUSIC) },
-        button("Autre version", "tile", Ic.dice) { try { propose(true); show(Step.PREVIEW) } catch (e: Throwable) { toast(e.message ?: "Erreur") } })
-    page.appendChild(grid)
+    // Lecture / pause / reprise et barre de progression (visibles dès que l'aperçu est prêt).
+    val playBtn = button("", "icon-btn", Ic.pause) {}
+    playBtn.setAttribute("aria-label", "Lecture / pause")
+    val fill = el("div", "fill")
+    val seekBar = el("div", "bar"); seekBar.appendChild(fill)
+    val seek = el("div", "seek"); seek.appendChild(seekBar)
+    val time = el("span", "time", "0:00 / 0:00")
+    val ctrl = el("div", "ctrl").add(playBtn, seek, time)
+    ctrl.asDynamic().style.visibility = "hidden"
+    page.appendChild(ctrl)
+
     if (!Exporter.supported()) page.appendChild(el("p", "warn", "Ce navigateur affiche l'aperçu mais ne sait pas encore fabriquer la vidéo MP4. Utilise Chrome, Edge, Firefox récent ou Safari 16.4+ (iPhone : iOS 16.4 ou plus)."))
-    page.appendChild(el("div", "dock").add(button("Générer la vidéo", "btn primary wide big", Ic.download) { show(Step.EXPORT) }))
-    window.setTimeout({ startPreview(canvas, dur, overlay, ovIcon, ovText, ovFill) }, 0)
+
+    // Barre d'outils fixe en bas : une seule ligne ; défilement horizontal si l'écran est très étroit.
+    val tools = el("div", "toolbar")
+    tools.setAttribute("role", "toolbar")
+    tools.add(
+        toolButton("Voix", Ic.mic, App.voiceOn, if (App.voiceOn) "Voix off activée : touche pour la couper" else "Voix off coupée : touche pour l'activer") {
+            App.voiceOn = !App.voiceOn; persist()
+            toast(if (App.voiceOn) "Voix off activée" else "Voix off désactivée")
+            show(Step.PREVIEW)
+        },
+        toolButton("Format", Ic.palette, App.lookLocked, "Choisir le format de la vidéo") { show(Step.STYLE) },
+        toolButton("Musique", Ic.music, App.choice.track != null, if (App.choice.track != null) "Musique choisie : ${App.choice.track?.title}" else "Choisir ou importer une musique") { show(Step.MUSIC) },
+        toolButton("Autre version", Ic.dice, false, "Générer une autre version à partir du même texte") {
+            try { propose(true); show(Step.PREVIEW) } catch (e: Throwable) { toast(e.message ?: "Erreur") }
+        },
+    )
+    page.appendChild(el("div", "dock").add(tools, button("Générer la vidéo", "btn primary wide big", Ic.download) { show(Step.EXPORT) }))
+    window.setTimeout({ startPreview(canvas, dur, overlay, ovIcon, ovText, ovFill, PreviewUi(ctrl, playBtn, seek, fill, time)) }, 0)
     return page
 }
 
@@ -383,7 +475,7 @@ private fun stopPreview() {
     App.audio.stop()
 }
 
-private fun startPreview(canvas: dynamic, dur: HTMLElement, overlay: HTMLElement, ovIcon: HTMLElement, ovText: HTMLElement, ovFill: HTMLElement) {
+private fun startPreview(canvas: dynamic, dur: HTMLElement, overlay: HTMLElement, ovIcon: HTMLElement, ovText: HTMLElement, ovFill: HTMLElement, ui: PreviewUi) {
     val id = (window.performance.now() * 1000).toInt() + 1
     App.anim = id
     // Taille d'aperçu : nette sur les écrans haute densité, sans être trop lourde.
@@ -404,8 +496,9 @@ private fun startPreview(canvas: dynamic, dur: HTMLElement, overlay: HTMLElement
     launch(onError = { e ->
         if (App.anim == id) {
             overlay.className = "overlay busy"
+            ovIcon.innerHTML = ""
             ovText.textContent = "Voix off impossible : ${e.message}. Vidéo sans voix."
-            App.voiceOn = false
+            App.voiceOn = false; persist()
             window.setTimeout({ if (App.anim == id) show(Step.PREVIEW) }, 2600)
         }
     }) {
@@ -417,6 +510,7 @@ private fun startPreview(canvas: dynamic, dur: HTMLElement, overlay: HTMLElement
         val total = renderer.timeline.totalMs.toDouble()
         dur.textContent = "⏱ ${((total + 500) / 1000).toInt()} s" + if (App.voiceOn) " · voix" else ""
         overlay.className = "overlay"
+        ui.ctrl.asDynamic().style.visibility = "visible"
         val gfx = CanvasGfx()
         var paused = false
         var clockStart = window.performance.now()
@@ -424,26 +518,42 @@ private fun startPreview(canvas: dynamic, dur: HTMLElement, overlay: HTMLElement
         var buf: dynamic = null
         val gain = if (mixed != null) 1f else App.choice.volume.gain
         fun startAudio(fromMs: Double) { if (buf != null) App.audio.play(buf, fromMs, gain) }
-        canvas.addEventListener("click", {
-            paused = !paused
+        fun setPaused(p: Boolean) {
+            if (p == paused) return
+            paused = p
             if (paused) {
                 pausedAt = window.performance.now() - clockStart; App.audio.stop()
                 overlay.className = "overlay paused"; ovIcon.innerHTML = Ic.play; ovText.textContent = ""
+                ui.playBtn.querySelector(".ic")?.innerHTML = Ic.play
             } else {
                 clockStart = window.performance.now() - pausedAt; startAudio(pausedAt)
                 overlay.className = "overlay"; ovIcon.innerHTML = Ic.pause
+                ui.playBtn.querySelector(".ic")?.innerHTML = Ic.pause
             }
+        }
+        canvas.addEventListener("click", { setPaused(!paused) })
+        ui.playBtn.addEventListener("click", { setPaused(!paused) })
+        ui.seek.addEventListener("click", { e ->
+            val r = ui.seek.getBoundingClientRect()
+            val frac = ((e.asDynamic().clientX as Double - r.left) / r.width).coerceIn(0.0, 0.999)
+            val to = frac * total
+            if (paused) pausedAt = to else { clockStart = window.performance.now() - to; App.audio.stop(); startAudio(to) }
         })
         if (mixed != null) { buf = App.audio.fromPcm(mixed); clockStart = window.performance.now(); startAudio(0.0) }
         else App.choice.track?.takeIf { App.choice.hasAudio }?.let { track ->
             launch { val b = App.audio.buffer(track); if (App.anim == id) { buf = b; clockStart = window.performance.now(); startAudio(0.0) } }
         }
+        var lastSec = -1
+        val totalLabel = mmss(total)
         fun frame(@Suppress("UNUSED_PARAMETER") ts: Double) {
             if (App.anim != id) return
             var t = if (paused) pausedAt else window.performance.now() - clockStart
             if (t >= total) { clockStart = window.performance.now(); t = 0.0; startAudio(0.0) }
             gfx.begin(canvas)
             renderer.render(gfx, t.toFloat())
+            ui.fill.style.width = "${(t / total * 100).coerceIn(0.0, 100.0)}%"
+            val sec = (t / 1000).toInt()
+            if (sec != lastSec) { lastSec = sec; ui.time.textContent = "${mmss(t)} / $totalLabel" }
             window.requestAnimationFrame(::frame)
         }
         window.requestAnimationFrame(::frame)
@@ -566,7 +676,7 @@ private fun musicPage(): HTMLElement {
     }
     val vol = el("div", "chips")
     vol.appendChild(el("span", "muted small vlabel", "Volume"))
-    for (v in MusicVolume.entries) vol.appendChild(button(v.label, "chip" + if (App.choice.volume == v) " on" else "") { App.choice = App.choice.copy(volume = v); App.voiced = null; show(Step.MUSIC) })
+    for (v in MusicVolume.entries) vol.appendChild(button(v.label, "chip" + if (App.choice.volume == v) " on" else "") { App.choice = App.choice.copy(volume = v); App.voiced = null; persist(); show(Step.MUSIC) })
     page.add(vol, list)
     page.appendChild(el("p", "muted small", "Musiques CODJIA : compositions originales (licence GPL-3.0). Pour une musique importée, assure-toi d'avoir le droit de l'utiliser."))
     page.appendChild(el("div", "dock").add(button("Valider", "btn primary wide big") { App.audio.stop(); show(Step.PREVIEW) }))

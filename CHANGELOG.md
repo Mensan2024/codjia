@@ -2,6 +2,18 @@
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [2.4.0]
+
+### Ajouté (version web)
+- Présentation courte sous le logo (réduite dès qu'on écrit, fermable).
+- Barre d'outils fixe sur une seule ligne : Voix · Format · Musique · Autre version, avec icône, libellé court et état allumé ; défilement horizontal sur écran très étroit.
+- Aperçu : état de chargement, lecture / pause / reprise, barre de progression cliquable, temps écoulé ; taille adaptée à l'espace disponible.
+- Sauvegarde automatique (sur l'appareil) du texte, de la voix off et du volume de musique.
+- Aide facultative (bouton « ? ») et astuce de première utilisation.
+
+### Corrigé
+- « Essayer un exemple » charge maintenant un exemple différent à chaque touche (il ne faisait rien, car l'exemple était déjà dans le champ). Le champ démarre vide ; « Créer ma vidéo » demande un texte s'il est vide.
+
 ## [2.3.0]
 
 ### Ajouté
