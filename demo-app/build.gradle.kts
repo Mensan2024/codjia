@@ -13,8 +13,8 @@ android {
         applicationId = "io.github.mensan2024.codjia"
         minSdk = 26
         targetSdk = 36
-        versionCode = 253
-        versionName = "2.5.3"
+        versionCode = 254
+        versionName = "2.5.4"
     }
     signingConfigs {
         // Clé de développement FIXE, versionnée (ce n'est pas une clé de publication) :

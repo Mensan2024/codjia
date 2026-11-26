@@ -2,6 +2,14 @@
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [2.5.4]
+
+### Ajouté
+- **Format « Stratégie »** (famille marketing, première direction recommandée) : tableau de bord sombre, courbe de tendance décorative (aucune valeur inventée), carte publicitaire générique sans marque en ouverture, et tunnel de conversion : chaque étape d'une liste devient un étage plus étroit que le précédent. Trois ambiances (marine, anthracite, violet).
+
+### Modifié
+- Choix automatique : la première génération prend la meilleure direction de la famille détectée ; « Autre version » varie ensuite parmi les sept premières directions admissibles, en évitant les deux derniers formats.
+
 ## [2.5.3]
 
 ### Ajouté

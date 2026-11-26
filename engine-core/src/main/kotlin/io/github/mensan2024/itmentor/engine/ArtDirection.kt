@@ -51,6 +51,7 @@ object ArtDirector {
             d("perso-cinema", "Cinéma inspirant", Look.CINEMA, Mood.WARM, listOf("cinematic"), 2, "ambiance de film pour un message fort"),
         ),
         ContentFamily.MARKETING to listOf(
+            d("market-strategie", "Tableau de bord et tunnel", Look.STRATEGIE, Mood.TECH, listOf("future", "house", "afrobeat"), 2, "les étapes deviennent un tunnel de conversion, courbe de tendance décorative"),
             d("market-neon", "Pub dynamique", Look.NEON, Mood.ENERGETIC, listOf("afrobeat", "edm", "future"), 3, "accroches fortes, sous-titres mot à mot"),
             d("market-data", "Données et tunnel", Look.INFOGRAPHIE, Mood.TECH, listOf("future", "house", "afrobeat"), 2, "schémas animés pour montrer la stratégie"),
             d("market-journal", "Journal business", Look.JOURNAL, Mood.ENERGETIC, listOf("edm", "house"), 2, "bandeau d'actualité : ton professionnel"),
@@ -129,9 +130,11 @@ object ArtDirector {
      */
     fun auto(profile: ContentProfile, seed: Long, avoidLooks: Collection<Look> = emptyList()): Direction {
         // Tirage parmi les cinq premières directions admissibles (la recommandation reste sur trois) : assez de variété d'une génération à l'autre.
-        val top = all(profile).take(5)
+        val top = all(profile).take(7)
+        // Première génération (aucun format récent à éviter) : la meilleure direction pour ce contenu. « Autre version » varie ensuite.
+        if (avoidLooks.isEmpty()) return top.first()
         val fresh = top.filter { it.look !in avoidLooks }.ifEmpty { top }
-        return fresh[(Rand.of(seed, 0x2C7F).nextInt() ushr 1) % fresh.size]
+        return fresh[(Rand.of(seed, 0x1B5E).nextInt() ushr 1) % fresh.size]
     }
 
     /** Direction pour un format imposé par l'utilisateur (mode « Manuel ») : ambiance de la famille, format libre. */

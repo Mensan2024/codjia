@@ -49,7 +49,9 @@ enum class Look(val label: String, val tagline: String, val transitions: List<Tr
     LUMIERE("Lumière", "Étoile de lumière, tons chauds, serif centré : méditation et parole",
         listOf(TransitionType.FADE, TransitionType.DIP, TransitionType.FADE)),
     ELAN("Élan", "Soleil levant, titres condensés, grands numéros, chaîne de progression",
-        listOf(TransitionType.SLIDE, TransitionType.FADE, TransitionType.SLIDE));
+        listOf(TransitionType.SLIDE, TransitionType.FADE, TransitionType.SLIDE)),
+    STRATEGIE("Stratégie", "Tableau de bord, courbe de tendance et tunnel de conversion pour les étapes",
+        listOf(TransitionType.SLIDE, TransitionType.FADE, TransitionType.ZOOM));
 
     companion object {
         fun byName(name: String?): Look = entries.firstOrNull { it.name == name } ?: MOTION
@@ -115,6 +117,7 @@ object Looks {
         Look.MONTAGE -> MontageLook(storyboard)
         Look.SERENITE -> SerenityLook(storyboard)
         Look.ELAN -> ElanLook(storyboard)
+        Look.STRATEGIE -> StrategyLook(storyboard)
         Look.LUMIERE -> SerenityLook(storyboard, SerenityLook.Theme.LUMIERE)
         Look.KIT -> MontageLook(storyboard, StyleKit.random(storyboard.seed, storyboard.mood))
     }
