@@ -573,7 +573,8 @@ object CreativeDirector {
             // Les styles modulables (une combinaison nouvelle à chaque fois) reviennent le plus souvent,
             // puis le montage dynamique ; les autres formats gardent leur place.
             val weighted = fresh + fresh.filter { it == Look.MONTAGE } + List(4) { fresh.filter { it == Look.KIT } }.flatten() +
-                List(3) { fresh.filter { it == Look.INFOGRAPHIE } }.flatten()
+                List(3) { fresh.filter { it == Look.INFOGRAPHIE } }.flatten() +
+                List(10) { fresh.filter { it == Look.EXPLICATIF } }.flatten()
             weighted[(Rand.of(seed, 0x2C7F).nextInt() ushr 1) % weighted.size]
         }
         var sb = StoryboardPlanner.plan(text, seed, template.id).copy(look = look)

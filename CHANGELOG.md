@@ -2,6 +2,11 @@
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [2.1.0]
+
+### Ajouté
+- Nouveau format « Explicatif simulé » (le plus fréquent par défaut) : un chapitre par idée, avec carte de chapitre qui se transforme en carte « À FAIRE », simulation d'interface au centre (liste qui se coche, note qui s'écrit, comparaison, chiffre qui monte, bouton S'abonner), progression « 02 / 09 » et explication en grosse typographie, par groupes de mots, avec le mot clé sur fond clair. Quatre ambiances de couleurs, tirées au hasard.
+
 ## [2.0.2]
 
 ### Modifié
