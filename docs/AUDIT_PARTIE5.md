@@ -90,3 +90,17 @@ Règles de conception :
 3. **Bibliothèque d'illustrations libres de droits** : acceptes-tu que je ne l'intègre qu'après vérification de chaque licence, sinon je dessine tout en vectoriel (plus lent, plus cohérent, droits garantis) ?
 
 Tant que ces trois points ne sont pas tranchés, je me limite à ce que le moteur sait faire honnêtement : étapes 1, 3, 4 (illustrations vectorielles), 5, 6 et 7.
+
+## 7. Décisions validées (26/11/2026) et constats visuels de la priorité 1
+
+Décisions : **aucun import d'images ou de vidéos**, **aucun service externe**, **tout en vectoriel dessiné par le moteur** (droits garantis, cohérence). Le niveau « Cinématique » reste donc désactivé ; les modes réaliste, semi-réaliste et 3D ne seront pas proposés comme tels. Les modes réellement offerts : animation 2D illustrée, motion design, documentaire infographique, démonstration technique.
+
+Constats sur images de contrôle (Sérénité, Élan, Démo ; texte de 38 à 50 s) :
+
+1. **Espace vide** : le tiers inférieur de nombreuses scènes courtes est vide (contenu concentré en haut, pied de page « CODJIA » seul en bas).
+2. **Aucun sujet illustré** : les scènes sont typographiques (orbe, soleil, fenêtre). Rien ne représente le propos (personne, lieu, objet). C'est le vrai écart avec la partie 5 ; il se comble par la priorité 3 (personnages) et la priorité 4 (scènes humanitaires), pas par un simple polissage.
+3. **Habillage trompeur** : en Démo, un audit de sécurité est montré dans une fausse fenêtre « Paramètres » avec des interrupteurs, ce qui laisse croire à un réglage réel.
+4. **Titres génériques** du planificateur (« Action — Sur tes propres machines… ») qui reprennent une phrase du texte en guise de titre.
+5. **Profondeur** : aplats et halos seulement ; pas d'ombres portées cohérentes ni de plans superposés.
+
+Incrément proposé pour la priorité 1 : (a) équilibrage vertical des scènes courtes, (b) plans de profondeur (ombres douces, couches de parallaxe lente) communs aux formats, (c) retrait des habillages trompeurs et des titres génériques. Il précède la bibliothèque de personnages.
