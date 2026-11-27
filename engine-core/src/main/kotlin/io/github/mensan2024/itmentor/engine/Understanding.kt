@@ -64,6 +64,12 @@ data class ContentProfile(
     /** Sujet sensible : pas de diagnostic, pas de promesse, ambiance sobre (voir [ArtDirector]). */
     val sensitive: Boolean,
     val wordCount: Int,
+    /** Concept visuel dominant de la vidéo (6.1) : décide si le format « Scénario visuel » a de quoi montrer ce texte. */
+    val concept: Concept = Concept.NONE,
+    /** Le texte parle-t-il d'un objet physique qu'un volume 3D peut montrer (ordinateur, serveur, cadenas) ? Sans cela, aucun objet 3D n'est proposé. */
+    val object3d: Boolean = false,
+    /** Le texte parle-t-il d'une attaque (attaquant, cible) ? Sans cela, la scène d'attaque en 3D n'est pas proposée. */
+    val attack3d: Boolean = false,
 ) {
     val domain: Domain get() = family.domain
     val ambiguous: Boolean get() = confidence < 0.3f
@@ -87,7 +93,7 @@ object ContentAnalyzer {
         "gestion du temps" to 5, "objectif" to 3, "habitude" to 3, "resilience" to 4, "reussite" to 3, "procrastin" to 4,
         "ambition" to 3, "routine" to 2, "perseveran" to 4, "mindset" to 4, "etat d'esprit" to 3, "priorite" to 2,
         "concentration" to 1, "excuse" to 2, "echec" to 1, "progres" to 2, "potentiel" to 3, "confiance en soi" to 2,
-        "devenir meilleur" to 4, "sortir de ta zone de confort" to 5, "zone de confort" to 4, "chaque jour" to 1, "regularite" to 3,
+        "devenir meilleur" to 4, "gratitude" to 5, "reconnaissant" to 3, "remercier" to 3, "rituel" to 2, "sortir de ta zone de confort" to 5, "zone de confort" to 4, "chaque jour" to 1, "regularite" to 3,
     ))
     private val BIBLE = Lex(ContentFamily.BIBLE, listOf(
         "dieu" to 3, "seigneur" to 3, "eternel" to 2, "jesus" to 5, "christ" to 4, "evangile" to 4, "bible" to 5, "biblique" to 5,
@@ -187,7 +193,14 @@ object ContentAnalyzer {
         if (strongestTech >= 10 && strongestTech > s.getValue(ContentFamily.MENTAL) * 2) s[ContentFamily.MENTAL] = s.getValue(ContentFamily.MENTAL) / 3
         // 5. Réseau ou développement : une API, du JSON, du code → développement, même si « réseau » apparaît.
         if (s.getValue(ContentFamily.DEV) >= 8 && codeCues >= 2 && s.getValue(ContentFamily.DEV) >= s.getValue(ContentFamily.NETWORK) / 2) s[ContentFamily.DEV] = s.getValue(ContentFamily.DEV) + 8
-        // 6. Marketing : un contenu qui parle de clients et de ventes sans vocabulaire technique.
+        // 6. Marketing : « client » seul ne fait pas du marketing. Un texte de client et de serveur (requête, navigateur, base de données)
+        //    sans vocabulaire commercial explique un échange technique : c'est du développement.
+        val techClient = count(t, "serveur", "requete", "navigateur", "base de donnees", "endpoint", "http", "code de statut", "frontend", "backend", "api")
+        val strongMarketing = count(t, "marketing", "vente", "vendre", "publicite", "prospect", "conversion", "entrepreneur", "chiffre d'affaires", "seo", "marque", "audience")
+        if (techClient >= 3 && strongMarketing == 0) {
+            s[ContentFamily.MARKETING] = s.getValue(ContentFamily.MARKETING) / 3
+            s[ContentFamily.DEV] = s.getValue(ContentFamily.DEV) + techClient * 3
+        }
         // 7. L'anglais ne gagne que s'il y a vraiment de l'anglais (le détecteur compte « the » et « you »).
         val english = s.getValue(ContentFamily.ENGLISH)
         if (english < 6 || count(t, "anglais", "english", "grammaire", "vocabulaire", "present perfect") == 0) s[ContentFamily.ENGLISH] = english / 3
@@ -283,6 +296,7 @@ object ContentAnalyzer {
         }
         val showable = (SHOWABLE[family] ?: emptyList()).filter { Regex("(?<![a-z0-9])" + Regex.escape(it)).containsMatchIn(t) }.take(6)
         return ContentProfile(family, alternatives, audience, register, level, objective, tone, emotions, showable, conclusion,
-            confidence, ev, family.sensitive, words)
+            confidence, ev, family.sensitive, words, IntentAnalyzer.dominantConcept(t, family),
+            SemanticGate.hasObject3D(t), SemanticGate.hasAttack(t))
     }
 }

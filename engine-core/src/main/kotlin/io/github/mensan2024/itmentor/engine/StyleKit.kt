@@ -88,7 +88,7 @@ data class StyleKit(
 
         private val BG_NAMES = mapOf(KitBackground.GRID_FLOOR to "Grille", KitBackground.STARS to "Étoiles", KitBackground.AURORA to "Aurore",
             KitBackground.MESH to "Halo", KitBackground.NEON_LINES to "Néon", KitBackground.DOTS to "Points", KitBackground.PAPER to "Papier",
-            KitBackground.SUNSET to "Planète", KitBackground.GLOW to "Lueur")
+            KitBackground.SUNSET to "Aube", KitBackground.GLOW to "Lueur")
         private val CAP_NAMES = mapOf(KitCaptions.BOX to "Karaoké", KitCaptions.COLOR to "Mot en couleur", KitCaptions.POP to "Mots géants",
             KitCaptions.BAR to "Bandeau")
 

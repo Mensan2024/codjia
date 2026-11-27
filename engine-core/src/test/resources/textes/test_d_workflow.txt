@@ -1,0 +1,1 @@
+Un workflow décrit l'enchaînement des étapes nécessaires pour accomplir un processus.

@@ -123,16 +123,19 @@ internal class InfographicLook(private val sb: Storyboard, private val kit: Styl
     }
 
     private fun beats(sc: Scene): List<Beat> = beatsCache.getOrPut(sc.id) {
-        val attack = Regex("attaque|force brute|pirate|hacker|phishing|ransomware|intrus").containsMatchIn((sc.title + " " + sc.body + " " + sc.subtitle).lowercase())
+        val whole = (sc.title + " " + sc.body + " " + sc.subtitle).lowercase()
+        val attack = Regex("attaque|force brute|pirate|hacker|phishing|ransomware|intrus").containsMatchIn(whole)
+        // Le cadenas qui devine des mots de passe n'illustre que les essais de connexion : pas un hameçonnage ni un rançongiciel.
+        val lock = Regex("force brute|mots? de passe|identifiant|connexion|authentification|tentative|essais?\\b|ssh|login|deviner|devin").containsMatchIn(whole)
         val tag = (sc.kicker ?: "").uppercase()
         when (sc.layout) {
             Layout.HERO -> { val (a, b) = split2(sc.title); listOf(Beat(if (attack) "L'ATTAQUE" else if (smart) "DÉMONSTRATION" else "L'ASTUCE", a, b, plain(sc.subtitle ?: sc.title),
-                if (attack) Diagram.LOCK_ATTACK else Diagram.HERO_ICON, icon = sc.iconOrDefault(), attack = attack,
+                if (attack && lock) Diagram.LOCK_ATTACK else Diagram.HERO_ICON, icon = sc.iconOrDefault(), attack = attack,
                 list = sb.scenes.flatMap { it.items }.map { splitLabel(plain(it)).first }.filter { it.length <= 22 }.take(6))) }
             Layout.DEFINITION -> {
                 val (a, b) = split2(sc.title); val body = plain(sc.body.ifEmpty { sc.subtitle })
                 val tg = targets(body)
-                val d = when { tg.isNotEmpty() -> Diagram.TARGETS; attack || Regex("attaque|essai").containsMatchIn(body.lowercase()) -> Diagram.LOCK_ATTACK; else -> diagramFor(body, Diagram.TEXT) }
+                val d = when { tg.isNotEmpty() -> Diagram.TARGETS; lock && (attack || Regex("attaque|essai").containsMatchIn(body.lowercase())) -> Diagram.LOCK_ATTACK; else -> diagramFor(body, Diagram.TEXT) }
                 listOf(Beat("LE PRINCIPE", a, b, if (sc.authorTitle) plain(sc.title).trimEnd(':') + ". " + body else body, d, main = body, list = tg, attack = attack || d == Diagram.LOCK_ATTACK))
             }
             Layout.STEPS -> {

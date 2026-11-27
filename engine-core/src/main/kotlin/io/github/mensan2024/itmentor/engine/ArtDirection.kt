@@ -30,6 +30,7 @@ object ArtDirector {
     /** Toutes les directions de chaque famille (les trois premières sont recommandées). */
     private val CATALOG: Map<ContentFamily, List<Direction>> = mapOf(
         ContentFamily.MENTAL to listOf(
+            d("mental-scenario", "Scénario apaisant", Look.SCENARIO, Mood.CALM, listOf("lofi", "cinematic"), 1, "chaque geste a son image : respiration, marche, parole, calme sans à-coup"),
             d("mental-serenite", "Sérénité", Look.SERENITE, Mood.CALM, listOf("lofi", "cinematic"), 1, "cercle qui respire, texte centré, aucun mouvement brusque"),
             d("mental-editorial", "Apaisant éditorial", Look.EDITORIAL, Mood.CALM, listOf("lofi", "cinematic"), 1, "mise en page sobre, texte posé, sans effet agressif"),
             d("mental-nuit", "Récit nocturne", Look.CINEMA, Mood.CALM, listOf("cinematic", "lofi"), 1, "ambiance douce et intime, adaptée à un sujet personnel"),
@@ -43,6 +44,7 @@ object ArtDirector {
             d("bible-enseignement", "Enseignement au tableau", Look.TABLEAU, Mood.WARM, listOf("lofi", "cinematic"), 1, "idéal pour expliquer un passage point par point"),
         ),
         ContentFamily.PERSONAL to listOf(
+            d("perso-scenario", "Scénario de gratitude", Look.SCENARIO, Mood.WARM, listOf("cinematic", "lofi", "afrobeat"), 2, "carnet, plante qui pousse, merci partagé : lumière chaude"),
             d("perso-elan", "Élan", Look.ELAN, Mood.ENERGETIC, listOf("cinematic", "hiphop", "afrobeat"), 2, "soleil levant et chaîne de progression : énergie posée, sans flash"),
             d("perso-montage", "Élan dynamique", Look.MONTAGE, Mood.ENERGETIC, listOf("hiphop", "future", "afrobeat"), 3, "chapitres numérotés et sous-titres mot à mot : progression visible"),
             d("perso-neon", "Affiche motivation", Look.NEON, Mood.ENERGETIC, listOf("future", "hiphop", "edm"), 3, "titres percutants, rythme soutenu"),
@@ -51,6 +53,7 @@ object ArtDirector {
             d("perso-cinema", "Cinéma inspirant", Look.CINEMA, Mood.WARM, listOf("cinematic"), 2, "ambiance de film pour un message fort"),
         ),
         ContentFamily.MARKETING to listOf(
+            d("market-scenario", "Scénario du tunnel", Look.SCENARIO, Mood.TECH, listOf("future", "house", "afrobeat"), 2, "les visiteurs entrent, se perdent ou deviennent clients : le tunnel en action"),
             d("market-strategie", "Tableau de bord et tunnel", Look.STRATEGIE, Mood.TECH, listOf("future", "house", "afrobeat"), 2, "les étapes deviennent un tunnel de conversion, courbe de tendance décorative"),
             d("market-neon", "Pub dynamique", Look.NEON, Mood.ENERGETIC, listOf("afrobeat", "edm", "future"), 3, "accroches fortes, sous-titres mot à mot"),
             d("market-data", "Données et tunnel", Look.INFOGRAPHIE, Mood.TECH, listOf("future", "house", "afrobeat"), 2, "schémas animés pour montrer la stratégie"),
@@ -60,6 +63,7 @@ object ArtDirector {
             d("market-flash", "Flash promo", Look.FLASH, Mood.ENERGETIC, listOf("edm", "trap"), 3, "texte géant, effet d'annonce"),
         ),
         ContentFamily.NETWORK to listOf(
+            d("net-scenario", "Scénario réseau", Look.SCENARIO, Mood.TECH, listOf("synthwave", "future", "house"), 2, "topologie, VLAN, trunk, pare-feu : chaque idée a son schéma animé"),
             d("net-3d", "Démonstration 3D", Look.DEMO3D, Mood.TECH, listOf("synthwave", "future", "house"), 2, "baie de serveurs en 3D qui s'éclate, repères et lumière"),
             d("net-demo", "Simulation à l'écran", Look.DEMO, Mood.TECH, listOf("synthwave", "house", "edm"), 2, "terminal et fenêtres comme sur un vrai poste"),
             d("net-infographie", "Schémas animés", Look.INFOGRAPHIE, Mood.TECH, listOf("synthwave", "future", "house"), 2, "un schéma par idée : topologies, paquets, VLAN"),
@@ -69,6 +73,7 @@ object ArtDirector {
             d("net-bas", "Explicatif carte dessous", Look.EXPLIC_BAS, Mood.TECH, listOf("synthwave", "house"), 2, "simulation en haut, explication en bas"),
         ),
         ContentFamily.DEV to listOf(
+            d("dev-scenario", "Scénario client-serveur", Look.SCENARIO, Mood.TECH, listOf("lofi", "synthwave", "future"), 2, "la requête part, le serveur répond : le flux en images"),
             d("dev-terminal", "Terminal et code", Look.TERMINAL, Mood.TECH, listOf("hiphop", "lofi", "synthwave"), 2, "le code et les commandes apparaissent tapés"),
             d("dev-3d", "Démonstration 3D", Look.DEMO3D, Mood.TECH, listOf("lofi", "synthwave", "future"), 2, "ordinateur en 3D qui s'éclate en pièces"),
             d("dev-demo", "Démo d'interface", Look.DEMO, Mood.TECH, listOf("lofi", "synthwave"), 2, "fenêtres et clics comme sur un vrai poste"),
@@ -77,6 +82,7 @@ object ArtDirector {
             d("dev-tableau", "Tableau", Look.TABLEAU, Mood.TECH, listOf("lofi"), 1, "schémas d'architecture dessinés"),
         ),
         ContentFamily.CYBER to listOf(
+            d("cyber-scenario", "Scénario d'attaque et de parade", Look.SCENARIO, Mood.TECH, listOf("trap", "phonk", "cinematic"), 2, "le leurre, le mécanisme, puis chaque réflexe de défense en image"),
             d("cyber-attaque3d", "Attaque et défense 3D", Look.ATTAQUE, Mood.TECH, listOf("trap", "phonk", "cinematic"), 2, "un attaquant, une cible et des paquets en 3D, puis les boucliers de défense descendent"),
             d("cyber-3d", "Démonstration 3D", Look.DEMO3D, Mood.TECH, listOf("trap", "cinematic", "edm"), 2, "cadenas ou serveurs en 3D, vue éclatée"),
             d("cyber-demo", "Démonstration de l'attaque", Look.DEMO, Mood.TECH, listOf("trap", "phonk", "cinematic"), 2, "montrer le piège et la parade à l'écran"),
@@ -87,6 +93,7 @@ object ArtDirector {
             d("cyber-cours", "Cours explicatif", Look.EXPLICATIF, Mood.TECH, listOf("cinematic", "synthwave"), 2, "chapitres numérotés"),
         ),
         ContentFamily.AI to listOf(
+            d("ai-scenario", "Scénario visuel", Look.SCENARIO, Mood.TECH, listOf("future", "lofi"), 2, "chaque idée a son schéma : méthode en étapes, requête, réponse"),
             d("ai-3d", "Démonstration 3D", Look.DEMO3D, Mood.TECH, listOf("future", "edm"), 2, "ordinateur en 3D qui s'éclate en pièces"),
             d("ai-infographie", "Schémas animés", Look.INFOGRAPHIE, Mood.TECH, listOf("future", "edm"), 2, "prompt, données, réponse : le flux en images"),
             d("ai-cours", "Cours explicatif", Look.EXPLICATIF, Mood.TECH, listOf("future", "synthwave"), 2, "chapitres numérotés"),
@@ -94,6 +101,7 @@ object ArtDirector {
             d("ai-montage", "Montage dynamique", Look.MONTAGE, Mood.ENERGETIC, listOf("future", "edm"), 3, "rythme soutenu"),
         ),
         ContentFamily.HEALTH to listOf(
+            d("health-scenario", "Scénario visuel", Look.SCENARIO, Mood.CALM, listOf("lofi", "afrobeat"), 1, "des personnes, des gestes et leurs conséquences, sans chiffre inventé"),
             d("health-infographie", "Habitudes en schémas", Look.INFOGRAPHIE, Mood.CALM, listOf("lofi", "afrobeat", "house"), 2, "une habitude par schéma"),
             d("health-editorial", "Éditorial chaleureux", Look.EDITORIAL, Mood.WARM, listOf("lofi", "afrobeat"), 1, "mise en page de magazine santé"),
             d("health-mascotte", "Personnage animé", Look.MASCOTTE, Mood.WARM, listOf("afrobeat", "amapiano"), 2, "ton chaleureux"),
@@ -106,6 +114,7 @@ object ArtDirector {
             d("en-cours", "Cours explicatif", Look.EXPLICATIF, Mood.ANY, listOf("lofi", "hiphop"), 2, "chapitres numérotés"),
         ),
         ContentFamily.GENERAL to listOf(
+            d("gen-scenario", "Scénario visuel", Look.SCENARIO, Mood.ANY, listOf("lofi", "cinematic", "afrobeat"), 2, "le texte commande l'image : méthode, personnes, lieux et conséquences montrés tels qu'écrits"),
             d("gen-montage", "Montage dynamique", Look.MONTAGE, Mood.ANY, listOf("afrobeat", "edm", "amapiano"), 3, "polyvalent"),
             d("gen-cours", "Cours explicatif", Look.EXPLICATIF, Mood.ANY, listOf("lofi", "afrobeat"), 2, "chapitres clairs"),
             d("gen-infographie", "Schémas animés", Look.INFOGRAPHIE, Mood.ANY, listOf("house", "future"), 2, "une idée, un schéma"),
@@ -116,14 +125,16 @@ object ArtDirector {
 
     /** Toutes les directions admissibles pour ce profil, la meilleure en premier. */
     fun all(profile: ContentProfile): List<Direction> {
-        val base = CATALOG.getValue(profile.family)
+        // Le « Scénario visuel » n'est proposé que si le moteur reconnaît un concept à montrer : sinon il laisserait des scènes sans image.
+        val base = CATALOG.getValue(profile.family).filter { SemanticGate.allows(it.look, profile) }
         val own = if (profile.sensitive) base.filter { it.look !in SENSITIVE_BANNED } else base
         // Contenu ambigu : on complète avec les directions de la famille voisine, jamais avec des formats exclus.
-        val extra = if (profile.ambiguous) profile.alternatives.flatMap { CATALOG.getValue(it) }.filter { !profile.sensitive || it.look !in SENSITIVE_BANNED } else emptyList()
+        val extra = if (profile.ambiguous) profile.alternatives.flatMap { CATALOG.getValue(it) }.filter { (!profile.sensitive || it.look !in SENSITIVE_BANNED) && SemanticGate.allows(it.look, profile) } else emptyList()
         // Un ton énergique ou urgent monte le rythme, un ton calme le baisse : on classe par proximité.
         val want = when (profile.tone) { Tone.CALME, Tone.CONTEMPLATIF -> 1; Tone.ENERGIQUE, Tone.URGENT -> 3; else -> 2 }
         return (own + extra).distinctBy { it.look }
-            .sortedBy { kotlin.math.abs(it.intensity - want) * 10 + (own + extra).indexOf(it) }
+            // Le scénario visuel, quand le moteur sait quoi montrer, passe devant : c'est la mise en scène qui suit le sens du texte.
+            .sortedBy { if (it.look == Look.SCENARIO) -1 else kotlin.math.abs(it.intensity - want) * 10 + (own + extra).indexOf(it) }
     }
 
     /** Les trois directions proposées à l'utilisateur (mode « Recommandé »). Jamais deux fois le même format. */

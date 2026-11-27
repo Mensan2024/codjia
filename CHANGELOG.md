@@ -2,6 +2,34 @@
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [2.10.0]
+
+### Ajouté
+- **Compréhension de la scène (étape 6.1 de la Partie 6)** : le moteur construit pour chaque scène un `SceneIntent` (domaine, concept, acteurs, objets, action, contexte, relation, rôle et objectif pédagogiques) et choisit dans un registre de ~45 plans, répartis en dix genres, celui qui illustre vraiment le contenu : hameçonnage, force brute, pare-feu, topologie et VLAN, client-serveur, gratitude, stress, tunnel de vente. Les plans sont attribués à toute la vidéo en une seule affectation (algorithme hongrois) : un plan ne sert qu'une fois, une scène sans plan assez adapté reste en texte seul.
+- **Format « Scénario »** (`Look.SCENARIO`), recommandé en premier quand le texte relève d'un concept connu. Étiquettes SIMULATION / EXEMPLE FICTIF / SCHEMA PEDAGOGIQUE / ILLUSTRATION QUALITATIVE. Sujets sensibles : plans doux uniquement.
+- `Storyboard.profile` : le profil compris du texte d'origine accompagne le storyboard.
+- Documentation : `docs/SCENARIOS_6_1.md`. Tests : `ScenarioTest`.
+
+- **Correction « le texte commande l'image »** (27/11) : porte de validation sémantique (`SemanticGate`) — un objet 3D (ordinateur, serveur, cadenas) ou une attaque ne sont proposés que si le passage les cite ; deux nouveaux concepts, **méthode / workflow** (escalier de la mission, chaîne d'étapes avec jeton, étapes cochées) et **accès à l'eau** (village, point d'eau, distance avant/après, effets sur la communauté) ; plan « e-mail d'hameçonnage » (exemple fictif) ; plan « soir » de la gratitude. Les étapes affichées viennent des mots de l'auteur.
+- **Contrôle qualité automatique** (`QualityControl.audit`) avant le rendu : pertinence (note ≥ 0,6), objets cités par le texte, concept, durée suffisante, aucun plan répété, sobriété des sujets sensibles, texte présent ; une scène en défaut reste en texte seul.
+- Direction artistique : palettes choisies d'après le contenu (cyber, réseau, méthode, eau) et non plus au hasard ; plus de demi-sphères jaune/orange ni de grandes bandes colorées dans le style « Aube » ; mise en page qui centre le schéma et le texte et le cadre sur la partie utile du plan.
+- Personnage de dessin complet (`Fig`) : silhouette stylisée à bras articulés, marche, assis, sourire.
+- Tests : `CorrectionTest` (textes d'essai A–E, aucun objet sans justification, contrôle qualité, conservation mot pour mot).
+
+### Corrigé
+- Un texte sur client et serveur (requête, code de statut, base de données) n'est plus classé « marketing ».
+- Le prompt IA (« La méthode en 4 points ») ne reçoit plus un ordinateur portable éclaté sans rapport.
+- **Texte de l'auteur tronqué par « … »** dans les formats Personnage animé, Élan, Stratégie et Éditorial pour une longue phrase unique : la taille descend maintenant jusqu'à un plancher lisible avant toute troncature (`TextLayout.fit`).
+- Titre du format Scénario jamais tronqué ; légendes des plans déplacées pour rester dans la zone de sécurité.
+- Tunnel de vente : une étape « Fidélise » n'est plus dessinée « Convertir ».
+- Format Infographie : l'animation du cadenas qui devine des mots de passe (« Soleil2024 ») n'apparaît plus pour un texte sur le phishing ou un rançongiciel ; elle est réservée aux textes qui parlent de mots de passe, de connexion ou d'essais.
+- Étiquettes des étapes : plus de mot de liaison pendant (« GIT PUSH ET » devient « GIT PUSH ») ; schémas d'étapes maintenus dans la zone de sécurité pour 4 à 6 étapes.
+
+### Limites connues
+- Personnages : silhouettes plates stylisées, sans expressions ni gestes riches (étape 6.3) ; compréhension lexicale en français ; mesures de performance faites sur JVM, non sur appareil Android ; Web validé par la CI seulement.
+- Un texte d'une phrase donne deux scènes (titre + appel à l'action) : pas de scènes inventées pour le remplir.
+- Les autres formats (hors Scénario) gardent leur décor d'origine, dont une grande sphère verte en bas du format Élan.
+
 ## [2.9.0]
 
 ### Ajouté

@@ -61,6 +61,7 @@ fun main(args: Array<String>) {
             println("Domaine : ${p.domain} · format : ${p.look} · template : ${p.template.id} · musique : ${p.musicId}")
             val tl = io.github.mensan2024.itmentor.engine.Timeline.build(Composer.prepare(p.storyboard, p.template, null))
             println("Durée : ${tl.totalMs} ms")
+            if (p.look == io.github.mensan2024.itmentor.engine.Look.SCENARIO || args.getOrNull(3) == "scenario") println(io.github.mensan2024.itmentor.engine.Scenario.report(p.storyboard))
             for (sc in p.storyboard.scenes) {
                 println("— ${sc.layout} v${sc.variant} ${sc.durationMs} ms | ${sc.kicker ?: ""} | ${sc.title}")
                 if (sc.subtitle != null) println("    sous-titre : ${sc.subtitle}")

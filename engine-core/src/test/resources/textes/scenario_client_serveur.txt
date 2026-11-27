@@ -1,0 +1,8 @@
+Le modèle client-serveur expliqué simplement
+Quand tu ouvres un site, ton navigateur joue le rôle de client : il envoie une requête au serveur, qui lui renvoie une réponse.
+Ce qui se passe :
+- Le client envoie une requête : GET /produits
+- Le serveur lit la demande et interroge la base de données
+- Le serveur renvoie la réponse avec un code de statut : 200 si tout va bien, 404 si la page n'existe pas
+Le serveur peut répondre à des milliers de clients en même temps.
+À retenir : le client demande, le serveur répond.

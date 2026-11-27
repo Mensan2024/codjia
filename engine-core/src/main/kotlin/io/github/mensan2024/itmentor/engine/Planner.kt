@@ -613,7 +613,7 @@ object CreativeDirector {
         val direction = if (forcedLook != null) ArtDirector.manual(profile, forcedLook) else ArtDirector.auto(profile, seed, avoidLooks)
         val music = direction.music[(r.nextInt() ushr 1) % direction.music.size]
         val look = direction.look
-        var sb = StoryboardPlanner.plan(text, seed, template.id).copy(look = look, mood = direction.mood)
+        var sb = StoryboardPlanner.plan(text, seed, template.id).copy(look = look, mood = direction.mood, profile = profile)
         Procedures.match(TextSanitizer.clean(text))?.let { topic -> sb = withDemo(sb, topic, text, seed) }
         return Proposal(sb, template, music, domain, profile, direction, ArtDirector.recommend(profile))
     }

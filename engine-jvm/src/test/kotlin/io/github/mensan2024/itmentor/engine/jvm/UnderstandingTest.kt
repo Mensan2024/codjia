@@ -69,15 +69,18 @@ class UnderstandingTest {
     @Test fun lesTechniquesNeRecoiventPasDeFormatsDeMeditation() {
         for (f in listOf("famille_reseau_cours_vlan.txt", "famille_dev_api_rest.txt")) {
             val t = text(f)
-            for (seed in 1L..40L) assertTrue("$f : ${CreativeDirector.propose(t, seed).look}", CreativeDirector.propose(t, seed).look in setOf(Look.DEMO, Look.INFOGRAPHIE, Look.EXPLICATIF, Look.TABLEAU, Look.TERMINAL, Look.EXPLIC_BAS, Look.DEMO3D, Look.DEMONSTRATION, Look.ATTAQUE))
+            for (seed in 1L..40L) assertTrue("$f : ${CreativeDirector.propose(t, seed).look}", CreativeDirector.propose(t, seed).look in setOf(Look.DEMO, Look.INFOGRAPHIE, Look.EXPLICATIF, Look.TABLEAU, Look.TERMINAL, Look.EXPLIC_BAS, Look.DEMO3D, Look.DEMONSTRATION, Look.ATTAQUE, Look.SCENARIO))
         }
     }
 
     @Test fun lesSixVideosSontVisuellementDifferentes() {
         // Mise en scène recommandée en premier pour chaque famille (le mode automatique tire au sort parmi les directions admissibles).
         val picks = cases.map { (f, _) -> io.github.mensan2024.itmentor.engine.ArtDirector.recommend(io.github.mensan2024.itmentor.engine.ContentAnalyzer.analyze(text(f))).first().let { it.look to it.mood } }
+        // Le format « Scénario » est une famille de dix genres de scènes : deux sujets servis par lui sont distincts s'ils n'ont pas le même concept.
+        val concepts = cases.map { (f, _) -> io.github.mensan2024.itmentor.engine.ContentAnalyzer.analyze(text(f)).concept }
         println(cases.map { it.first }.zip(picks))
-        assertTrue("au moins 5 mises en scène distinctes sur 6 : $picks", picks.map { it.first }.toSet().size >= 5)
+        val signatures = picks.zip(concepts).map { (p, c) -> if (p.first == Look.SCENARIO) "SCENARIO/$c" else p.first.name }
+        assertTrue("au moins 5 mises en scène distinctes sur 6 : $signatures", signatures.toSet().size >= 5)
     }
 
     @Test fun troisRecommandationsDistinctesParFamille() {

@@ -12,10 +12,13 @@ data class TextBlock(val lines: List<String>, val font: FontSpec, val lineHeight
  * - On ne coupe que sur une espace normale : les espaces insécables (U+00A0, U+202F) de la typographie
  *   française restent collées (« texte », « Vrai ou faux ? »).
  * - Un mot plus long que la ligne est coupé entre deux caractères.
- * - `fit` réduit la taille jusqu'à tenir dans `maxLines`, puis tronque avec « … » en dernier recours.
+ * - `fit` réduit la taille jusqu'à tenir dans `maxLines`. Le texte de l'auteur est conservé en entier : la taille peut descendre
+ *   sous `minSize` jusqu'à [HARD_FLOOR] (lisible sur 1080 px) ; on ne tronque avec « … » que si même là le texte ne tient pas.
  */
 object TextLayout {
     private const val ELLIPSIS = "…"
+    /** Taille plancher absolue (px de conception) avant toute troncature : en dessous, le texte n'est plus lisible sur un téléphone. */
+    private const val HARD_FLOOR = 26f
 
     fun wrap(g: Gfx, text: String, font: FontSpec, maxWidth: Float): List<String> {
         val out = ArrayList<String>()
@@ -59,7 +62,8 @@ object TextLayout {
             val lines = if (text.contains('\n')) raw else avoidWidow(g, raw, f, maxWidth)
             if (lines.size <= maxLines) return TextBlock(lines, f, size * lineHeightFactor, truncated = false)
             val next = size * 0.94f
-            if (next < minSize) {
+            // Plancher normal = minSize ; plancher de conservation = HARD_FLOOR (jamais au-dessus de minSize).
+            if (next < minOf(minSize, maxOf(HARD_FLOOR, minSize * 0.6f)).coerceAtMost(minSize)) {
                 val kept = lines.take(maxLines).toMutableList()
                 var last = kept.last()
                 while (last.isNotEmpty() && g.measureText(last.trimEnd() + ELLIPSIS, f) > maxWidth) last = last.dropLast(1)

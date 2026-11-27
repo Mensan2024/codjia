@@ -21,8 +21,8 @@ class PlannerTest {
             val sb = Composer.prepare(p.storyboard, p.template, null)
             val tl = Timeline.build(sb) // lève une exception au-delà de 45 s
             assertTrue("$name/$seed : ${tl.totalMs} ms", tl.totalMs in 15_000L..59_000L)
-            // Une phrase unique (moins de 8 mots) donne un titre et une fin : on n'invente pas de scènes pour la remplir.
-            val tiny = text.split(Regex("\\s+")).size < 8
+            // Un texte d'une seule ligne (une ou deux phrases) donne un titre et une fin : on n'invente pas de scènes pour le remplir.
+            val tiny = text.split(Regex("\\s+")).size < 8 || (text.trim().lines().count { it.isNotBlank() } == 1 && text.split(Regex("\\s+")).size < 40)
             assertTrue("$name/$seed : trop peu de scènes", sb.scenes.size >= if (tiny) 2 else 3)
             assertEquals(Layout.HERO, sb.scenes.first().layout)
             // Pas de scène finale inventée pour les sujets sensibles ou personnels quand l'auteur n'a écrit aucune conclusion.

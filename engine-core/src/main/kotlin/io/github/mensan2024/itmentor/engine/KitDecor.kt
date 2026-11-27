@@ -79,11 +79,11 @@ internal object KitDecor {
                 g.fillRadialGlow(540f + 60f * sin(tg * 0.0004f), 300f, 760f, accent.withAlpha(0.14f))
             }
             KitBackground.SUNSET -> {
-                val cy = -300f + 30f * sin(tg * 0.0005f)
-                g.fillRadialGlow(540f, cy + 260f, 1100f, accent.withAlpha(0.45f))
-                g.fillCircle(540f, cy, 620f, darken(accent, 0.15f))
-                g.fillRadialGlow(540f, cy - 120f, 600f, accent2.withAlpha(0.6f))
-                g.fillRadialGlow(200f, 1900f, 900f, accent2.withAlpha(0.3f))
+                // Lueur d'aube : uniquement des dégradés radiaux, sans forme à contour net. L'ancien disque plein de 620 px
+                // faisait une demi-sphère qui mangeait le haut de la vidéo et le texte (retour utilisateur du 27/11/2026).
+                val w = sin(tg * 0.0005f)
+                g.fillRadialGlow(540f + 60f * w, -40f, 900f, accent.withAlpha(if (light) 0.14f else 0.20f))
+                g.fillRadialGlow(180f, 1880f, 800f, accent2.withAlpha(0.14f))
             }
         }
         // repères « + » dans les coins

@@ -11,7 +11,7 @@ import kotlin.math.sin
  * étiquetée comme telle. Le texte de l'auteur est intégralement affiché sous la scène, dans l'ordre.
  * Si le texte d'une scène est trop long pour tenir sous l'objet, l'objet est retiré de cette scène plutôt que de couper le texte.
  */
-internal class Demo3DLook(private val sb: Storyboard, private val battle: Boolean = false) : LookRenderer {
+internal class Demo3DLook(private val sb: Storyboard, private val battle: Boolean = false, private val scenario: ScenarioPlan? = null) : LookRenderer {
     private class Palette(val bgTop: Int, val bgBottom: Int, val ink: Int, val muted: Int, val accent: Int, val pal: Models3D.Pal)
     private val palettes = listOf(
         Palette(rgb(0x0A1020), rgb(0x14213D), rgb(0xF2F6FF), rgb(0xA9B6CE), rgb(0x37C6F4),
@@ -21,7 +21,31 @@ internal class Demo3DLook(private val sb: Storyboard, private val battle: Boolea
         Palette(rgb(0x0E1013), rgb(0x1F2329), rgb(0xFFF8EE), rgb(0xB4B0A8), rgb(0xFF9A3D),
             Models3D.Pal(rgb(0xD9D9D6), rgb(0x30343B), rgb(0xFF9A3D), rgb(0x10151C), rgb(0xFFC46B))),
     )
-    private val pal = palettes[(Rand.of(sb.seed, 0x3D0B).nextInt() ushr 1) % palettes.size]
+    /** Palettes du scénario visuel : l'ambiance suit le concept dominant (apaisement, gratitude, commerce). */
+    private val scenarioPalettes = mapOf(
+        Concept.STRESS to Palette(rgb(0x0B1A24), rgb(0x16384A), rgb(0xF2FAFB), rgb(0xA9C4CB), rgb(0x7FD8C8),
+            Models3D.Pal(rgb(0xCFE3E6), rgb(0x24404F), rgb(0x7FD8C8), rgb(0x0B1A24), rgb(0xBFEFE6))),
+        Concept.GRATITUDE to Palette(rgb(0x1A0F08), rgb(0x3B2412), rgb(0xFFF8EE), rgb(0xCDB9A3), rgb(0xFFB65C),
+            Models3D.Pal(rgb(0xE9DCCB), rgb(0x4A3320), rgb(0xFFB65C), rgb(0x1A0F08), rgb(0xFFE0A3))),
+        Concept.FUNNEL to Palette(rgb(0x0C0F20), rgb(0x1F2447), rgb(0xF4F6FF), rgb(0xAEB6D6), rgb(0xFFC145),
+            Models3D.Pal(rgb(0xD6DAEE), rgb(0x2B3159), rgb(0xFFC145), rgb(0x0C0F20), rgb(0xFFE08A))),
+        // Méthode : bleu acier posé, un seul accent clair ; eau : bleu profond, soleil doré ; réseau : plan d'architecte.
+        Concept.METHOD to Palette(rgb(0x0B1124), rgb(0x1A2850), rgb(0xF2F6FF), rgb(0xA8B6D6), rgb(0x6BB6FF),
+            Models3D.Pal(rgb(0xD2DCF0), rgb(0x273A66), rgb(0x6BB6FF), rgb(0x0B1124), rgb(0xBFDDFF))),
+        Concept.WATER to Palette(rgb(0x06202A), rgb(0x0E4A5C), rgb(0xF4FCFF), rgb(0xA7CBD6), rgb(0xFFC857),
+            Models3D.Pal(rgb(0xD0E6EC), rgb(0x1B5568), rgb(0xFFC857), rgb(0x06202A), rgb(0x5FD0E8))),
+    )
+    /** La couleur dominante suit le contenu, jamais le hasard : cyber = marine et cyan, réseau et code = plan d'architecte. */
+    private fun palFor(c: Concept?): Palette = scenarioPalettes[c] ?: when (c) {
+        Concept.PHISHING, Concept.BRUTE_FORCE, Concept.MALWARE, Concept.FIREWALL -> palettes[0]
+        Concept.TOPOLOGY, Concept.SEGMENTATION, Concept.CLIENT_SERVER -> blueprint
+        else -> palettes[(Rand.of(sb.seed, 0x3D0B).nextInt() ushr 1) % palettes.size]
+    }
+    private val blueprint = Palette(rgb(0x08121F), rgb(0x0F2744), rgb(0xF0F6FF), rgb(0xA3B8D4), rgb(0x57C7FF),
+        Models3D.Pal(rgb(0xC9D8EC), rgb(0x1E3555), rgb(0x57C7FF), rgb(0x08121F), rgb(0xA8E4FF)))
+    private val dominantConcept: Concept? = scenario?.intents?.map { it.concept }?.filter { it != Concept.NONE }?.groupingBy { it }?.eachCount()?.maxByOrNull { it.value }?.key
+    private val pal = palFor(dominantConcept)
+    private val theme = StageTheme(pal.bgTop, pal.bgBottom, pal.ink, pal.muted, pal.accent, pal.pal.glow)
     override val ink = pal.ink
     override val muted = pal.muted
     override val accent = pal.accent
@@ -52,9 +76,10 @@ internal class Demo3DLook(private val sb: Storyboard, private val battle: Boolea
             else -> Models3D.Kind.LAPTOP
         }
     }
-    private val model: Model3D = Models3D.build(kind, pal.pal)
+    private val models = HashMap<Models3D.Kind, Model3D>()
+    private fun modelFor(k: Models3D.Kind): Model3D = models.getOrPut(k) { Models3D.build(k, pal.pal) }
 
-    private data class Plan(val stage: Boolean, val top: Float, val k: Float, val stageBottom: Float = 0f)
+    private data class Plan(val stage: Boolean, val top: Float, val k: Float, val stageBottom: Float = 0f, val stageTop: Float = 230f)
     private val plans = HashMap<String, Plan>()
 
     // ───────────────────────────── Cadre ─────────────────────────────
@@ -65,7 +90,7 @@ internal class Demo3DLook(private val sb: Storyboard, private val battle: Boolea
         g.fillVerticalGradient(0f, 0f, 1080f, 1920f, pal.bgTop, pal.bgBottom)
         g.fillRadialGlow(540f, 520f, 780f, pal.accent.withAlpha(0.10f))
         val plan = plans.getOrPut(sc.id) { choose(g, sc) }
-        if (plan.stage) stage(g, sc, t, tGlobalMs, plan.stageBottom, slot.index)
+        if (plan.stage) stage(g, sc, t, tGlobalMs, plan.stageTop, plan.stageBottom, slot.index)
         when (sc.layout) {
             Layout.HERO -> hero(g, sc, t, plan, true)
             Layout.DEFINITION -> definition(g, sc, t, plan, true)
@@ -97,10 +122,20 @@ internal class Demo3DLook(private val sb: Storyboard, private val battle: Boolea
      * si le texte est trop long pour laisser une scène d'au moins 560 px, texte seul. Jamais de texte coupé.
      */
     private fun choose(g: Gfx, sc: Scene): Plan {
-        for (k in listOf(1f, 0.9f, 0.8f, 0.72f, 0.65f, 0.58f)) {
+        val withStage = scenario == null || scenario.pickFor(sc.id) != null
+        // Avec un schéma à montrer, le schéma passe avant la taille du texte : on vise d'abord un grand cadre, puis le minimum.
+        // Le texte de l'auteur reste intégral : il rétrécit, il n'est jamais coupé. Un schéma bas et large (une chaîne d'étapes)
+        // n'occupe que la hauteur qu'il lui faut : le groupe schéma + texte est alors centré au lieu de laisser un grand vide.
+        val vh = scenario?.pickFor(sc.id)?.beat?.takeIf { it.draw != null }?.vh
+        val need = if (vh != null) (vh * 1.06f).coerceIn(330f, 550f) else 550f
+        if (withStage) for (want in (if (scenario != null) listOf(need, 330f.coerceAtMost(need)) else listOf(330f))) for (k in listOf(1f, 0.9f, 0.8f, 0.72f, 0.65f, 0.58f, 0.52f, 0.46f, 0.42f)) {
             val h = measure(g, sc, 0f, k)
-            val sb = (bottomLimit - h - 50f).coerceAtMost(1000f)
-            if (sb >= 560f) return Plan(true, sb + 50f, k, sb)
+            val avail = (bottomLimit - h - 50f).coerceAtMost(1000f) - 230f
+            if (avail >= want) {
+                val use = if (scenario != null) minOf(avail, need) else avail
+                val top = 230f + (avail - use) / 2f
+                return Plan(true, top + use + 50f, k, top + use, top)
+            }
         }
         for (k in listOf(1f, 0.9f, 0.8f, 0.7f, 0.6f, 0.52f, 0.45f, 0.4f)) if (measure(g, sc, 340f, k) <= bottomLimit) return Plan(false, 340f, k)
         return Plan(false, 340f, 0.4f)
@@ -137,18 +172,46 @@ internal class Demo3DLook(private val sb: Storyboard, private val battle: Boolea
         else -> 0.45f
     }
 
-    private fun stage(g: Gfx, sc: Scene, t: Float, tg: Float, bottom: Float, index: Int) {
-        val top = 230f
+    private fun stage(g: Gfx, sc: Scene, t: Float, tg: Float, top: Float, bottom: Float, index: Int) {
+        if (scenario == null) { stage3D(g, sc, t, tg, top, bottom, battle, if (battle) defenseAt(sc, index, t) else explodeAt(sc, t)); return }
+        val pick = scenario.pickFor(sc.id) ?: return
+        val draw = pick.beat.draw
+        if (draw != null) { stage2D(g, sc, t, tg, top, bottom, index, draw, pick.beat.y0, pick.beat.vh); return }
+        // Plans 3D du registre : l'attaque, la parade (boucliers qui descendent) ou l'objet en volume.
+        when (pick.beat.id) {
+            "attack" -> stage3D(g, sc, t, tg, top, bottom, true, 0f)
+            "defense" -> stage3D(g, sc, t, tg, top, bottom, true, Easing.EASE_IN_OUT.ease(window(t, 400f, 1700f)))
+            else -> stage3D(g, sc, t, tg, top, bottom, false, explodeAt(sc, t))
+        }
+    }
+
+    /** Plan 2D du registre : dessiné dans un cadre virtuel de 1000 × 700 mis à l'échelle de la place que le texte laisse. */
+    private fun stage2D(g: Gfx, sc: Scene, t: Float, tg: Float, top: Float, bottom: Float, index: Int, draw: (StageCtx) -> Unit, y0: Float = 0f, vh: Float = 700f) {
         val h = bottom - top
-        val ex = if (battle) defenseAt(sc, index, t) else explodeAt(sc, t)
+        val s = minOf(1.06f, h / vh)
+        val ox = 540f - 500f * s
+        val oy = top + (h - vh * s) / 2f - y0 * s
+        val appear = fade(t, 0f, 500f)
+        g.save()
+        g.clipRect(0f, top - 30f, 1080f, bottom + 10f)
+        g.multiplyAlpha(appear)
+        g.translate(ox, oy)
+        g.scale(s, 0f, 0f)
+        draw(StageCtx(g, t, tg, theme, scenario!!.intents[index], sc, sb.seed))
+        g.restore()
+    }
+
+    private fun stage3D(g: Gfx, sc: Scene, t: Float, tg: Float, top: Float, bottom: Float, battleNow: Boolean, ex: Float) {
+        val model = modelFor(if (battleNow) Models3D.Kind.BATTLE else kind)
+        val h = bottom - top
         val appear = fade(t, 0f, 900f)
         val fit = lerp(model.fitAssembled, model.fitExploded, ex)
         val cam = Cam3D(
-            yaw = if (battle) -0.12f + 0.32f * sin(tg / 4700f + phase) + 0.2f * (1f - appear) else -0.55f + 0.85f * sin(tg / 4300f + phase) + 0.20f * (1f - appear),
-            pitch = if (battle) 0.30f + 0.06f * sin(tg / 6100f + phase) else 0.40f + 0.09f * sin(tg / 6100f + phase),
+            yaw = if (battleNow) -0.12f + 0.32f * sin(tg / 4700f + phase) + 0.2f * (1f - appear) else -0.55f + 0.85f * sin(tg / 4300f + phase) + 0.20f * (1f - appear),
+            pitch = if (battleNow) 0.30f + 0.06f * sin(tg / 6100f + phase) else 0.40f + 0.09f * sin(tg / 6100f + phase),
             dist = 15f,
             s = if (model.fitWidth > 0f) minOf(h * 0.92f / fit, 930f / model.fitWidth) else h * 0.92f / fit,
-            cx = 540f - (if (labelsOn(sc, ex)) 120f else 0f), cy = (top + bottom) / 2f + 6f,
+            cx = 540f - (if (!battleNow && labelsOn(sc, ex)) 120f else 0f), cy = (top + bottom) / 2f + 6f,
             targetY = lerp(model.centerAssembled, model.centerExploded, ex),
         )
         g.save()
@@ -163,17 +226,16 @@ internal class Demo3DLook(private val sb: Storyboard, private val battle: Boolea
         g.withPose(Pose(alpha = appear, scale = lerp(0.92f, 1f, appear)), cam.cx, cam.cy) {
             Render3D.floor(g, model, cam, ex, pal.accent)
             val labels = Render3D.draw(g, model, cam, ex, tg)
-            if (battle) battleOverlay(g, cam, ex, tg, top, bottom)
+            if (battleNow) battleOverlay(g, cam, ex, tg, top, bottom)
             else if (labelsOn(sc, ex)) callouts(g, labels, ex, top, bottom)
         }
         g.restore()
-        val tf = tag
-        g.drawTracked(if (battle) "SIMULATION 3D" else "ILLUSTRATION 3D", L, 196f, tf, pal.accent.withAlpha(0.9f), 3f)
-        if (battle) {
+        g.drawTracked(if (battleNow) "SIMULATION 3D" else "ILLUSTRATION 3D", L, 196f, tag, pal.accent.withAlpha(0.9f), 3f)
+        if (battleNow) {
             val label = if (ex > 0.5f) "DÉFENSE ACTIVE" else "ATTAQUE SIMULÉE"
             val col = if (ex > 0.5f) Models3D.GREEN else Models3D.RED
-            val w = g.measureTracked(label, tf, 3f)
-            g.drawTracked(label, R - w, 196f, tf, col, 3f)
+            val w = g.measureTracked(label, tag, 3f)
+            g.drawTracked(label, R - w, 196f, tag, col, 3f)
         }
     }
 
@@ -289,7 +351,7 @@ internal class Demo3DLook(private val sb: Storyboard, private val battle: Boolea
         val k = p.k
         kicker(g, sc, t, p.top, draw)
         val ky = if (sc.kicker != null) 44f else 0f
-        var y = headline(g, sc.title, "${sc.id}/h@$k", 130f * k, p.top + ky, 6, t, 300f, draw) + 30f
+        var y = headline(g, sc.title, "${sc.id}/h@$k", 130f * k, p.top + ky, 14, t, 300f, draw) + 30f
         bar(g, y, t, 900f, draw)
         y += 40f
         sc.subtitle?.let { y += para(g, "${sc.id}/s@$k", it, sans.withSize(42f * k), y, W - 40f, 6, pal.muted, t, 1200f, draw).height }
@@ -301,7 +363,7 @@ internal class Demo3DLook(private val sb: Storyboard, private val battle: Boolea
         val body = Marked.strip(sc.body.ifEmpty { sc.subtitle ?: "" })
         kicker(g, sc, t, p.top, draw)
         val ky = if (sc.kicker != null) 44f else 0f
-        var y = headline(g, sc.title, "${sc.id}/h@$k", 104f * k, p.top + ky, 3, t, 250f, draw) + 26f
+        var y = headline(g, sc.title, "${sc.id}/h@$k", 104f * k, p.top + ky, 8, t, 250f, draw) + 26f
         bar(g, y, t, 800f, draw)
         y += 44f
         if (body.isNotEmpty()) y += para(g, "${sc.id}/b@$k", body, sans.withSize(50f * k), y, W - 20f, 14, pal.ink, t, 1000f, draw, 1.4f).height

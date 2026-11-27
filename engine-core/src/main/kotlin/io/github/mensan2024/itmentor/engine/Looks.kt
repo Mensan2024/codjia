@@ -32,6 +32,8 @@ enum class Look(val label: String, val tagline: String, val transitions: List<Tr
         listOf(TransitionType.FADE, TransitionType.ZOOM, TransitionType.FADE)),
     ATTAQUE("Attaque et défense 3D", "Un attaquant, une cible, des paquets en 3D : puis les boucliers de défense descendent (simulation étiquetée)",
         listOf(TransitionType.FADE, TransitionType.ZOOM, TransitionType.FADE)),
+    SCENARIO("Scénario visuel", "Chaque passage reçoit l'image qui l'explique : mécanisme, acteurs, parade (schémas et simulations étiquetés)",
+        listOf(TransitionType.FADE, TransitionType.ZOOM, TransitionType.FADE)),
     EXPLICATIF("Explicatif simulé", "Chapitres numérotés, simulation d'interface et explication mot clé par mot clé",
         listOf(TransitionType.FADE, TransitionType.CUT)),
     EXPLIC_BAS("Explicatif · carte dessous", "Simulation en haut, carte de chapitre dessous, mots clés en bas",
@@ -116,6 +118,7 @@ object Looks {
         Look.DEMONSTRATION -> InfographicLook(storyboard, StyleKit.infographic(storyboard.seed), smart = true)
         Look.DEMO3D -> Demo3DLook(storyboard)
         Look.ATTAQUE -> Demo3DLook(storyboard, battle = true)
+        Look.SCENARIO -> Demo3DLook(storyboard, scenario = ScenarioPlanner.plan(storyboard))
         Look.EXPLICATIF -> ExplainerLook(storyboard, 0)
         Look.EXPLIC_BAS -> ExplainerLook(storyboard, 1)
         Look.EXPLIC_BANDEAU -> ExplainerLook(storyboard, 2)

@@ -1,0 +1,9 @@
+Comprendre le pare-feu en une minute
+Un pare-feu est un filtre placé entre Internet et ton réseau : il examine chaque paquet qui entre ou qui sort et décide s'il peut passer.
+Comment il décide :
+- Il lit ses règles dans l'ordre, de la première à la dernière
+- Il autorise le trafic prévu, par exemple la navigation web et la messagerie
+- Il bloque tout le reste, même si personne ne l'a demandé
+Dans une entreprise, on sépare souvent une zone exposée, où se trouve le serveur web, du réseau interne où travaillent les employés.
+À retenir : tout ce qui n'est pas autorisé est bloqué.
+#securiteinformatiquepourtous

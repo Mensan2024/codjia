@@ -1,0 +1,8 @@
+Topologie réseau : le réseau local en étoile
+Dans un réseau d'entreprise en étoile, chaque ordinateur est relié par un câble à un switch central. Le switch est lui-même relié au routeur, qui donne accès à Internet.
+Pourquoi l'étoile est si répandue :
+- Si un câble tombe en panne, les autres postes continuent de fonctionner
+- On ajoute un nouveau poste en le branchant simplement sur le switch
+- Le switch envoie chaque paquet seulement au poste concerné
+Le chemin d'un paquet : le poste envoie, le switch relaie, le routeur choisit la sortie, puis le paquet arrive à destination.
+À retenir : un switch au centre, un routeur vers l'extérieur.
