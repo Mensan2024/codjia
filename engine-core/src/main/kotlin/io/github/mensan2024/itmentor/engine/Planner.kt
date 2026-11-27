@@ -71,7 +71,7 @@ object StoryboardPlanner {
     private val SECTION_RE = Regex("^((?:comment|pourquoi|que faire|quoi faire|les bons? réflexes?|le bon réflexe|bons? réflexes?|conseils?|astuces?|actions?|à faire|a faire|à éviter|a eviter|signes?|exemples?|attention|important|risques?|conséquences?|consequences?|how to|why|what to do|tips?)[^:]{0,45})\\s:\\s*(.{3,})$", RegexOption.IGNORE_CASE)
     private val BULLET_RE = Regex("^(?:[-*–+]|\\d{1,2}[.)])\\s+(.+)$")
     private val CONCLUSION_RE = Regex("^(?:à retenir|a retenir|en résumé|en resume|conclusion|retenez|retiens|l'essentiel|to remember|remember|key takeaway|takeaway)\\s*[:!]?\\s*(.*)$", RegexOption.IGNORE_CASE)
-    private val HASHTAG_RE = Regex("#([\\p{L}0-9_]{2,40})")
+    private val HASHTAG_RE = Regex("#([\\p{L}0-9_]{2,40}(?:-[\\p{L}0-9_]{1,40})*)")
     private val BAD_MARKERS = listOf("❌", "✖", "🚫", "⛔", "✗")
     private val GOOD_MARKERS = listOf("✅", "✔", "☑", "✓", "👍")
 
@@ -151,23 +151,39 @@ object StoryboardPlanner {
             if (rw.entries.isEmpty()) continue
             val hd = rw.header
             val texts = rw.entries.map { it.second }
-            val section = when {
-                hd != null && looksExplanatory(hd) -> TextSection(hd, texts.flatMap { sentences(it) }, emptyList())
+            val parts: List<TextSection> = when {
+                hd != null && looksExplanatory(hd) -> listOf(TextSection(hd, texts.flatMap { sentences(it) }, emptyList()))
                 rw.entries.any { it.first } -> {
                     // Puces + lignes courtes = la liste ; les paragraphes longs restent des explications.
-                    val items = rw.entries.filter { it.first || isShort(it.second) }.map { it.second }
-                    val prose = rw.entries.filter { !it.first && !isShort(it.second) }.flatMap { sentences(it.second) }
-                    // Lignes sans puce APRÈS la dernière puce : elles restent dans la liste (rien n'est perdu) mais le planificateur
-                    // les montre à part, dans l'ordre, au lieu de les numéroter comme une étape de plus.
-                    val lastBullet = rw.entries.indexOfLast { it.first }
-                    val tail = rw.entries.drop(lastBullet + 1).count { !it.first && isShort(it.second) }
-                    TextSection(rw.header, prose, items, tail)
+                    // Chaque alternance liste / paragraphe devient sa propre partie : un paragraphe écrit APRÈS une liste
+                    // reste après elle (l'ordre de l'auteur ne change jamais).
+                    val segs = ArrayList<Pair<Boolean, List<Pair<Boolean, String>>>>()
+                    for (e in rw.entries) {
+                        val isItem = e.first || isShort(e.second)
+                        if (segs.isNotEmpty() && segs.last().first == isItem) segs[segs.lastIndex] = isItem to (segs.last().second + e) else segs += isItem to listOf(e)
+                    }
+                    val out = ArrayList<TextSection>()
+                    var header = hd
+                    var lead: List<String> = emptyList()
+                    for ((idx, seg) in segs.withIndex()) {
+                        if (!seg.first) {
+                            val prose = seg.second.flatMap { sentences(it.second) }
+                            if (idx == 0 && segs.size > 1) lead = prose else { out += TextSection(header, prose, emptyList()); header = null }
+                        } else {
+                            // Lignes sans puce APRÈS la dernière puce : elles restent dans la liste (rien n'est perdu) mais le planificateur
+                            // les montre à part, dans l'ordre, au lieu de les numéroter comme une étape de plus.
+                            val tail = seg.second.reversed().takeWhile { !it.first }.size
+                            out += TextSection(header, lead, seg.second.map { it.second }, tail)
+                            header = null; lead = emptyList()
+                        }
+                    }
+                    out
                 }
-                rw.header != null && texts.size >= 2 && texts.all(::isShort) -> TextSection(rw.header, emptyList(), texts)
-                else -> TextSection(rw.header, texts.flatMap { sentences(it) }, emptyList())
+                rw.header != null && texts.size >= 2 && texts.all(::isShort) -> listOf(TextSection(rw.header, emptyList(), texts))
+                else -> listOf(TextSection(rw.header, texts.flatMap { sentences(it) }, emptyList()))
             }
             // Une liste d'un seul élément est en fait une explication.
-            sections += if (section.items.size == 1) TextSection(section.header, section.prose + sentences(section.items.first()), emptyList()) else section
+            for (section in parts) sections += if (section.items.size == 1) TextSection(section.header, section.prose + sentences(section.items.first()), emptyList()) else section
         }
         val intro = sections.flatMap { it.prose }
         val realLists = sections.filter { it.items.isNotEmpty() }.map { it.header to it.items }
@@ -329,7 +345,11 @@ object StoryboardPlanner {
         Domain.GENERAL to listOf(IconId.BULB, IconId.BOOK),
     )
 
-    fun plan(raw: String, seed: Long = 0, templateId: String? = null): Storyboard {
+    /**
+     * @param compress `true` (historique) : les scènes sont resserrées vers une durée cible et plafonnées à 58 s.
+     *   `false` (studio, épisodes) : les durées restent celles de la lecture ; le découpage en épisodes ([Episodes]) tient la limite.
+     */
+    fun plan(raw: String, seed: Long = 0, templateId: String? = null, compress: Boolean = true): Storyboard {
         val a = analyze(raw)
         val r = Rand.of(seed, 0x6C1A)
         fun pick(options: List<String>) = if (seed == 0L) options.first() else options[(r.nextInt() ushr 1) % options.size]
@@ -348,7 +368,8 @@ object StoryboardPlanner {
         // 1. Couverture : la première phrase d'introduction sert de sous-titre.
         val firstSec = a.sections.firstOrNull()
         val introSec = firstSec?.takeIf { it.header == null || looksExplanatory(it.header) }
-        val heroSub = introSec?.prose?.firstOrNull()?.takeIf { it.length <= 130 && !it.endsWith(":") }
+        // Une partie qui a un en-tête (« Apprentissage technique ») garde sa première phrase après lui : l'ordre de l'auteur prime sur le sous-titre.
+        val heroSub = introSec?.takeIf { it.header == null }?.prose?.firstOrNull()?.takeIf { it.length <= 130 && !it.endsWith(":") }
         val kicker = a.number?.let { n -> "${d.kicker} N°${n.padStart(3, '0')}" } ?: d.kicker
         scenes += Scene(id = "s-hero", layout = Layout.HERO, durationMs = 1, kicker = kicker,
             title = frenchTypo(emphasize(cap(a.title), d)), subtitle = heroSub?.let(::frenchTypo), illustration = heroIllustration,
@@ -466,7 +487,7 @@ object StoryboardPlanner {
             // Pas de doublon : la conclusion n'est en sous-titre que si elle n'est pas déjà la liste.
             subtitle = (a.closing ?: a.conclusion?.takeIf { takeaways.isEmpty() })?.let { frenchTypo(it) },
             body = if (noCta) "" else if (english) pick(listOf("Share it with a friend", "Save this tip")) else pick(listOf("Partage à quelqu’un qui en a besoin", "Enregistre cette astuce", "Partage cette astuce")),
-            exit = AnimSpec(AnimType.FADE_OUT, 600, easing = Easing.EASE_IN), variant = variant())
+            exit = AnimSpec(AnimType.FADE_OUT, 600, easing = Easing.EASE_IN), variant = variant(), authorTitle = takeaways.isNotEmpty() && a.conclusionLabel != null)
 
         // Ordre : la graine peut avancer le chiffre clé ou la comparaison, pour varier le récit.
         val middle = ArrayList<Scene>()
@@ -484,7 +505,7 @@ object StoryboardPlanner {
                 items = a.intro.take(4).map { frenchTypo(item(it)) }, variant = variant()))
         }
 
-        return fit(Storyboard(id = "gen-${seed.toString(16)}", title = Marked.strip(a.title), templateId = templateId ?: Templates.recommendFor(d).id,
+        return fit(compress, Storyboard(id = "gen-${seed.toString(16)}", title = Marked.strip(a.title), templateId = templateId ?: Templates.recommendFor(d).id,
             scenes = scenes.map { withDuration(it) }, hashtag = a.hashtags.firstOrNull() ?: "#codjia", seed = seed))
     }
 
@@ -537,15 +558,15 @@ object StoryboardPlanner {
     fun targetMs(words: Int): Int = (5_000 + words * 330).coerceIn(12_000, SOFT_MAX_MS)
 
     /** Durée selon le texte (voir [targetMs]) : on étire ou resserre doucement vers la cible, sans couper le message. */
-    private fun fit(sb: Storyboard): Storyboard {
+    private fun fit(compress: Boolean, sb: Storyboard): Storyboard {
         val overlap = 600
         fun total(sc: List<Scene>) = sc.sumOf { it.durationMs } - overlap * (sc.size - 1)
         var scenes = sb.scenes
         val target = targetMs(wordsShown(sb))
         // Le texte de l'auteur n'est jamais retiré : seul le chiffre clé (déjà présent dans le texte) peut l'être.
-        if (total(scenes) > target + 4_000) scenes = scenes.filter { it.id != "s-stat" || scenes.size <= 3 }
+        if (compress && total(scenes) > target + 4_000) scenes = scenes.filter { it.id != "s-stat" || scenes.size <= 3 }
         val t = total(scenes)
-        if (t > target) {
+        if (compress && t > target) {
             // Resserrer vers la cible : 2,4 s au moins par scène, et jamais sous 78 % de la durée de lecture.
             val k = ((target.toDouble() + overlap * (scenes.size - 1)) / scenes.sumOf { it.durationMs }).coerceAtLeast(0.78)
             scenes = scenes.map { it.copy(durationMs = max(2_400, (it.durationMs * k).toInt())) }
@@ -559,7 +580,7 @@ object StoryboardPlanner {
             scenes = scenes.map { it.copy(durationMs = (it.durationMs * k3).toInt()) }
         }
         // Plafond absolu : texte très long, on resserre encore (2 s au moins par scène) plutôt que de couper.
-        if (total(scenes) > SOFT_MAX_MS) {
+        if (compress && total(scenes) > SOFT_MAX_MS) {
             val k2 = (SOFT_MAX_MS.toDouble() + overlap * (scenes.size - 1)) / scenes.sumOf { it.durationMs }
             scenes = scenes.map { it.copy(durationMs = max(2_000, (it.durationMs * k2).toInt())) }
         }
@@ -599,7 +620,7 @@ object CreativeDirector {
      */
     fun propose(
         text: String, seed: Long, avoidTemplates: Collection<String> = emptyList(), forcedTemplate: Template? = null,
-        avoidLooks: Collection<Look> = emptyList(), forcedLook: Look? = null,
+        avoidLooks: Collection<Look> = emptyList(), forcedLook: Look? = null, compress: Boolean = true,
     ): Proposal {
         val profile = ContentAnalyzer.analyze(text)
         val domain = profile.domain.takeIf { profile.family != ContentFamily.GENERAL } ?: DomainDetector.detect(TextSanitizer.clean(text))
@@ -613,8 +634,10 @@ object CreativeDirector {
         val direction = if (forcedLook != null) ArtDirector.manual(profile, forcedLook) else ArtDirector.auto(profile, seed, avoidLooks)
         val music = direction.music[(r.nextInt() ushr 1) % direction.music.size]
         val look = direction.look
-        var sb = StoryboardPlanner.plan(text, seed, template.id).copy(look = look, mood = direction.mood, profile = profile)
-        Procedures.match(TextSanitizer.clean(text))?.let { topic -> sb = withDemo(sb, topic, text, seed) }
+        var sb = StoryboardPlanner.plan(text, seed, template.id, compress).copy(look = look, mood = direction.mood, profile = profile)
+        // Mode studio (sans compression) : une démonstration d'écran n'est insérée que si le texte nomme un système
+        // (Windows, macOS, Linux, Cisco…). Sinon elle montrerait un système choisi au hasard, sans lien avec le texte.
+        Procedures.match(TextSanitizer.clean(text))?.takeIf { compress || Procedures.osIn(text) != null }?.let { topic -> sb = withDemo(sb, topic, text, seed, compress) }
         return Proposal(sb, template, music, domain, profile, direction, ArtDirector.recommend(profile))
     }
 
@@ -623,20 +646,22 @@ object CreativeDirector {
      * démo pas à pas, puis toutes les étapes, comparaisons et la fin. Si c'est trop long, on resserre la démo,
      * puis on retire des écrans de démo (la démo illustre, le texte de l'auteur reste entier).
      */
-    internal fun withDemo(sb: Storyboard, topic: Procedures.Topic, text: String, seed: Long): Storyboard {
+    internal fun withDemo(sb: Storyboard, topic: Procedures.Topic, text: String, seed: Long, compress: Boolean = true): Storyboard {
         val demo = Procedures.scenes(Procedures.pick(topic, text, seed))
         // La démo ajoute des écrans à regarder : jusqu'à ~14 s de plus que la durée visée par le texte.
         val target = StoryboardPlanner.targetMs(StoryboardPlanner.wordsShown(sb))
-        val soft = minOf(StoryboardPlanner.SOFT_MAX_MS, target + 14_000)
+        val soft = if (compress) minOf(StoryboardPlanner.SOFT_MAX_MS, target + 14_000) else Int.MAX_VALUE
         val hero = sb.scenes.firstOrNull { it.layout == Layout.HERO }?.let { it.copy(durationMs = it.durationMs.coerceAtMost(4800)) }
-        val defs = sb.scenes.filter { it.layout == Layout.DEFINITION }
-        val after = sb.scenes.filter { it.layout == Layout.STEPS || it.layout == Layout.COMPARE }
+        // Ordre de l'auteur conservé : la démo s'insère après les explications d'ouverture, jamais à la place d'un passage du texte.
+        val body = sb.scenes.filter { it.layout == Layout.DEFINITION || it.layout == Layout.STEPS || it.layout == Layout.COMPARE }
+        val lead = body.takeWhile { it.layout == Layout.DEFINITION }
+        val after = body.drop(lead.size)
         val stat = sb.scenes.firstOrNull { it.layout == Layout.STAT }
         val end = sb.scenes.lastOrNull { it.layout == Layout.CHECKLIST }
         fun total(sc: List<Scene>) = sc.sumOf { it.durationMs } - sc.dropLast(1).count { it.layout != Layout.SCREEN } * 600
         fun build(d: List<Scene>, withStat: Boolean): List<Scene> {
             val shown = if (d.isEmpty()) d else d.dropLast(1) + d.last().copy(transitionOut = Transition(TransitionType.FADE, 500))
-            return listOfNotNull(hero) + defs + shown + after + listOfNotNull(stat.takeIf { withStat }) + listOfNotNull(end)
+            return listOfNotNull(hero) + lead + shown + after + listOfNotNull(stat.takeIf { withStat }) + listOfNotNull(end)
         }
         var screens = demo
         var scenes = build(screens, true)

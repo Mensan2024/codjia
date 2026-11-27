@@ -1,0 +1,4 @@
+épisode 1/4 : 3 segments, 3 encodé(s) [s-hero, s-def, s-def0-1], 0 réutilisé(s), 969 images, 32.308 s, 28 s de calcul
+épisode 2/4 : 3 segments, 3 encodé(s) [ep2-open, s-def0-2, s-def0-3], 0 réutilisé(s), 803 images, 26.769 s, 23 s de calcul
+épisode 3/4 : 3 segments, 3 encodé(s) [ep3-open, s-steps0, s-steps2-0], 0 réutilisé(s), 1080 images, 36.0 s, 28 s de calcul
+épisode 4/4 : 3 segments, 3 encodé(s) [ep4-open, s-def3-0, s-end], 0 réutilisé(s), 734 images, 24.462 s, 22 s de calcul

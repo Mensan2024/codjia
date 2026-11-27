@@ -2,6 +2,25 @@
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [2.11.0] — Phase B : pipeline Scénario, épisodes, storyboard éditable
+
+### Ajouté
+- **Aucune compression forcée** : le nouveau mode `compress = false` conserve 100 % du texte de l'auteur, dans son ordre, aux durées naturelles. Un contenu long est découpé automatiquement en **plusieurs épisodes cohérents** (`Episodes` : budget 50 s, programmation dynamique, jamais de coupe au milieu d'une partie « (1/2)→(2/2) », carte d'ouverture « ÉPISODE k/N » de 2,6 s, pastille d'épisode dans l'en-tête). Une scène trop longue pour un épisode est refusée avec un message clair, jamais tronquée. La voix n'est jamais accélérée dans ce mode.
+- **Fidélité mesurée** (`Fidelity`) : part des mots de l'auteur présents et part retrouvée dans l'ordre (plus longue sous-suite commune), mots absents et mots déplacés listés.
+- **Plan de production éditable** (`StoryPlan`, `Studio.plan`) : texte source + visuels « épinglés » + modifications de l'utilisateur ; sérialisation JSON aller-retour ; fiche de scène à 13 éléments (texte exact, narration, image, personnages, objets, action, décor, animation, cadrage, caméra, durée, transition, son) — ce que le moteur ne modélise pas est affiché « — », jamais inventé.
+- **Remplacement d'une scène sans toucher aux autres** : `replaceVisual`, `reroll`, `withDuration`, `withTransition`, `withText`, `resplit` ; test d'identité pixel par pixel des scènes non modifiées ; cache de rendu par segment (empreinte FNV-1a) : seuls les segments modifiés et leurs voisins de fondu sont ré-encodés.
+- **Interface** : écran « Storyboard » (Web et Android) avec vignette de chaque scène, remplacement du visuel, durée ±1 s, transition, texte, épisodes, bouton « Scénario éditable » ; export un MP4 par épisode.
+- Outil `story` (engine-jvm) : `plan`, `replace`, `sheet`, `render`. Tests : `StudioTest` (15). Exemple complet : `docs/phaseB/`.
+
+### Corrigé
+- Ordre du texte : sections segmentées par alternance liste/paragraphe, démo insérée à sa place sans réordonner l'auteur, démo d'écran seulement si le texte nomme un système, hashtags exclus du texte lu.
+- Chemin historique (compression 59 s) conservé tel quel.
+
+### Limites connues (entrées de la phase C)
+- Sur l'exemple cyber, 5 scènes d'auteur sur 9 restent en « texte seul » (aucun plan du registre n'atteint 0,6) ; un plan non répétable n'est utilisé qu'une fois ; l'affectation globale peut placer le meilleur plan sur une autre scène que la plus proche.
+- Les titres génériques des scènes (« À savoir », « Et aussi ») viennent des gabarits, pas de l'auteur ; les cartes d'ouverture d'épisode sont en texte seul.
+- Durées « avec voix » estimées (2,5 mots/s) ; les MP4 de démonstration du banc JVM n'ont pas de voix. Web et APK validés par la CI seulement ; aucune mesure sur appareil Android.
+
 ## [2.10.0]
 
 ### Ajouté

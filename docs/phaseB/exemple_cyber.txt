@@ -1,0 +1,28 @@
+🔥Astuce cybersécurité 030 — Comprends et configure ton pare-feu !
+Un pare-feu est un filtre placé entre ton réseau et Internet : il examine chaque paquet et décide s'il peut passer ou s'il doit être bloqué.
+
+Chaque paquet porte une adresse source, une adresse de destination, un protocole et un port. Le pare-feu compare ces informations à une liste de règles, lues de haut en bas. La première règle qui correspond s'applique, et les règles suivantes sont ignorées.
+
+Par exemple, un employé qui ouvre une page web envoie un paquet vers le port 443. Le pare-feu l'autorise, puis laisse revenir la réponse du site. À l'inverse, une machine inconnue qui essaie de se connecter au port 22 de ton serveur est bloquée, car aucune règle ne l'autorise.
+
+⚠️ Les erreurs fréquentes à éviter :
+- Laisser une règle « tout autoriser » au début de la liste.
+- Ouvrir le port 3389 ou le port 22 à tout Internet.
+- Oublier de supprimer les règles temporaires après une maintenance.
+- Ne jamais lire les journaux du pare-feu.
+
+Pour bien configurer ton pare-feu, suis ces étapes :
+- Commence par tout bloquer par défaut.
+- Autorise uniquement les services dont tu as besoin, par exemple le web sur le port 443.
+- Limite l'accès à l'administration à quelques adresses de confiance.
+- Journalise les paquets bloqués pour repérer les tentatives suspectes.
+- Teste chaque règle avant de l'appliquer en production.
+
+Un pare-feu à état suit les connexions déjà établies. Il laisse donc passer la réponse à une demande légitime sans ouvrir la porte à un trafic qui n'a rien demandé. C'est ce qui le distingue d'un simple filtre de ports.
+
+À retenir : un pare-feu n'est pas un produit qu'on installe puis qu'on oublie. Une bonne politique, c'est « tout bloquer, puis autoriser au cas par cas », avec des règles relues régulièrement et des journaux consultés.
+
+#securiteinformatiquepourtous
+#pare-feu
+#BonnesPratiques
+#codjia

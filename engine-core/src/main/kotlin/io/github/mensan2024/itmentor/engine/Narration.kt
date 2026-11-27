@@ -138,6 +138,8 @@ object Narration {
         synth: suspend (text: String, lang: String, rate: Float) -> Pcm,
         music: suspend (totalMs: Long) -> Pcm?,
         progress: (done: Int, total: Int) -> Unit = { _, _ -> },
+        /** `false` (épisodes) : la voix n'est jamais accélérée ; si elle ne tient pas, c'est l'épisode qui est trop long. */
+        allowSpeedUp: Boolean = true,
     ): Voiced {
         require(available.isNotEmpty()) { "Aucune voix disponible" }
         val lines = lines(storyboard, mode).map { if (it.lang in available) it else it.copy(lang = available.first()) }
@@ -145,7 +147,7 @@ object Narration {
         var best: Pair<Storyboard, Map<String, Pcm>>? = null
         var bestRate = 1f
         var done = 0
-        for (rate in RATES) {
+        for (rate in if (allowSpeedUp) RATES.toList() else listOf(1.0f)) {
             val clips = LinkedHashMap<String, Pcm>()
             for (l in lines) {
                 clips[l.sceneId] = synth(l.text, l.lang, rate)
@@ -154,9 +156,11 @@ object Narration {
             val fitted = fit(storyboard, clips.mapValues { it.value.durationMs })
             val total = runCatching { Timeline.build(fitted).totalMs }.getOrNull() ?: continue
             best = fitted to clips; bestRate = rate
-            if (total <= 52_000) break
+            if (total <= 52_000 || !allowSpeedUp) break
         }
-        val (fitted, clips) = best ?: throw StoryboardException("Le texte lu dépasse 59 s, même accéléré à 1,3× : raccourcis ton texte.")
+        val (fitted, clips) = best ?: throw StoryboardException(
+            if (allowSpeedUp) "Le texte lu dépasse 59 s, même accéléré à 1,3× : raccourcis ton texte."
+            else "La voix de cet épisode dépasse 59 s : le texte est découpé en un épisode de plus.")
         val timeline = Timeline.build(fitted)
         val st = starts(timeline)
         val voiceTrack = AudioMix.place(timeline.totalMs, clips.map { (id, pcm) -> st.getValue(id) to pcm })

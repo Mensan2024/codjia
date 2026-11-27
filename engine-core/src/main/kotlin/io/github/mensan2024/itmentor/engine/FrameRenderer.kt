@@ -122,6 +122,12 @@ class FrameRenderer(val storyboard: Storyboard, val format: VideoFormat, baseTem
         val progress = clamp01(tMs / timeline.totalMs.coerceAtLeast(1))
         g.fillRoundRect(Safe.LEFT, y, Safe.RIGHT, y + 6f, 3f, ink.withAlpha(0.14f))
         if (progress > 0f) g.fillRoundRect(Safe.LEFT, y, Safe.LEFT + Safe.WIDTH * progress, y + 6f, 3f, ink.withAlpha(0.9f))
+        // Série : « ÉPISODE 2/3 » sous la barre, à droite (jamais sur une vidéo seule).
+        storyboard.episode?.let { ep ->
+            val f = FontSpec(FontFamily.TEXT, 700, 24f)
+            val label = ep.label
+            g.drawText(label, Safe.RIGHT - g.measureText(label, f), y + 38f, f, muted.withAlpha(0.9f))
+        }
     }
 }
 
@@ -158,7 +164,7 @@ object Composer {
     }
 
     /** Durée totale, calculée comme `Timeline.build` mais sans limite. */
-    internal fun totalMs(sb: Storyboard): Long {
+    fun totalMs(sb: Storyboard): Long {
         var cursor = 0L
         var end = 0L
         for ((i, sc) in sb.scenes.withIndex()) {

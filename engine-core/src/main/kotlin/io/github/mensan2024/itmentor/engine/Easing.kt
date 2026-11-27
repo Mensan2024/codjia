@@ -25,6 +25,8 @@ fun interface Easing {
 class CubicBezier(private val x1: Float, private val y1: Float, private val x2: Float, private val y2: Float) : Easing {
     init { require(x1 in 0f..1f && x2 in 0f..1f) { "x1 et x2 doivent être dans [0, 1]" } }
 
+    override fun toString() = "CubicBezier($x1, $y1, $x2, $y2)"
+
     private fun bx(t: Float) = 3 * (1 - t) * (1 - t) * t * x1 + 3 * (1 - t) * t * t * x2 + t * t * t
     private fun by(t: Float) = 3 * (1 - t) * (1 - t) * t * y1 + 3 * (1 - t) * t * t * y2 + t * t * t
     private fun dbx(t: Float) = 3 * (1 - t) * (1 - t) * x1 + 6 * (1 - t) * t * (x2 - x1) + 3 * t * t * (1 - x2)

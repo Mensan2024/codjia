@@ -1,0 +1,28 @@
+🎣Astuce cybersécurité 031 — Reconnais et neutralise une attaque par hameçonnage !
+Le hameçonnage, ou phishing, consiste à se faire passer pour une personne ou une organisation de confiance afin de pousser la victime à révéler une information sensible ou à cliquer sur un lien piégé.
+
+Un message d'hameçonnage ressemble souvent à un courriel d'une banque, d'un service de livraison ou de ton employeur. Il crée un sentiment d'urgence : ton compte va être suspendu, un colis est bloqué, une facture est impayée. L'attaquant veut que tu réagisses vite, sans réfléchir.
+
+Le piège se joue en trois temps. D'abord, le message arrive avec un expéditeur qui semble légitime. Ensuite, un lien ou une pièce jointe t'invite à agir immédiatement. Enfin, une fausse page de connexion récupère ton identifiant et ton mot de passe, que l'attaquant utilise aussitôt sur le vrai service.
+
+⚠️ Les signes qui doivent t'alerter :
+- Une adresse d'expéditeur légèrement différente de l'adresse officielle.
+- Un ton pressant ou menaçant, avec une échéance très courte.
+- Des fautes d'orthographe ou une mise en page approximative.
+- Un lien dont l'adresse réelle ne correspond pas au texte affiché.
+- Une pièce jointe inattendue, surtout un fichier compressé ou une macro.
+
+Pour te protéger, adopte ces réflexes :
+- Ne clique jamais sur un lien d'un message qui t'inquiète : tape toi-même l'adresse du site.
+- Survole le lien pour lire son adresse réelle avant de décider.
+- Active l'authentification à deux facteurs sur tous tes comptes importants.
+- Utilise un gestionnaire de mots de passe : il ne remplit pas un formulaire sur un faux site.
+- Signale le message à ton service informatique, puis supprime-le.
+
+Si tu as déjà cliqué, ne panique pas, mais agis immédiatement. Change le mot de passe du compte concerné depuis un appareil sûr. Active ou vérifie l'authentification à deux facteurs. Préviens ton responsable sécurité, car d'autres collègues ont peut-être reçu le même message.
+
+À retenir : un organisme sérieux ne te demande jamais ton mot de passe par message. Dans le doute, contacte-le par un canal que tu connais déjà, et prends toujours le temps de vérifier avant de cliquer.
+#securiteinformatiquepourtous
+#hameconnage
+#BonnesPratiques
+#codjia

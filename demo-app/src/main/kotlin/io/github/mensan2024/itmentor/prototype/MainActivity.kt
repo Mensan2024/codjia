@@ -53,7 +53,13 @@ import io.github.mensan2024.itmentor.engine.MusicTrack
 import io.github.mensan2024.itmentor.engine.MusicVolume
 import io.github.mensan2024.itmentor.engine.CreativeDirector
 import io.github.mensan2024.itmentor.engine.TextSanitizer
+import io.github.mensan2024.itmentor.engine.Pins
+import io.github.mensan2024.itmentor.engine.StoryPlan
 import io.github.mensan2024.itmentor.engine.Storyboard
+import io.github.mensan2024.itmentor.engine.Studio
+import io.github.mensan2024.itmentor.engine.Transition
+import io.github.mensan2024.itmentor.engine.TransitionType
+import io.github.mensan2024.itmentor.engine.isEpisodeOpener
 import io.github.mensan2024.itmentor.engine.Template
 import io.github.mensan2024.itmentor.engine.Templates
 import io.github.mensan2024.itmentor.engine.VideoFormat
@@ -90,7 +96,7 @@ import kotlin.math.abs
 @UnstableApi
 class MainActivity : ComponentActivity() {
 
-    private enum class Step { CONTENT, PREVIEW, STYLE, MUSIC, EXPORT }
+    private enum class Step { CONTENT, PREVIEW, STYLE, MUSIC, EXPORT, STORY }
 
     // ── État de la création
     private var userText: String = Examples.ALL.first().second
@@ -110,6 +116,9 @@ class MainActivity : ComponentActivity() {
     private val imported = ArrayList<MusicTrack>()
     private var step = Step.CONTENT
     private var exporting = false
+    /** Mode Scénario éditable : plan complet (tous les épisodes) et épisode affiché (0 = premier). */
+    private var story: StoryPlan? = null
+    private var storyEp = 0
 
     // ── Voix off (synthèse vocale hors ligne du téléphone), mélangée à la musique
     private var voiceMode = VoiceMode.AUTO
@@ -119,7 +128,7 @@ class MainActivity : ComponentActivity() {
     private var voicesChecked = false
     private var voiced: Pair<String, VoicedResult>? = null
 
-    private fun audioKey() = "${content.id}|$seed|${content.look}|${template.id}|${choice.track?.id}|${choice.volume}|$voiceMode|$generation|${content.scenes.size}"
+    private fun audioKey() = "${content.scenes.joinToString(",") { "${it.id}:${it.durationMs}:${it.title}:${it.body}" }}|${story != null}|${content.id}|$seed|${content.look}|${template.id}|${choice.track?.id}|${choice.volume}|$voiceMode|$generation|${content.scenes.size}"
 
     /**
      * Storyboard final et piste audio : avec voix off, les scènes s'allongent pour la voix et la musique
@@ -141,9 +150,9 @@ class MainActivity : ComponentActivity() {
             return base to null
         }
         onStatus("Préparation de la voix off…")
-        val res = Narrator.prepare(v, base, voiceMode, File(cacheDir, "voix")) { total ->
+        val res = Narrator.prepare(v, base, voiceMode, File(cacheDir, "voix"), music = { total ->
             withContext(Dispatchers.IO) { AudioDecoder.bedPcm(this@MainActivity, choice, total) }
-        }
+        }, allowSpeedUp = story == null)
         voiced = key to res
         return res.storyboard to res.audio
     }
@@ -218,7 +227,8 @@ class MainActivity : ComponentActivity() {
             override fun handleOnBackPressed() {
                 when (step) {
                     Step.CONTENT -> finish()
-                    Step.PREVIEW -> show(Step.CONTENT, forward = false)
+                    Step.PREVIEW -> show(if (story != null) Step.STORY else Step.CONTENT, forward = false)
+                    Step.STORY -> show(Step.CONTENT, forward = false)
                     Step.STYLE, Step.MUSIC -> show(Step.PREVIEW, forward = false)
                     Step.EXPORT -> if (exporting) Toast.makeText(this@MainActivity, "Génération en cours…", Toast.LENGTH_SHORT).show()
                         else show(Step.PREVIEW, forward = false)
@@ -262,6 +272,7 @@ class MainActivity : ComponentActivity() {
             Step.STYLE -> stylePage()
             Step.MUSIC -> musicPage()
             Step.EXPORT -> exportPage()
+            Step.STORY -> storyPage()
         }
         page.addView(body, lp(MATCH, 0, 1f, top = dp(12f)))
         root.addView(page)
@@ -279,8 +290,8 @@ class MainActivity : ComponentActivity() {
             text = "▶_ VIDEO24"; textSize = 20f; setTextColor(Brand.TEXT); setTypeface(Typeface.DEFAULT_BOLD, Typeface.BOLD); letterSpacing = 0.06f
         }, lp(0, WRAP, 1f))
         val back = when (s) {
-            Step.PREVIEW -> "‹ Texte"
-            Step.STYLE, Step.MUSIC -> "‹ Aperçu"
+            Step.PREVIEW -> if (story != null) "‹ Storyboard" else "‹ Texte"
+            Step.STYLE, Step.MUSIC, Step.STORY -> if (story != null && s == Step.STORY) "‹ Texte" else "‹ Aperçu"
             else -> null
         }
         back?.let { h.addView(label(it, 15f, Brand.MUTED).apply { setPadding(dp(8f), dp(8f), dp(8f), dp(8f)); pressable { onBackPressedDispatcher.onBackPressed() } }) }
@@ -290,6 +301,7 @@ class MainActivity : ComponentActivity() {
             Step.STYLE -> "Style de la vidéo"
             Step.MUSIC -> "Musique"
             Step.EXPORT -> "Génération"
+            Step.STORY -> "Storyboard"
         }
         return vbox().apply {
             addView(h)
@@ -365,6 +377,18 @@ class MainActivity : ComponentActivity() {
             }
         }
         page.addView(go, lp(MATCH, WRAP, top = dp(12f)))
+        val goStory = button("Scénario éditable (storyboard)", primary = false) {}
+        goStory.pressable {
+            val text = input.text.toString()
+            goStory.isEnabled = false; goStory.text = "Analyse du texte…"
+            lifecycleScope.launch {
+                val r = runCatching { withContext(Dispatchers.Default) { userText = text; Studio.plan(text, newSeed(), voice = voiceMode != VoiceMode.NONE) } }
+                goStory.isEnabled = true; goStory.text = "Scénario éditable (storyboard)"
+                r.onSuccess { story = it; storyEp = 0; show(Step.STORY) }
+                    .onFailure { Toast.makeText(this@MainActivity, it.message ?: "Texte inutilisable", Toast.LENGTH_LONG).show() }
+            }
+        }
+        page.addView(goStory, lp(MATCH, WRAP, top = dp(8f)))
         return page
     }
 
@@ -374,7 +398,8 @@ class MainActivity : ComponentActivity() {
         val page = vbox()
         val music = choice.track?.let { if (choice.hasAudio) it.title else "${it.title} (coupée)" } ?: "Sans musique"
         val styleName = if (look == Look.KIT) "${look.label} (${StyleKit.random(content.seed).label})" else look.label
-        val info = label("Version $generation · $styleName${if (hasDemo) " + démo à l'écran" else ""} · $music · voix ${voiceMode.label}", 13f, Brand.MUTED)
+        val epInfo = story?.let { "Épisode ${storyEp + 1}/${it.episodeCount} · " } ?: ""
+        val info = label("$epInfo" + "Version $generation · $styleName${if (hasDemo) " + démo à l'écran" else ""} · $music · voix ${voiceMode.label}", 13f, Brand.MUTED)
         page.addView(info)
         val img = ImageView(this).apply {
             scaleType = ImageView.ScaleType.FIT_CENTER
@@ -395,9 +420,13 @@ class MainActivity : ComponentActivity() {
         page.addView(frame, lp(MATCH, 0, 1f, top = dp(8f)))
         page.addView(hint, lp(MATCH, WRAP, top = dp(4f)))
         val actions = hbox()
-        actions.addView(button("Style", primary = false) { show(Step.STYLE) }, lp(0, WRAP, 1f, end = dp(8f)))
+        actions.addView(button("Style", primary = false) {
+            if (story != null) Toast.makeText(this, "Le mode Scénario est fixe : les autres formats se choisissent depuis « Créer ma vidéo ».", Toast.LENGTH_LONG).show()
+            else show(Step.STYLE)
+        }, lp(0, WRAP, 1f, end = dp(8f)))
         actions.addView(button("Musique", primary = false) { show(Step.MUSIC) }, lp(0, WRAP, 1f, end = dp(8f)))
-        actions.addView(button("Autre version", primary = false) {
+        actions.addView(button(if (story != null) "Storyboard" else "Autre version", primary = false) {
+            if (story != null) { show(Step.STORY); return@button }
             // Calcul hors du fil d'interface ; une erreur ne doit jamais fermer l'appli.
             lifecycleScope.launch {
                 runCatching { withContext(Dispatchers.Default) { propose(regenerate = true) } }
@@ -480,6 +509,122 @@ class MainActivity : ComponentActivity() {
                 flip = 1 - flip
                 delay(16)
             }
+        }
+    }
+
+    // ───────────────────────────── Storyboard éditable (mode Scénario) ─────────────────────────────
+
+    /** Charge l'épisode [k] dans l'aperçu / l'export existants, puis ouvre [target]. */
+    private fun openEpisode(k: Int, target: Step) {
+        val sp = story ?: return
+        storyEp = k.coerceIn(0, sp.episodeCount - 1)
+        val ep = sp.series[storyEp]
+        content = ep
+        template = sp.template
+        look = ep.look
+        lookLocked = true
+        voiced = null
+        if (choice.track?.source != MusicSource.USER_IMPORT) sp.musicId?.let { id -> catalog.firstOrNull { it.id == id } }?.let { choice = choice.copy(track = it) }
+        show(target)
+    }
+
+    /** Applique une modification du plan puis réaffiche la page. */
+    private fun updateStory(f: (StoryPlan) -> StoryPlan) {
+        val sp = story ?: return
+        lifecycleScope.launch {
+            runCatching { withContext(Dispatchers.Default) { f(sp) } }
+                .onSuccess { story = it; storyEp = storyEp.coerceIn(0, it.episodeCount - 1); show(Step.STORY, animate = false) }
+                .onFailure { Toast.makeText(this@MainActivity, it.message ?: "Modification impossible", Toast.LENGTH_LONG).show() }
+        }
+    }
+
+    private fun storyPage(): View {
+        val sp = story ?: return vbox()
+        val page = vbox()
+        val fid = sp.fidelity()
+        page.addView(label("${sp.episodeCount} épisode(s) · ${fid.summary()}", 13f, Brand.MUTED))
+        for (m in sp.qc().take(6)) page.addView(label(m, 13f, Brand.TEXT), lp(MATCH, WRAP, top = dp(4f)))
+        val eps = hbox()
+        for (k in 0 until sp.episodeCount) eps.addView(chip("Épisode ${k + 1}", k == storyEp) { storyEp = k; show(Step.STORY, animate = false) }, lp(WRAP, WRAP, end = dp(8f)))
+        page.addView(HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(eps) }, lp(MATCH, WRAP, top = dp(8f)))
+
+        val ep = sp.series[storyEp.coerceIn(0, sp.episodeCount - 1)]
+        val cards = sp.cards().filter { it.episode == (ep.episode?.index ?: 1) }
+        val list = vbox()
+        for (c in cards) {
+            val scene = ep.scenes.firstOrNull { it.id == c.id }
+            val opener = scene?.isEpisodeOpener ?: false
+            val row = hbox()
+            val thumb = ImageView(this).apply { scaleType = ImageView.ScaleType.FIT_CENTER; background = rounded(Color.BLACK, dp(10f).toFloat()) }
+            row.addView(thumb, lp(dp(96f), dp(170f), end = dp(12f)))
+            storyThumbnail(sp, ep, c.id, thumb)
+            val col = vbox()
+            col.addView(label("Scène ${c.index} · ${c.layout} · ${(c.durationMs + 50) / 100 / 10.0} s" + (if (c.userEdits.isNotEmpty()) " · modifiée : ${c.userEdits.joinToString(", ")}" else ""), 12f, Brand.MUTED))
+            col.addView(label(c.text.ifBlank { "—" }, 14f, Brand.TEXT), lp(MATCH, WRAP, top = dp(2f)))
+            col.addView(label("Image : ${c.image}" + (c.visualLabel?.let { l -> " — « $l » (adéquation ${((c.visualFit ?: 0f) * 100).toInt()} %)" } ?: ""), 12f, Brand.MUTED), lp(MATCH, WRAP, top = dp(2f)))
+            val full = label("Fiche complète (13 éléments) ▾", 12f, Brand.TEXT).apply { setPadding(0, dp(6f), 0, dp(6f)) }
+            val detail = label(
+                "Texte exact : ${c.text}\nNarration : ${c.narration}\nImage : ${c.image}\nPersonnages : ${c.characters.joinToString(", ").ifBlank { "—" }}\n" +
+                    "Objets : ${c.objects.joinToString(", ").ifBlank { "—" }}\nAction : ${c.action ?: "—"}\nDécor : ${c.setting}\nAnimation : ${c.animation}\n" +
+                    "Cadrage : ${c.framing ?: "—"}\nCaméra : ${c.camera ?: "—"}\nDurée : ${c.durationMs / 1000.0} s\nTransition : ${c.transition}\nSon : ${c.audio}\nIntention : ${c.intent}",
+                12f, Brand.MUTED).apply { visibility = View.GONE }
+            full.pressable { detail.visibility = if (detail.visibility == View.GONE) View.VISIBLE else View.GONE }
+            col.addView(full); col.addView(detail)
+            if (opener || scene == null) {
+                col.addView(label("Carte d'ouverture ajoutée automatiquement : non modifiable.", 12f, Brand.MUTED))
+            } else {
+                val id = c.id
+                val alts = sp.alternatives(id, 12)
+                val keys = listOf(Pins.TEXT_ONLY) + alts.map { it.key }
+                val labels = listOf("Texte seul") + alts.map { a -> "${a.label} · ${(a.fit * 100).toInt()} %" + (if (a.belowThreshold) " (faible)" else "") + (if (a.usedBy != null) " (déjà utilisé)" else "") }
+                col.addView(button("Visuel : " + (labels.getOrNull(keys.indexOf(sp.pins[id] ?: Pins.TEXT_ONLY).coerceAtLeast(0)) ?: "Texte seul"), primary = false) {
+                    android.app.AlertDialog.Builder(this@MainActivity).setTitle("Visuel de la scène ${c.index}")
+                        .setItems(labels.toTypedArray()) { _, i -> updateStory { it.replaceVisual(id, keys[i]) } }.show()
+                }, lp(MATCH, WRAP, top = dp(6f)))
+                val b2 = hbox()
+                b2.addView(button("Autre visuel", primary = false) { updateStory { it.reroll(id) } }, lp(0, WRAP, 1f, end = dp(6f)))
+                b2.addView(button("− 1 s", primary = false) { updateStory { it.withDuration(id, scene.durationMs - 1000) } }, lp(0, WRAP, 1f, end = dp(6f)))
+                b2.addView(button("+ 1 s", primary = false) { updateStory { it.withDuration(id, scene.durationMs + 1000) } }, lp(0, WRAP, 1f))
+                col.addView(b2, lp(MATCH, WRAP, top = dp(6f)))
+                val types = TransitionType.entries
+                col.addView(button("Transition : ${scene.transitionOut.type.name.lowercase()}", primary = false) {
+                    android.app.AlertDialog.Builder(this@MainActivity).setTitle("Transition")
+                        .setItems(types.map { it.name.lowercase() }.toTypedArray()) { _, i ->
+                            updateStory { it.withTransition(id, Transition(types[i], if (types[i] == TransitionType.CUT) 0 else 500)) }
+                        }.show()
+                }, lp(MATCH, WRAP, top = dp(6f)))
+                if (scene.body.isNotBlank()) col.addView(button("Modifier le texte", primary = false) {
+                    val edit = EditText(this@MainActivity).apply { setText(scene.body); setSelection(0) }
+                    android.app.AlertDialog.Builder(this@MainActivity).setTitle("Texte de la scène ${c.index}").setView(edit)
+                        .setPositiveButton("Appliquer") { _, _ -> updateStory { it.withText(id, body = edit.text.toString()) } }
+                        .setNegativeButton("Annuler", null).show()
+                }, lp(MATCH, WRAP, top = dp(6f)))
+            }
+            row.addView(col, lp(0, WRAP, 1f))
+            list.addView(row, lp(MATCH, WRAP, bottom = dp(14f)))
+        }
+        page.addView(ScrollView(this).apply { addView(list) }, lp(MATCH, 0, 1f, top = dp(10f)))
+        val bottom = hbox()
+        bottom.addView(button("Redécouper", primary = false) { updateStory { it.resplit() } }, lp(0, WRAP, 1f, end = dp(8f)))
+        bottom.addView(button("Aperçu épisode ${storyEp + 1}") { openEpisode(storyEp, Step.PREVIEW) }, lp(0, WRAP, 2f))
+        page.addView(bottom, lp(MATCH, WRAP, top = dp(10f)))
+        return page
+    }
+
+    private fun storyThumbnail(sp: StoryPlan, ep: Storyboard, sceneId: String, view: ImageView) {
+        lifecycleScope.launch {
+            val bmp = runCatching {
+                withContext(renderThread) {
+                    val sb = Composer.prepare(ep, sp.template, null)
+                    val r = FrameRenderer(sb, VideoFormat(216, 384, 30), sp.template)
+                    val slot = r.timeline.slots.first { it.scene.id == sceneId }
+                    val b = Bitmap.createBitmap(216, 384, Bitmap.Config.ARGB_8888)
+                    gfx.begin(Canvas(b))
+                    r.render(gfx, slot.startMs + slot.durationMs * 0.7f)
+                    b
+                }
+            }.getOrNull()
+            if (bmp != null) view.setImageBitmap(bmp)
         }
     }
 
@@ -757,7 +902,7 @@ class MainActivity : ComponentActivity() {
                 if (bed != null) say("Musique prête : ${(SystemClock.elapsedRealtime() - t0)} ms")
 
                 val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.ROOT).format(Date())
-                val out = File(File(filesDir, "export").apply { mkdirs() }, "VIDEO24_${ImportPolicy.safeFileStem(sb.id.removePrefix("demo-"))}_$stamp.mp4")
+                val out = File(File(filesDir, "export").apply { mkdirs() }, "VIDEO24_${ImportPolicy.safeFileStem(sb.id.removePrefix("demo-"))}${story?.let { "_ep${storyEp + 1}sur${it.episodeCount}" } ?: ""}_$stamp.mp4")
                 tmpOut = out
                 status.text = "Rendu des images…"
                 val started = SystemClock.elapsedRealtime()
@@ -777,7 +922,7 @@ class MainActivity : ComponentActivity() {
                 if ((choice.hasAudio || voicedAudio != null) && probe.audioMime == null) error("La piste audio est absente du fichier : export refusé")
 
                 status.text = "Enregistrement dans la Galerie…"
-                val uri = withContext(Dispatchers.IO) { GalleryExport.publish(this@MainActivity, out, ImportPolicy.displayName("${sb.title}.mp4")) }
+                val uri = withContext(Dispatchers.IO) { GalleryExport.publish(this@MainActivity, out, ImportPolicy.displayName("${sb.title}${story?.let { " ép ${storyEp + 1} sur ${it.episodeCount}" } ?: ""}.mp4")) }
                 say("")
                 say("Vidéo         : ${probe.mime} ${if (probe.isH264) "✓" else "✗"} · ${probe.displayWidth}×${probe.displayHeight}")
                 say("Durée         : ${probe.durationMs} ms · ${probe.sampleCount} images · %.2f i/s".format(probe.measuredFps))
@@ -803,14 +948,21 @@ class MainActivity : ComponentActivity() {
                 actions.addView(open, lp(0, WRAP, 1f, end = dp(10f)))
                 actions.addView(share, lp(0, WRAP, 1f))
                 result.addView(actions, lp(MATCH, WRAP))
-                result.addView(button("🔀 Une autre version", primary = false) {
-                    lifecycleScope.launch {
-                        runCatching { withContext(Dispatchers.Default) { propose(regenerate = true) } }
-                            .onSuccess { show(Step.PREVIEW, forward = false) }
-                            .onFailure { Toast.makeText(this@MainActivity, it.message ?: "Impossible de créer une autre version", Toast.LENGTH_LONG).show() }
-                    }
-                }, lp(MATCH, WRAP, top = dp(10f)))
-                result.addView(button("Nouveau texte", primary = false) { show(Step.CONTENT, forward = false) }, lp(MATCH, WRAP, top = dp(10f)))
+                val sp = story
+                if (sp != null) {
+                    if (storyEp + 1 < sp.episodeCount) result.addView(button("Épisode suivant (${storyEp + 2}/${sp.episodeCount})") { openEpisode(storyEp + 1, Step.EXPORT) }, lp(MATCH, WRAP, top = dp(10f)))
+                    result.addView(button("Retour au storyboard", primary = false) { show(Step.STORY, forward = false) }, lp(MATCH, WRAP, top = dp(10f)))
+                    result.addView(button("Nouveau texte", primary = false) { story = null; show(Step.CONTENT, forward = false) }, lp(MATCH, WRAP, top = dp(10f)))
+                } else {
+                    result.addView(button("🔀 Une autre version", primary = false) {
+                        lifecycleScope.launch {
+                            runCatching { withContext(Dispatchers.Default) { propose(regenerate = true) } }
+                                .onSuccess { show(Step.PREVIEW, forward = false) }
+                                .onFailure { Toast.makeText(this@MainActivity, it.message ?: "Impossible de créer une autre version", Toast.LENGTH_LONG).show() }
+                        }
+                    }, lp(MATCH, WRAP, top = dp(10f)))
+                    result.addView(button("Nouveau texte", primary = false) { show(Step.CONTENT, forward = false) }, lp(MATCH, WRAP, top = dp(10f)))
+                }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 percent.text = "❌"

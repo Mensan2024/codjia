@@ -14,7 +14,14 @@ import io.github.mensan2024.itmentor.engine.MusicTrack
 import io.github.mensan2024.itmentor.engine.MusicVolume
 import io.github.mensan2024.itmentor.engine.Narration
 import io.github.mensan2024.itmentor.engine.Pcm
+import io.github.mensan2024.itmentor.engine.Pins
+import io.github.mensan2024.itmentor.engine.Scene
+import io.github.mensan2024.itmentor.engine.StoryPlan
 import io.github.mensan2024.itmentor.engine.Storyboard
+import io.github.mensan2024.itmentor.engine.Studio
+import io.github.mensan2024.itmentor.engine.Transition
+import io.github.mensan2024.itmentor.engine.TransitionType
+import io.github.mensan2024.itmentor.engine.isEpisodeOpener
 import io.github.mensan2024.itmentor.engine.StyleKit
 import io.github.mensan2024.itmentor.engine.Template
 import io.github.mensan2024.itmentor.engine.TextSanitizer
@@ -49,7 +56,7 @@ private fun persist() {
     Store.set("vol", App.choice.volume.name)
 }
 
-private enum class Step { TEXT, PREVIEW, STYLE, MUSIC, EXPORT }
+private enum class Step { TEXT, PREVIEW, STYLE, MUSIC, EXPORT, STORY }
 
 private object App {
     val audio = WebAudio(base)
@@ -78,6 +85,9 @@ private object App {
     var lastVideoUrl: String? = null
     var installPrompt: dynamic = null
     var updateReady = false
+    /** Mode Scénario éditable : le plan complet (tous les épisodes) et l'épisode affiché (0 = premier). */
+    var story: StoryPlan? = null
+    var storyEp = 0
 }
 
 fun main() {
@@ -199,6 +209,7 @@ private fun show(s: Step) {
         Step.STYLE -> stylePage()
         Step.MUSIC -> musicPage()
         Step.EXPORT -> exportPage()
+        Step.STORY -> storyPage()
     }
     root.appendChild(body)
     root.appendChild(el("p", "privacy", "Tout se passe sur ton appareil : ton texte, ta voix, ta musique et tes vidéos ne sont envoyés nulle part. Logiciel libre (GPL-3.0)."))
@@ -216,7 +227,7 @@ private fun topBar(s: Step): HTMLElement {
     h.appendChild(button("", "icon-btn", Ic.help) { showHelp() }.also { it.title = "Aide : comment ça marche"; it.setAttribute("aria-label", "Aide") })
     wrap.appendChild(h)
     // Étapes : Texte → Aperçu → Vidéo
-    val idx = when (s) { Step.TEXT -> 0; Step.PREVIEW, Step.STYLE, Step.MUSIC -> 1; Step.EXPORT -> 2 }
+    val idx = when (s) { Step.TEXT -> 0; Step.PREVIEW, Step.STYLE, Step.MUSIC, Step.STORY -> 1; Step.EXPORT -> 2 }
     val stepper = el("nav", "stepper")
     listOf("Texte", "Aperçu", "Vidéo").forEachIndexed { i, label ->
         val it = el("div", "st" + (if (i == idx) " on" else if (i < idx) " done" else ""))
@@ -342,7 +353,17 @@ private fun textPage(): HTMLElement {
             show(Step.PREVIEW)
         } catch (e: Throwable) { toast(e.message ?: "Texte inutilisable") }
     }
-    page.appendChild(el("div", "dock").add(go))
+    val goStory = button("Scénario éditable", "btn wide", Ic.palette) {
+        if (area.value.isBlank()) { toast("Colle d'abord ton texte, ou touche « Essayer un exemple »."); area.focus(); return@button }
+        App.audio.context()
+        App.userText = area.value; persist()
+        try {
+            App.story = Studio.plan(App.userText, newSeed(), voice = App.voiceOn)
+            App.storyEp = 0
+            show(Step.STORY)
+        } catch (e: Throwable) { toast(e.message ?: "Texte inutilisable") }
+    }
+    page.appendChild(el("div", "dock").add(goStory, go))
     return page
 }
 
@@ -374,7 +395,7 @@ private fun styleName(): String = when (App.look) {
 
 private fun prepared(): Storyboard = Composer.prepare(App.content, App.template, App.choice.track?.takeIf { it.bpm > 0 })
 
-private fun voiceKey() = "${App.content.id}|${App.seed}|${App.content.look}|${App.template.id}|${App.choice.track?.id}|${App.choice.volume}|${App.voiceMode}|${App.generation}|${App.content.scenes.size}"
+private fun voiceKey() = "${App.content.scenes.joinToString(",") { "${it.id}:${it.durationMs}:${it.title}:${it.body}" }}|${App.story != null}|${App.content.id}|${App.seed}|${App.content.look}|${App.template.id}|${App.choice.track?.id}|${App.choice.volume}|${App.voiceMode}|${App.generation}|${App.content.scenes.size}"
 
 /**
  * Storyboard final et piste audio. Sans voix : la musique seule (mixée à l'export).
@@ -394,7 +415,8 @@ private suspend fun plan(status: (String, Int?) -> Unit): Pair<Storyboard, Pcm?>
             }
         },
         music = { total -> track?.let { AudioMix.musicBed(App.audio.toPcm(App.audio.buffer(it)), total, gain) } },
-        progress = { d, t -> status("Voix off : phrase $d sur $t", d * 100 / maxOf(1, t)) })
+        progress = { d, t -> status("Voix off : phrase $d sur $t", d * 100 / maxOf(1, t)) },
+        allowSpeedUp = App.story == null)
     App.voiced = voiceKey() to res
     return res.storyboard to res.audio
 }
@@ -417,7 +439,8 @@ private fun toolButton(label: String, icon: String, on: Boolean, hint: String, o
 private fun previewPage(): HTMLElement {
     val page = el("main", "page preview-page")
     val dur = el("span", "tag", "…")
-    page.appendChild(el("div", "tags").add(el("span", "tag accent", styleName()), dur))
+    val storyTag = App.story?.let { sp -> el("span", "tag", "Épisode ${App.storyEp + 1}/${sp.episodeCount}") }
+    page.appendChild(el("div", "tags").add(*listOfNotNull(el("span", "tag accent", styleName()), storyTag, dur).toTypedArray()))
     if (Store.get("tip") != "0") {
         val tip = el("div", "tip")
         tip.add(el("span", "", "Touche l'aperçu pour le mettre en pause."),
@@ -459,9 +482,12 @@ private fun previewPage(): HTMLElement {
             toast(if (App.voiceOn) "Voix off activée" else "Voix off désactivée")
             show(Step.PREVIEW)
         },
-        toolButton("Format", Ic.palette, App.lookLocked, "Choisir le format de la vidéo") { show(Step.STYLE) },
+        toolButton("Format", Ic.palette, App.lookLocked, "Choisir le format de la vidéo") {
+            if (App.story != null) toast("Le mode Scénario est fixe : les autres formats se choisissent depuis « Créer ma vidéo ».") else show(Step.STYLE)
+        },
         toolButton("Musique", Ic.music, App.choice.track != null, if (App.choice.track != null) "Musique choisie : ${App.choice.track?.title}" else "Choisir ou importer une musique") { show(Step.MUSIC) },
-        toolButton("Autre version", Ic.dice, false, "Générer une autre version à partir du même texte") {
+        if (App.story != null) toolButton("Storyboard", Ic.dice, false, "Voir et modifier les scènes avant le rendu") { show(Step.STORY) }
+        else toolButton("Autre version", Ic.dice, false, "Générer une autre version à partir du même texte") {
             try { propose(true); show(Step.PREVIEW) } catch (e: Throwable) { toast(e.message ?: "Erreur") }
         },
     )
@@ -684,6 +710,128 @@ private fun musicPage(): HTMLElement {
     return page
 }
 
+// ───────────────────────────── Storyboard éditable (mode Scénario) ─────────────────────────────
+
+/** Charge l'épisode [k] (0 = premier) dans l'aperçu / l'export existants, puis ouvre [target]. */
+private fun openEpisode(k: Int, target: Step) {
+    val sp = App.story ?: return
+    App.storyEp = k.coerceIn(0, sp.episodeCount - 1)
+    val ep = sp.series[App.storyEp]
+    App.content = ep
+    App.template = sp.template
+    App.look = ep.look
+    App.lookLocked = true
+    App.voiced = null
+    if (!App.musicLocked) App.choice = App.choice.copy(track = sp.musicId?.let { id -> App.catalog.firstOrNull { it.id == id } })
+    show(target)
+}
+
+/** Applique une modification du plan puis réaffiche la page sans remonter en haut. */
+private fun updateStory(f: (StoryPlan) -> StoryPlan) {
+    val sp = App.story ?: return
+    try {
+        val y = window.scrollY
+        App.story = f(sp)
+        App.storyEp = App.storyEp.coerceIn(0, App.story!!.episodeCount - 1)
+        show(Step.STORY)
+        window.scrollTo(0.0, y)
+    } catch (e: Throwable) { toast(e.message ?: "Modification impossible") }
+}
+
+private fun storyPage(): HTMLElement {
+    val sp = App.story!!
+    val page = el("main", "page")
+    page.appendChild(subPage("Storyboard", Step.TEXT))
+    val fid = sp.fidelity()
+    page.appendChild(el("p", "sb-sum", "${sp.episodeCount} épisode(s) · ${fid.summary()}"))
+    for (m in sp.qc().take(6)) page.appendChild(el("p", "sb-warn", m))
+    // Choix de l'épisode
+    val eps = el("div", "sb-eps")
+    for (k in 0 until sp.episodeCount) eps.appendChild(button("Épisode ${k + 1}", "chip" + if (k == App.storyEp) " on" else "") { App.storyEp = k; val y = window.scrollY; show(Step.STORY); window.scrollTo(0.0, y) })
+    page.appendChild(eps)
+
+    val ep = sp.series[App.storyEp.coerceIn(0, sp.episodeCount - 1)]
+    val cards = sp.cards().filter { it.episode == (ep.episode?.index ?: 1) }
+    val sb = Composer.prepare(ep, sp.template, null)
+    val renderer = FrameRenderer(sb, VideoFormat(216, 384, 30), sp.template)
+    for (c in cards) {
+        val scene: Scene? = ep.scenes.firstOrNull { it.id == c.id }
+        val opener = scene?.isEpisodeOpener ?: false
+        val card = el("div", "card sb-card")
+        val canvas = el("canvas")
+        canvas.setAttribute("aria-label", "Aperçu de la scène ${c.index}")
+        val body = el("div", "sb-body")
+        val head = el("div", "sb-head")
+        head.add(el("b", "", "Scène ${c.index}"), el("span", "", "${c.layout} · ${(c.durationMs + 50) / 100 / 10.0} s"))
+        if (c.userEdits.isNotEmpty()) head.appendChild(el("span", "sb-edited", "modifiée : ${c.userEdits.joinToString(", ")}"))
+        body.appendChild(head)
+        body.appendChild(el("p", "sb-text", c.text.ifBlank { "—" }))
+        body.appendChild(el("p", "sb-intent", "Image : " + c.image + (c.visualLabel?.let { l -> " — « $l » (adéquation ${((c.visualFit ?: 0f) * 100).toInt()} %)" } ?: "")))
+        val d = el("details", "sb-details")
+        d.appendChild(el("summary", "", "Fiche complète (13 éléments)"))
+        val dl = el("dl")
+        fun row(k: String, v: String?) { dl.appendChild(el("dt", "", k)); dl.appendChild(el("dd", "", v?.ifBlank { null } ?: "—")) }
+        row("Texte exact", c.text); row("Narration", c.narration); row("Description de l'image", c.image)
+        row("Personnages", c.characters.joinToString(", ")); row("Objets", c.objects.joinToString(", ")); row("Action", c.action)
+        row("Décor", c.setting); row("Animation", c.animation); row("Cadrage", c.framing); row("Caméra", c.camera)
+        row("Durée", "${c.durationMs / 1000.0} s"); row("Transition", c.transition); row("Son", c.audio); row("Intention", c.intent)
+        d.appendChild(dl)
+        body.appendChild(d)
+        if (opener || scene == null) {
+            body.appendChild(el("p", "sb-intent", "Carte d'ouverture ajoutée automatiquement : non modifiable."))
+        } else {
+            val id = c.id
+            val ctl = el("div", "sb-ctl")
+            // Visuel : liste des visuels envisageables, du plus adapté au moins adapté.
+            val sel = document.createElement("select") as org.w3c.dom.HTMLSelectElement
+            sel.setAttribute("aria-label", "Visuel de la scène ${c.index}")
+            fun opt(value: String, label: String) { val o = document.createElement("option") as org.w3c.dom.HTMLOptionElement; o.value = value; o.textContent = label; sel.appendChild(o) }
+            opt(Pins.TEXT_ONLY, "Texte seul")
+            for (a in sp.alternatives(id, 12)) opt(a.key, "${a.label} · ${(a.fit * 100).toInt()} %" + (if (a.belowThreshold) " (faible)" else "") + (if (a.usedBy != null) " (déjà utilisé)" else ""))
+            sel.value = sp.pins[id] ?: Pins.TEXT_ONLY
+            sel.addEventListener("change", { updateStory { it.replaceVisual(id, sel.value) } })
+            ctl.appendChild(sel)
+            ctl.appendChild(button("Autre visuel", "btn small", Ic.dice) { updateStory { it.reroll(id) } })
+            body.appendChild(ctl)
+            val ctl2 = el("div", "sb-ctl")
+            ctl2.appendChild(button("− 1 s", "btn small") { updateStory { it.withDuration(id, scene.durationMs - 1000) } })
+            ctl2.appendChild(button("+ 1 s", "btn small") { updateStory { it.withDuration(id, scene.durationMs + 1000) } })
+            val tsel = document.createElement("select") as org.w3c.dom.HTMLSelectElement
+            tsel.setAttribute("aria-label", "Transition de la scène ${c.index}")
+            for (t in TransitionType.entries) { val o = document.createElement("option") as org.w3c.dom.HTMLOptionElement; o.value = t.name; o.textContent = t.name.lowercase(); tsel.appendChild(o) }
+            tsel.value = scene.transitionOut.type.name
+            tsel.addEventListener("change", { updateStory { it.withTransition(id, Transition(TransitionType.valueOf(tsel.value), if (tsel.value == "CUT") 0 else 500)) } })
+            ctl2.appendChild(tsel)
+            body.appendChild(ctl2)
+            if (scene.body.isNotBlank()) {
+                val ta = document.createElement("textarea") as org.w3c.dom.HTMLTextAreaElement
+                ta.value = scene.body
+                ta.setAttribute("aria-label", "Texte de la scène ${c.index}")
+                val ctl3 = el("div", "sb-ctl")
+                ctl3.appendChild(ta)
+                ctl3.appendChild(button("Appliquer le texte", "btn small") { updateStory { it.withText(id, body = ta.value) } })
+                body.appendChild(ctl3)
+            }
+        }
+        card.add(canvas, body)
+        page.appendChild(card)
+        val slot = renderer.timeline.slots.firstOrNull { it.scene.id == c.id }
+        if (slot != null) window.setTimeout({
+            try {
+                canvas.asDynamic().width = 216; canvas.asDynamic().height = 384
+                val g = CanvasGfx(); g.begin(canvas)
+                renderer.render(g, (slot.startMs + (slot.endMs - slot.startMs) * 0.7).toFloat())
+            } catch (e: Throwable) { console.error(e) }
+        }, 30)
+    }
+    val tools = el("div", "row")
+    tools.appendChild(button("Redécouper les épisodes", "btn small") { updateStory { it.resplit() } })
+    page.appendChild(tools)
+    page.appendChild(el("div", "dock").add(
+        button("Aperçu de l'épisode ${App.storyEp + 1}", "btn primary wide big", Ic.play) { openEpisode(App.storyEp, Step.PREVIEW) }))
+    return page
+}
+
 // ───────────────────────────── 5. Génération ─────────────────────────────
 
 private fun exportPage(): HTMLElement {
@@ -746,7 +894,8 @@ private fun exportPage(): HTMLElement {
         val video = el("video", "out")
         video.setAttribute("controls", ""); video.setAttribute("playsinline", ""); video.setAttribute("src", url)
         result.appendChild(video)
-        val name = App.content.title.take(40).replace(Regex("[^A-Za-z0-9À-ÿ]+"), "_").trim('_').ifEmpty { "video" } + ".mp4"
+        val epSuffix = App.story?.let { sp -> "_ep${App.storyEp + 1}sur${sp.episodeCount}" } ?: ""
+        val name = App.content.title.take(40).replace(Regex("[^A-Za-z0-9À-ÿ]+"), "_").trim('_').ifEmpty { "video" } + epSuffix + ".mp4"
         val actions = el("div", "row")
         val dl = el("a", "btn primary")
         dl.appendChild(el("span", "ic").also { it.innerHTML = Ic.download }); dl.appendChild(el("span", "", "Enregistrer"))
@@ -759,8 +908,14 @@ private fun exportPage(): HTMLElement {
         })
         result.appendChild(actions)
         if (isIos()) result.appendChild(el("p", "muted small", "Sur iPhone : « Partager » puis « Enregistrer la vidéo » la met dans Photos."))
-        result.add(button("Une autre version", "btn wide", Ic.dice) { try { propose(true); show(Step.PREVIEW) } catch (e: Throwable) { toast(e.message ?: "Erreur") } },
-            button("Nouveau texte", "btn ghost wide") { show(Step.TEXT) })
+        val sp = App.story
+        if (sp != null) {
+            if (App.storyEp + 1 < sp.episodeCount) result.add(button("Épisode suivant (${App.storyEp + 2}/${sp.episodeCount})", "btn primary wide") { openEpisode(App.storyEp + 1, Step.EXPORT) })
+            result.add(button("Retour au storyboard", "btn wide", Ic.palette) { show(Step.STORY) }, button("Nouveau texte", "btn ghost wide") { App.story = null; show(Step.TEXT) })
+        } else {
+            result.add(button("Une autre version", "btn wide", Ic.dice) { try { propose(true); show(Step.PREVIEW) } catch (e: Throwable) { toast(e.message ?: "Erreur") } },
+                button("Nouveau texte", "btn ghost wide") { show(Step.TEXT) })
+        }
         applyUpdateWhenIdle()
     }
     return page

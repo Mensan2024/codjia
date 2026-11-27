@@ -57,7 +57,7 @@ internal object BruteForceScenes {
                 g.fillRoundRect(80f, y + 40f, 80f + 780f * fill, y + 78f, 19f, if (fast) th.bad else th.good)
                 val done = fast && fill >= 0.999f
                 SK.lock(g, 905f, y - 30f, 56f, if (done) th.bad else th.line, th.ink, if (done) 1f else 0f)
-                SK.text(g, if (fast) "VITE DEVINE" else "TRES LONG A DEVINER", 860f, y + 106f, 22f, if (fast) th.bad else th.good)
+                SK.text(g, if (fast) "VITE DEVINE" else "TRES LONG A DEVINER", 850f, y + 106f, 22f, if (fast) th.bad else th.good, center = true)
             }
         }
         bar(190f, "MOT DE PASSE COURT ET COURANT", "azerty12", true, 200f)

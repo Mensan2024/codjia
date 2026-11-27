@@ -109,7 +109,8 @@ fun main(args: Array<String>) {
             File(out.path.removeSuffix(".mp4") + "-mesures.json").writeText(stats.toJson())
             println(stats.toJson())
         }
-        else -> System.err.println("Usage : render|templates|plan|sheet|video …")
+        "story" -> storyMain(args.drop(1))
+        else -> System.err.println("Usage : render|templates|plan|sheet|video|story …")
     }
 }
 

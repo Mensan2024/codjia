@@ -84,6 +84,13 @@ internal object SceneRegistry {
 
     const val MIN_FIT = 0.6f
 
+    /** Plan retrouvé par sa clé « genre/plan ». */
+    fun find(key: String): Pair<SceneKind, Beat>? {
+        val kind = kinds.firstOrNull { key.startsWith(it.id + "/") } ?: return null
+        val beat = kind.beats.firstOrNull { it.id == key.removePrefix(kind.id + "/") } ?: return null
+        return kind to beat
+    }
+
     /** Note de 0 à 1 : ce plan sait-il montrer cette intention ? 0 = le concept ne correspond pas du tout. */
     fun fit(i: SceneIntent, k: SceneKind, b: Beat): Float {
         if (k.domains.isNotEmpty() && i.domain !in k.domains) return 0f
@@ -115,36 +122,52 @@ internal object ScenarioPlanner {
     fun plan(sb: Storyboard, profile: ContentProfile = sb.profile ?: ContentAnalyzer.analyze(IntentAnalyzer.videoText(sb))): ScenarioPlan {
         val intents = IntentAnalyzer.analyze(sb, profile)
         val salt = Rand.of(sb.seed, 0x5CE4).nextInt()
+        val n = intents.size
+        val picks = arrayOfNulls<Pick>(n)
+        // Scènes « épinglées » (choix imposé par l'utilisateur ou figé à la génération) : leur plan ne dépend plus des autres scènes.
+        val pinned = BooleanArray(n)
+        val used = HashSet<String>()
+        for (i in 0 until n) {
+            val key = sb.pins[sb.scenes[i].id] ?: continue
+            pinned[i] = true
+            if (key == Pins.TEXT_ONLY) continue
+            val (k, b) = SceneRegistry.find(key) ?: continue
+            picks[i] = Pick(i, k, b, SceneRegistry.fit(intents[i], k, b))
+            if (!b.repeatable) used += key
+        }
+        val free = (0 until n).filter { !pinned[it] }
         val cands = ArrayList<Cand>()
         for (k in SceneRegistry.kinds) for (b in k.beats) {
             if (profile.sensitive && !b.calm) continue
+            if (!b.repeatable && (k.id + "/" + b.id) in used) continue
             cands += Cand(k, b, 0)
             if (b.repeatable) cands += Cand(k, b, 1)
         }
-        val n = intents.size
+        val r = free.size
         val m = cands.size
-        // n lignes (scènes), m colonnes de plans + n colonnes « texte seul » (poids = seuil).
-        val w = Array(n) { DoubleArray(m + n) }
-        for (i in 0 until n) {
-            val dur = sb.scenes[i].durationMs
-            for ((j, c) in cands.withIndex()) {
-                var f = if (dur < c.b.minMs) 0f else SceneRegistry.fit(intents[i], c.k, c.b)
-                if (c.copy == 1) f -= 0.08f
-                w[i][j] = if (f >= SceneRegistry.MIN_FIT) f + SK.hash01(i * 131 + (c.k.id + c.b.id).hashCode() + c.copy, salt) * 0.02 else -1.0
+        if (r > 0) {
+            // r lignes (scènes libres), m colonnes de plans + r colonnes « texte seul » (poids = seuil).
+            val w = Array(r) { DoubleArray(m + r) }
+            for ((row, i) in free.withIndex()) {
+                val dur = sb.scenes[i].durationMs
+                for ((j, c) in cands.withIndex()) {
+                    var f = if (dur < c.b.minMs) 0f else SceneRegistry.fit(intents[i], c.k, c.b)
+                    if (c.copy == 1) f -= 0.08f
+                    w[row][j] = if (f >= SceneRegistry.MIN_FIT) f + SK.hash01(i * 131 + (c.k.id + c.b.id).hashCode() + c.copy, salt) * 0.02 else -1.0
+                }
+                for (d in 0 until r) w[row][m + d] = SceneRegistry.MIN_FIT.toDouble()
             }
-            for (d in 0 until n) w[i][m + d] = SceneRegistry.MIN_FIT.toDouble()
-        }
-        val assign = Hungarian.maximize(w)
-        val picks = arrayOfNulls<Pick>(n)
-        for (i in 0 until n) {
-            val j = assign[i]
-            if (j in 0 until m && w[i][j] >= SceneRegistry.MIN_FIT) {
-                val c = cands[j]
-                picks[i] = Pick(i, c.k, c.b, SceneRegistry.fit(intents[i], c.k, c.b))
+            val assign = Hungarian.maximize(w)
+            for ((row, i) in free.withIndex()) {
+                val j = assign[row]
+                if (j in 0 until m && w[row][j] >= SceneRegistry.MIN_FIT) {
+                    val c = cands[j]
+                    picks[i] = Pick(i, c.k, c.b, SceneRegistry.fit(intents[i], c.k, c.b))
+                }
             }
         }
-        // Un plan répétable ne passe jamais deux scènes de suite.
-        for (i in 1 until n) { val a = picks[i - 1]; val b = picks[i]; if (a != null && b != null && a.key == b.key && b.beat.repeatable) picks[i] = null }
+        // Un plan répétable ne passe jamais deux scènes de suite (sauf si l'utilisateur l'a imposé).
+        for (i in 1 until n) { val a = picks[i - 1]; val b = picks[i]; if (a != null && b != null && a.key == b.key && b.beat.repeatable && !pinned[i]) picks[i] = null }
         return ScenarioPlan(intents, picks.toList(), sb.scenes.map { it.id })
     }
 
@@ -192,6 +215,12 @@ internal object Hungarian {
         for (j in 1..m) if (p[j] != 0) res[p[j] - 1] = j - 1
         return res
     }
+}
+
+/** Clés spéciales des visuels imposés scène par scène. */
+object Pins {
+    /** Scène volontairement sans image : le texte seul. */
+    const val TEXT_ONLY = "none"
 }
 
 /** Accès public au diagnostic du scénario visuel (banc d'essai, tests, interface) : l'intention de chaque scène et le plan retenu. */

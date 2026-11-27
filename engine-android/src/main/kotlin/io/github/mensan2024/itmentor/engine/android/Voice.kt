@@ -94,6 +94,7 @@ object Narrator {
     suspend fun prepare(
         voices: OfflineVoices, storyboard: Storyboard, mode: VoiceMode, workDir: File,
         music: suspend (totalMs: Long) -> Pcm?,
+        allowSpeedUp: Boolean = true,
     ): VoicedResult {
         workDir.mkdirs()
         var n = 0
@@ -101,7 +102,7 @@ object Narrator {
             val f = File(workDir, "voix_${n++}.wav")
             voices.synthesize(text, lang, f, rate, "${f.name}@$rate")
             withContext(Dispatchers.IO) { Wav.read(f.readBytes()).also { f.delete() } }
-        }, music = { total -> withContext(Dispatchers.Default) { music(total) } })
+        }, music = { total -> withContext(Dispatchers.Default) { music(total) } }, allowSpeedUp = allowSpeedUp)
         val out = File(workDir, "voix_et_musique.wav")
         withContext(Dispatchers.IO) { out.writeBytes(Wav.write(res.audio)) }
         return VoicedResult(res.storyboard, out, res.speechRate, res.languages, res.voiceMs)

@@ -131,6 +131,13 @@ data class Storyboard(
     val mood: Mood = Mood.ANY,
     /** Ce que le moteur a compris du texte d'origine (famille, objectif, sensibilité) : le scénario visuel s'en sert, car le storyboard seul a perdu les hashtags et les intitulés d'origine. */
     val profile: ContentProfile? = null,
+    /** Place dans une série (texte long découpé en épisodes) ; `null` pour une vidéo seule. */
+    val episode: EpisodeInfo? = null,
+    /**
+     * Visuel imposé scène par scène (identifiant de scène → clé du motif de scénario, ou [Pins.TEXT_ONLY]).
+     * Une scène « épinglée » ne dépend plus des autres : la remplacer ne change rien ailleurs.
+     */
+    val pins: Map<String, String> = emptyMap(),
 ) {
     init {
         require(scenes.isNotEmpty()) { "Le storyboard est vide" }
