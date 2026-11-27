@@ -2,6 +2,14 @@
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [2.8.0]
+
+### Ajouté
+- **Type « Démonstration 3D »** (informatique : réseaux, systèmes, cybersécurité, code, IA) : un objet en volume tourne doucement au-dessus du texte, avec ombre au sol et anneaux lumineux. Trois objets, choisis d'après le sujet : **ordinateur portable** (qui s'éclate en écran, clavier, carte mère avec processeur et mémoire, batterie, châssis, avec repères nommés), **baie de serveurs** (les serveurs coulissent hors de la baie) et **cadenas** (l'anse s'ouvre). L'objet reste assemblé en ouverture, s'éclate pendant les étapes et se réassemble en conclusion.
+- **Moteur 3D logiciel** (`Engine3D.kt`) en Kotlin commun : perspective, faces cachées écartées, tri du plus loin au plus proche, éclairage par face. Même image sur Android, navigateur et tests ; aucune permission, aucune bibliothèque.
+- Étiquetage : « ILLUSTRATION 3D » sur chaque scène. C'est de la 3D stylisée à facettes : ni texture, ni reflet, ni ombre précise, ni personnage. L'objet prend toute la hauteur que le texte laisse libre ; si le texte est trop long, l'objet disparaît de la scène plutôt que de couper le texte.
+- Non proposé pour les sujets sensibles ni hors informatique.
+
 ## [2.7.0]
 
 ### Modifié
