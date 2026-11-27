@@ -116,18 +116,12 @@ class FrameRenderer(val storyboard: Storyboard, val format: VideoFormat, baseTem
         g.fillPath(p, color)
     }
 
-    /** Éléments fixes : une seule ligne de progression continue (pas de segments par scène) et pied de page. */
+    /** Éléments fixes : une seule ligne de progression continue (pas de segments par scène). Aucun logo ni nom d'application dans la vidéo. */
     private fun overlay(g: Gfx, tMs: Float) {
         val y = 104f
         val progress = clamp01(tMs / timeline.totalMs.coerceAtLeast(1))
         g.fillRoundRect(Safe.LEFT, y, Safe.RIGHT, y + 6f, 3f, ink.withAlpha(0.14f))
         if (progress > 0f) g.fillRoundRect(Safe.LEFT, y, Safe.LEFT + Safe.WIDTH * progress, y + 6f, 3f, ink.withAlpha(0.9f))
-        val fy = 1608f
-        val play = PathData().moveTo(Safe.LEFT, fy - 26f).lineTo(Safe.LEFT, fy + 6f).lineTo(Safe.LEFT + 27f, fy - 10f).close()
-        g.fillPath(play, ink.withAlpha(0.9f))
-        g.fillRoundRect(Safe.LEFT + 32f, fy + 2f, Safe.LEFT + 50f, fy + 8f, 3f, rgb(0xF5B301))
-        val f = FontSpec(FontFamily.TEXT, 800, 28f)
-        g.drawTracked(storyboard.footer, Safe.LEFT + 66f, fy, f, ink.withAlpha(0.9f), 2f)
     }
 }
 

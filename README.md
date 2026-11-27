@@ -1,13 +1,15 @@
-# CODJIA — prototype du moteur vidéo
+# VIDEO24 — prototype du moteur vidéo
 
-![CODJIA](docs/brand/codjia-logo.png)
+![VIDEO24](docs/brand/codjia-logo.png)
 
-CODJIA transforme **ton propre texte** en vidéo éducative verticale de 30 à 59 s (MP4, H.264 et AAC), entièrement hors ligne.
+VIDEO24 (anciennement CODJIA) transforme **ton propre texte** en vidéo éducative verticale de 30 à 59 s (MP4, H.264 et AAC), entièrement hors ligne.
 
 **Version web (iPhone, Android, ordinateur) :** https://mensan2024.github.io/codjia/ — rien à installer, tout se passe sur ton appareil. Sur iPhone : Partager → « Sur l'écran d'accueil » pour l'avoir comme une appli.
 
 - **Domaines :** réseaux (CCNA, CCNP), systèmes (Windows, macOS, Linux, Android), cybersécurité, IA, développement fullstack, santé et longévité, marketing, anglais.
 - **Style unique à chaque vidéo :** un moteur de styles modulables combine palettes, fonds animés, polices, titres, cadres, sous-titres, transitions et mascotte (plus de 500 000 combinaisons, filtrées par des règles de design).
+- **Démonstration intelligente :** une explication devient une démonstration visuelle animée (réseau, code, marketing, habitudes), toujours étiquetée simulation ou illustration. Anatomie et situations humaines ne sont pas encore proposées : elles demandent les personnages 2D prévus ensuite.
+- **Aucun logo ni nom d'application dans les vidéos produites.**
 - **11 formats :** style unique, montage dynamique (tutoriel animé avec sous-titres mot à mot et mascotte), motion design, tableau blanc (main qui écrit), démo à l'écran, personnage animé, éditorial chic, explicatif néon, collage, cinéma, infographie (schémas animés).
 - **Tout ton texte est montré**, sans résumé, en 30 à 59 s selon sa longueur.
 - **Durée selon ton texte** : environ 5 s plus 1/3 de seconde par mot affiché, jamais plus de 59 s (un message de 15 mots donne ~12 s, un texte de 100 mots ~38 s).

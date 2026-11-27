@@ -82,7 +82,7 @@ internal class ExplainerLook(private val sb: Storyboard, private val variant: In
     private fun beats(sc: Scene): List<Beat> = beatsCache.getOrPut(sc.id) {
         val tag = (sc.kicker ?: "").uppercase()
         when (sc.layout) {
-            Layout.HERO -> listOf(Beat(Kind.COVER, astuceNo?.let { "ASTUCE ${Fmt.pad(it, 3)}" } ?: "CODJIA", plain(sc.title), plain(sc.subtitle ?: sc.title),
+            Layout.HERO -> listOf(Beat(Kind.COVER, astuceNo?.let { "ASTUCE ${Fmt.pad(it, 3)}" } ?: "ASTUCE", plain(sc.title), plain(sc.subtitle ?: sc.title),
                 list = sb.scenes.filter { it.layout == Layout.STEPS }.flatMap { it.items }.map { short(splitLabel(plain(it)).first) }.filter { it.length >= 3 }.take(6), icon = sc.iconOrDefault()))
             Layout.DEFINITION -> listOf(Beat(Kind.DEFINE, "LE PRINCIPE", short(sc.title), plain(sc.body.ifEmpty { sc.subtitle }), main = plain(sc.body.ifEmpty { sc.subtitle }), section = plain(sc.title)))
             Layout.STEPS -> {
@@ -102,7 +102,7 @@ internal class ExplainerLook(private val sb: Storyboard, private val variant: In
             } ?: emptyList()
             Layout.CHECKLIST -> listOfNotNull(
                 if (sc.items.isEmpty()) null else Beat(Kind.CHECK, tag.ifEmpty { "À RETENIR" }, short(sc.title).let { n -> if (n.equals(tag.ifEmpty { "À RETENIR" }, ignoreCase = true)) "L'essentiel" else n }, (listOf(plain(sc.subtitle)) + sc.items.map(::plain)).filter { it.isNotBlank() }.joinToString(". ").replace("..", "."), list = sc.items.map(::plain), section = plain(sc.title)),
-                Beat(Kind.CTA, "CODJIA", "La suite", astuceNo?.let { "Abonne-toi pour l'astuce ${Fmt.pad(it + 1, 3)} !" } ?: plain(sc.body).ifEmpty { "Abonne-toi pour la suite !" }, main = plain(sc.body)),
+                Beat(Kind.CTA, "À SUIVRE", "La suite", astuceNo?.let { "Abonne-toi pour l'astuce ${Fmt.pad(it + 1, 3)} !" } ?: plain(sc.body).ifEmpty { "Abonne-toi pour la suite !" }, main = plain(sc.body)),
             )
             Layout.SCREEN -> emptyList()
         }

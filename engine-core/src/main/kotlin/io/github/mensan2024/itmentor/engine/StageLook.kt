@@ -142,7 +142,7 @@ internal class StageLook(private val sb: Storyboard, private val style: Style) :
         g.fillRoundRect(Safe.LEFT, 150f, Safe.LEFT + 210f, 214f, 10f, th.a)
         g.fillCircle(Safe.LEFT + 34f, 182f, 9f, if ((tg / 500f).toInt() % 2 == 0) th.ink else th.a)
         g.drawTracked("DIRECT", Safe.LEFT + 58f, 194f, txt(800, 28f), th.ink, 2f)
-        g.drawTracked("CODJIA INFO", Safe.LEFT + 240f, 194f, txt(700, 28f), th.ink.withAlpha(0.85f), 3f)
+        g.drawTracked("INFO", Safe.LEFT + 240f, 194f, txt(700, 28f), th.ink.withAlpha(0.85f), 3f)
         // Incrustation
         val dy = (1 - a) * 40f
         g.withPose(Pose(alpha = a, dy = dy), 540f, 520f) {
@@ -173,7 +173,7 @@ internal class StageLook(private val sb: Storyboard, private val style: Style) :
         // Bandeau défilant
         g.fillRect(0f, 1530f, 1080f, 1590f, th.dark)
         g.fillRect(0f, 1530f, 1080f, 1536f, th.a)
-        val line = "●  CODJIA INFO  ●  " + b.tag
+        val line = "●  INFO  ●  " + b.tag
         g.drawText(line, Safe.LEFT, 1573f, txt(700, 30f), th.ink.withAlpha(if ((tg / 600f).toInt() % 2 == 0) 0.95f else 0.7f))
     }
 

@@ -12,7 +12,7 @@ enum class Look(val label: String, val tagline: String, val transitions: List<Tr
     MOTION("Motion design", "Cartes animées et typographie cinétique", emptyList()),
     TABLEAU("Tableau blanc", "Une main écrit et dessine l'astuce au feutre",
         listOf(TransitionType.SLIDE, TransitionType.SLIDE, TransitionType.FADE)),
-    DEMO("Démo à l'écran", "Terminal, fenêtres et clics, comme sur un vrai poste",
+    DEMO("Démo à l'écran", "Terminal, fenêtres et clics simulés, comme sur un poste de travail",
         listOf(TransitionType.ZOOM, TransitionType.FADE, TransitionType.SLIDE)),
     MASCOTTE("Personnage animé", "Codi, le petit robot, explique en bulles",
         listOf(TransitionType.CIRCLE, TransitionType.SLIDE, TransitionType.ZOOM)),
@@ -22,10 +22,12 @@ enum class Look(val label: String, val tagline: String, val transitions: List<Tr
         listOf(TransitionType.CUT, TransitionType.ZOOM, TransitionType.CUT)),
     COLLAGE("Collage", "Cartes en papier épinglées, étiquettes et lettres découpées",
         listOf(TransitionType.SLIDE, TransitionType.CUT, TransitionType.ZOOM)),
-    CINEMA("Cinéma", "Ambiance nocturne, serif italique, téléphone réaliste",
+    CINEMA("Cinéma", "Ambiance nocturne, serif italique, téléphone illustré",
         listOf(TransitionType.FADE, TransitionType.DIP, TransitionType.FADE)),
     INFOGRAPHIE("Infographie", "Chaque idée expliquée par un schéma animé, explication en bas",
         listOf(TransitionType.FADE, TransitionType.CUT, TransitionType.FADE)),
+    DEMONSTRATION("Démonstration intelligente", "Une explication devient une démonstration visuelle animée : réseau, code, marketing, habitudes (simulations étiquetées)",
+        listOf(TransitionType.FADE, TransitionType.ZOOM, TransitionType.FADE)),
     EXPLICATIF("Explicatif simulé", "Chapitres numérotés, simulation d'interface et explication mot clé par mot clé",
         listOf(TransitionType.FADE, TransitionType.CUT)),
     EXPLIC_BAS("Explicatif · carte dessous", "Simulation en haut, carte de chapitre dessous, mots clés en bas",
@@ -85,7 +87,7 @@ object Looks {
         var k = (r.nextInt() ushr 1) % look.transitions.size
         // Infographie : chaque étape déroule un schéma détaillé (graphique, terminal…) : 20 % de temps en plus
         // (Composer ramène ensuite la vidéo sous 59 s si besoin).
-        val base = if (look == Look.INFOGRAPHIE) sb.scenes.map { if (it.layout == Layout.STEPS) it.copy(durationMs = (it.durationMs * 1.2f).toInt()) else it } else sb.scenes
+        val base = if (look == Look.INFOGRAPHIE || look == Look.DEMONSTRATION) sb.scenes.map { if (it.layout == Layout.STEPS) it.copy(durationMs = (it.durationMs * 1.2f).toInt()) else it } else sb.scenes
         val scenes = base.mapIndexed { i, s ->
             if (i == base.lastIndex || (s.layout == Layout.SCREEN && base[i + 1].layout == Layout.SCREEN)) s else {
                 val type = look.transitions[k % look.transitions.size]; k++
@@ -107,6 +109,7 @@ object Looks {
         Look.COLLAGE -> ReelLook(storyboard, template, ReelStyle.COLLAGE)
         Look.CINEMA -> ReelLook(storyboard, template, ReelStyle.CINEMA)
         Look.INFOGRAPHIE -> InfographicLook(storyboard, StyleKit.infographic(storyboard.seed))
+        Look.DEMONSTRATION -> InfographicLook(storyboard, StyleKit.infographic(storyboard.seed), smart = true)
         Look.EXPLICATIF -> ExplainerLook(storyboard, 0)
         Look.EXPLIC_BAS -> ExplainerLook(storyboard, 1)
         Look.EXPLIC_BANDEAU -> ExplainerLook(storyboard, 2)

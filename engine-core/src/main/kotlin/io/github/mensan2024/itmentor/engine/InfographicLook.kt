@@ -17,7 +17,7 @@ import kotlin.math.sin
  * - l'explication complète dans un cadre en bas ;
  * - à la fin, « Abonne-toi » et l'astuce suivante.
  */
-internal class InfographicLook(private val sb: Storyboard, private val kit: StyleKit = StyleKit.INFOGRAPHIE) : LookRenderer {
+internal class InfographicLook(private val sb: Storyboard, private val kit: StyleKit = StyleKit.INFOGRAPHIE, private val smart: Boolean = false) : LookRenderer {
     private val pal = kit.palette
     private val classic = kit == StyleKit.INFOGRAPHIE
     override val ink = pal.ink
@@ -92,6 +92,10 @@ internal class InfographicLook(private val sb: Storyboard, private val kit: Styl
             // Habitudes et discipline : progression jour après jour. Santé : pouls, sauf sujets apaisants (santé mentale).
             (domain == Domain.GENERAL || domain == Domain.SANTE) && Regex("habitude|chaque jour|discipline|routine|régularité|regularite|quotidien|par jour|jour après jour").containsMatchIn(t) -> Diagram.STREAK
             domain == Domain.SANTE && sb.mood == Mood.ANY -> Diagram.PULSE
+            // Démonstration intelligente : chaque étape sans schéma propre reçoit la simulation de son domaine.
+            smart && fallback == Diagram.STEPLIST && domain == Domain.RESEAUX -> Diagram.PACKETS
+            smart && fallback == Diagram.STEPLIST && domain == Domain.FULLSTACK -> Diagram.EDITOR
+            smart && fallback == Diagram.STEPLIST && domain == Domain.MARKETING -> Diagram.FUNNEL
             else -> fallback
         }
     }
@@ -122,7 +126,7 @@ internal class InfographicLook(private val sb: Storyboard, private val kit: Styl
         val attack = Regex("attaque|force brute|pirate|hacker|phishing|ransomware|intrus").containsMatchIn((sc.title + " " + sc.body + " " + sc.subtitle).lowercase())
         val tag = (sc.kicker ?: "").uppercase()
         when (sc.layout) {
-            Layout.HERO -> { val (a, b) = split2(sc.title); listOf(Beat(if (attack) "L'ATTAQUE" else "L'ASTUCE", a, b, plain(sc.subtitle ?: sc.title),
+            Layout.HERO -> { val (a, b) = split2(sc.title); listOf(Beat(if (attack) "L'ATTAQUE" else if (smart) "DÉMONSTRATION" else "L'ASTUCE", a, b, plain(sc.subtitle ?: sc.title),
                 if (attack) Diagram.LOCK_ATTACK else Diagram.HERO_ICON, icon = sc.iconOrDefault(), attack = attack,
                 list = sb.scenes.flatMap { it.items }.map { splitLabel(plain(it)).first }.filter { it.length <= 22 }.take(6))) }
             Layout.DEFINITION -> {
@@ -206,7 +210,7 @@ internal class InfographicLook(private val sb: Storyboard, private val kit: Styl
         else if (classic) g.fillRadialGlow(540f, 300f, 760f, rgb(0x1E6FD9).withAlpha(0.12f))
         // Rubrique en haut (fixe) : le numéro de l'astuce s'il y en a un, sinon la marque.
         val hf = FontSpec(FontFamily.TEXT, 800, 24f)
-        val left = (astuceNo?.let { "ASTUCE ${Fmt.pad(it, 3)}" } ?: "CODJIA")
+        val left = (astuceNo?.let { "ASTUCE ${Fmt.pad(it, 3)}" } ?: "ASTUCE")
         g.drawTracked(left, Safe.LEFT, 172f, hf, accent, 2f)
         val e = Easing.EXPO_OUT.ease(clamp01(t / 300f))
         if (b.diagram == Diagram.CTA) { g.withPose(Pose(alpha = e), 540f, 900f) { cta(g, b, t) }; captionBox(g, b, t, "${sc.id}/$i"); return }

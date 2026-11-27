@@ -169,7 +169,7 @@ fun renderVideo(sb: Storyboard, format: VideoFormat, fonts: FontBank, out: File,
     if (bed != null) cmd += listOf("-i", bed.path)
     cmd += listOf("-c:v", "libx264", "-preset", "medium", "-crf", "17", "-profile:v", "high", "-pix_fmt", "yuv420p", "-r", "${format.fps}")
     if (bed != null) cmd += listOf("-c:a", "aac", "-b:a", "160k", "-shortest")
-    cmd += listOf("-metadata", "title=${sb.title} — CODJIA", "-metadata", "comment=Créé avec CODJIA", "-movflags", "+faststart", tmp.path)
+    cmd += listOf("-metadata", "title=${sb.title}", "-metadata", "comment=Créé avec VIDEO24", "-movflags", "+faststart", tmp.path)
     val proc = ProcessBuilder(cmd).redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.INHERIT).start()
     val sink = proc.outputStream.buffered(1 shl 20)
     val mem = ManagementFactory.getMemoryMXBean()

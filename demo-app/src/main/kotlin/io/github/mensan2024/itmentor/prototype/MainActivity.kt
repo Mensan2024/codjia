@@ -83,7 +83,7 @@ import kotlin.math.abs
 
 
 /**
- * CODJIA — parcours de création :
+ * VIDEO24 — parcours de création :
  * texte → aperçu immédiat (format, modèle et musique choisis automatiquement, différents à chaque génération)
  * → ajustements facultatifs (style, musique) → génération du MP4.
  */
@@ -276,7 +276,7 @@ class MainActivity : ComponentActivity() {
     private fun header(s: Step): View {
         val h = hbox()
         h.addView(TextView(this).apply {
-            text = "▶_ CODJIA"; textSize = 20f; setTextColor(Brand.TEXT); setTypeface(Typeface.DEFAULT_BOLD, Typeface.BOLD); letterSpacing = 0.06f
+            text = "▶_ VIDEO24"; textSize = 20f; setTextColor(Brand.TEXT); setTypeface(Typeface.DEFAULT_BOLD, Typeface.BOLD); letterSpacing = 0.06f
         }, lp(0, WRAP, 1f))
         val back = when (s) {
             Step.PREVIEW -> "‹ Texte"
@@ -325,7 +325,7 @@ class MainActivity : ComponentActivity() {
 
     private fun contentPage(): View {
         val page = vbox()
-        page.addView(label("Colle ou écris ton astuce. CODJIA choisit la mise en scène (démo à l'écran, tableau blanc, " +
+        page.addView(label("Colle ou écris ton astuce. VIDEO24 choisit la mise en scène (démo à l'écran, tableau blanc, " +
             "personnage animé, magazine…) et la change à chaque génération.", 14f, Brand.MUTED))
         val counter = label("", 12f, Brand.MUTED)
         val input = EditText(this).apply {
@@ -593,7 +593,7 @@ class MainActivity : ComponentActivity() {
             list.addView(noMusic, lp(MATCH, WRAP, top = dp(12f)))
             val tracks = (imported + catalog).filter { category == null || it.category == category }
             for (t in tracks) list.addView(trackRow(t).also { trackRows[t.id] = it }, lp(MATCH, WRAP, top = dp(10f)))
-            list.addView(label("Les musiques intégrées sont des compositions originales CODJIA (licence GPL-3.0). " +
+            list.addView(label("Les musiques intégrées sont des compositions originales VIDEO24 (licence GPL-3.0). " +
                 "Un fichier importé est utilisé sous ta responsabilité.", 12f, Brand.MUTED), lp(MATCH, WRAP, top = dp(10f)))
             refreshSelection()
             for ((c, v) in chipViews) v.setChipSelected(c == category)
@@ -757,7 +757,7 @@ class MainActivity : ComponentActivity() {
                 if (bed != null) say("Musique prête : ${(SystemClock.elapsedRealtime() - t0)} ms")
 
                 val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.ROOT).format(Date())
-                val out = File(File(filesDir, "export").apply { mkdirs() }, "CODJIA_${ImportPolicy.safeFileStem(sb.id.removePrefix("demo-"))}_$stamp.mp4")
+                val out = File(File(filesDir, "export").apply { mkdirs() }, "VIDEO24_${ImportPolicy.safeFileStem(sb.id.removePrefix("demo-"))}_$stamp.mp4")
                 tmpOut = out
                 status.text = "Rendu des images…"
                 val started = SystemClock.elapsedRealtime()
@@ -777,7 +777,7 @@ class MainActivity : ComponentActivity() {
                 if ((choice.hasAudio || voicedAudio != null) && probe.audioMime == null) error("La piste audio est absente du fichier : export refusé")
 
                 status.text = "Enregistrement dans la Galerie…"
-                val uri = withContext(Dispatchers.IO) { GalleryExport.publish(this@MainActivity, out, ImportPolicy.displayName("${sb.title} — CODJIA.mp4")) }
+                val uri = withContext(Dispatchers.IO) { GalleryExport.publish(this@MainActivity, out, ImportPolicy.displayName("${sb.title}.mp4")) }
                 say("")
                 say("Vidéo         : ${probe.mime} ${if (probe.isH264) "✓" else "✗"} · ${probe.displayWidth}×${probe.displayHeight}")
                 say("Durée         : ${probe.durationMs} ms · ${probe.sampleCount} images · %.2f i/s".format(probe.measuredFps))
@@ -789,7 +789,7 @@ class MainActivity : ComponentActivity() {
                 say("Thermique     : ${thermal()} à la fin")
 
                 percent.text = "✅"
-                status.text = "Vidéo prête · Galerie › Movies › CODJIA"
+                status.text = "Vidéo prête · Galerie › Movies › VIDEO24"
                 val actions = hbox()
                 val canShare = uri.scheme == "content"
                 val open = button("Ouvrir", primary = false) {
@@ -797,7 +797,7 @@ class MainActivity : ComponentActivity() {
                 }
                 val share = button("Partager") {
                     val send = Intent(Intent.ACTION_SEND).setType("video/mp4").putExtra(Intent.EXTRA_STREAM, uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    startActivity(Intent.createChooser(send, "Partager la vidéo CODJIA"))
+                    startActivity(Intent.createChooser(send, "Partager la vidéo"))
                 }
                 if (!canShare) { open.isEnabled = false; open.alpha = 0.4f; share.isEnabled = false; share.alpha = 0.4f }
                 actions.addView(open, lp(0, WRAP, 1f, end = dp(10f)))

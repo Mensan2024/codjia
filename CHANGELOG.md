@@ -2,6 +2,16 @@
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [2.7.0]
+
+### Modifié
+- **L'application s'appelle VIDEO24** (nom affiché, écrans, page web, installation sur l'écran d'accueil). L'identifiant technique (`io.github.mensan2024.codjia`), le dépôt et les données déjà enregistrées sur l'appareil ne changent pas : les mises à jour continuent de fonctionner. Les vidéos de la galerie sont désormais rangées dans « Movies › VIDEO24 ».
+- **Plus aucun logo ni nom d'application dans les vidéos produites** : pied de page supprimé, mentions « CODJIA » des formats remplacées par des libellés neutres, nom retiré des noms de fichiers exportés et des métadonnées du titre.
+- Descriptions des types corrigées : « Démo à l'écran » (fenêtres et clics *simulés*) et « Cinéma » (téléphone *illustré*, plus « réaliste »).
+
+### Ajouté
+- **Type « Démonstration intelligente »** : chaque explication devient une démonstration visuelle animée. Simulations étiquetées « SIMULATION » ou « ILLUSTRATION » : paquets et VLAN (réseau), échange client / serveur et éditeur (code), entonnoir de conversion (marketing), progression d'habitude. Une étape qui n'a pas de schéma propre reçoit la simulation de son domaine (réseau, code, marketing). Non proposé pour les sujets sensibles (santé mentale, biblique). Anatomie et situations humaines : pas encore disponibles.
+
 ## [2.6.1]
 
 ### Ajouté

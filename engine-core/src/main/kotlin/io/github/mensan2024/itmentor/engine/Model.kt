@@ -121,7 +121,7 @@ data class Storyboard(
     val title: String,
     val templateId: String,
     val scenes: List<Scene>,
-    val footer: String = "CODJIA",
+    val footer: String = "",
     val hashtag: String? = null,
     /** Graine de variation : chaque génération en tire une nouvelle ; même graine = même vidéo. */
     val seed: Long = 0,

@@ -16,7 +16,7 @@ import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
 
-/** Couleurs et petits composants de l'interface CODJIA (charte : encre, safran, sarcelle). */
+/** Couleurs et petits composants de l'interface VIDEO24 (charte : encre, safran, sarcelle). */
 object Brand {
     val INK = Color.parseColor("#0E1A2B")
     val BG = Color.parseColor("#0B1220")

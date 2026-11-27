@@ -368,7 +368,7 @@ internal class ReelLook(private val sb: Storyboard, private val template: Templa
         val block = cache.fit(g, "w/$key", text, f, 790f, 7, 1.3f)
         val h = block.height + 150f
         val l = Safe.LEFT; val r = Safe.RIGHT
-        card(g, l, cy - h / 2, r, cy + h / 2, title = sb.footer.lowercase() + ".app", tilt = 1.5f)
+        card(g, l, cy - h / 2, r, cy + h / 2, title = "exemple.app", tilt = 1.5f)
         val p = clamp01((t - 300f) / (block.charCount * 18f).coerceAtLeast(400f))
         g.save(); if (rs == ReelStyle.COLLAGE) g.rotate(1.5f, 540f, cy)
         g.drawBlock(block, l + 60f, cy - h / 2 + (if (rs == ReelStyle.NEON) 90f else 70f), cardInk, reveal = p)
@@ -517,7 +517,7 @@ internal class ReelLook(private val sb: Storyboard, private val template: Templa
                     g.fillRoundRect(sl + 20f, ny, sr - 20f, ny + 200f, 28f, 0xDDFFFFFF.toInt())
                     g.fillRoundRect(sl + 40f, ny + 22f, sl + 84f, ny + 66f, 12f, accent2.takeIf { it != rgb(0x1C2230) } ?: rgb(0xFF4D6D))
                     Icons.draw(g, b.icon, sl + 62f, ny + 44f, 28f, rgb(0xFFFFFF), 2.4f)
-                    g.drawText("CODJIA · maintenant", sl + 100f, ny + 50f, FontSpec(FontFamily.TEXT, 600, 18f), rgb(0x555555))
+                    g.drawText("Rappel · maintenant", sl + 100f, ny + 50f, FontSpec(FontFamily.TEXT, 600, 18f), rgb(0x555555))
                     val nb = cache.fit(g, "n/${b.main}", b.main, FontSpec(FontFamily.TEXT, 700, 28f), sr - sl - 80f, 3, 1.2f)
                     g.drawBlock(nb, sl + 40f, ny + 78f, rgb(0x111111))
                 }

@@ -22,7 +22,7 @@ data class Direction(
 
 object ArtDirector {
     /** Formats exclus pour les sujets sensibles : clignotements, alertes, jargon visuel, effets bruyants. */
-    private val SENSITIVE_BANNED = setOf(Look.FLASH, Look.JOURNAL, Look.TERMINAL, Look.BD, Look.NEON, Look.DEMO, Look.MONTAGE, Look.KIT, Look.COLLAGE)
+    private val SENSITIVE_BANNED = setOf(Look.FLASH, Look.JOURNAL, Look.TERMINAL, Look.BD, Look.NEON, Look.DEMO, Look.MONTAGE, Look.KIT, Look.COLLAGE, Look.DEMONSTRATION)
 
     private fun d(id: String, name: String, look: Look, mood: Mood, music: List<String>, intensity: Int, why: String) =
         Direction(id, name, look, mood, music, intensity, why)

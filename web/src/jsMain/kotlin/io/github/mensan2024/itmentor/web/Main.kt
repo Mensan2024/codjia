@@ -27,7 +27,7 @@ import kotlinx.browser.window
 import org.w3c.dom.HTMLElement
 
 /**
- * CODJIA dans le navigateur (iPhone, Android, ordinateur) : même moteur que l'application Android.
+ * VIDEO24 dans le navigateur (iPhone, Android, ordinateur) : même moteur que l'application Android.
  * Texte → aperçu animé (voix off oui/non, style, musique) → génération MP4 → enregistrer ou partager.
  * Tout se passe sur l'appareil : aucun texte, aucune vidéo, aucune musique n'est envoyé sur Internet.
  */
@@ -136,7 +136,7 @@ private fun setupUpdates() {
 private fun applyUpdateWhenIdle() {
     if (!App.updateReady) return
     if (App.exporting) return   // relancé à la fin de la génération
-    toast("Nouvelle version de CODJIA : mise à jour…")
+    toast("Nouvelle version de VIDEO24 : mise à jour…")
     window.setTimeout({ window.location.reload() }, 1200)
 }
 
@@ -209,7 +209,7 @@ private fun topBar(s: Step): HTMLElement {
     val wrap = el("div", "top-wrap")
     val h = el("header", "top")
     val brand = el("div", "brand")
-    brand.add(el("span", "logo", "▶_"), el("span", "brand-name", "CODJIA"))
+    brand.add(el("span", "logo", "▶_"), el("span", "brand-name", "VIDEO24"))
     brand.addEventListener("click", { if (!App.exporting) show(Step.TEXT) })
     h.appendChild(brand)
     h.appendChild(el("span", "install-slot").also { it.id = "install-slot" })
@@ -242,7 +242,7 @@ private fun showHelp() {
     val ol = el("ol")
     listOf(
         "Texte" to "Colle ton texte (ou touche « Essayer un exemple »). Les titres, les listes et l'ordre de tes phrases sont conservés.",
-        "Analyse" to "CODJIA repère le sujet, les étapes et la conclusion, puis construit le scénario de la vidéo, sur ton appareil.",
+        "Analyse" to "VIDEO24 repère le sujet, les étapes et la conclusion, puis construit le scénario de la vidéo, sur ton appareil.",
         "Style" to "Dans l'aperçu, « Format » change l'allure de la vidéo et « Autre version » en propose une nouvelle.",
         "Musique et voix" to "« Musique » choisit ou importe un morceau ; « Voix » ajoute une voix off. Le bouton est allumé quand l'option est active.",
         "Vidéo" to "« Générer la vidéo » fabrique le MP4 ; tu peux ensuite l'enregistrer ou le partager.",
@@ -668,7 +668,7 @@ private fun musicPage(): HTMLElement {
             list.appendChild(el("div", "label", "Mes musiques"))
             for (t in App.mine) list.appendChild(row(t, t.title, if (t.durationMs > 0) "${t.durationMs / 60000}:${((t.durationMs / 1000) % 60).toString().padStart(2, '0')} · importée" else "importée", true, ::fill))
         }
-        list.appendChild(el("div", "label", "Musiques CODJIA"))
+        list.appendChild(el("div", "label", "Musiques VIDEO24"))
         list.appendChild(row(null, "Sans musique", "Seulement la voix, ou le silence", false, ::fill))
         // Choix réduit : une musique par ambiance (6 au plus), plus celle déjà choisie.
         val few = (App.catalog.groupBy { it.category }.values.map { it.first() }.take(6) + listOfNotNull(App.choice.track?.takeIf { c -> App.catalog.any { it.id == c.id } })).distinctBy { it.id }
@@ -678,7 +678,7 @@ private fun musicPage(): HTMLElement {
     vol.appendChild(el("span", "muted small vlabel", "Volume"))
     for (v in MusicVolume.entries) vol.appendChild(button(v.label, "chip" + if (App.choice.volume == v) " on" else "") { App.choice = App.choice.copy(volume = v); App.voiced = null; persist(); show(Step.MUSIC) })
     page.add(vol, list)
-    page.appendChild(el("p", "muted small", "Musiques CODJIA : compositions originales (licence GPL-3.0). Pour une musique importée, assure-toi d'avoir le droit de l'utiliser."))
+    page.appendChild(el("p", "muted small", "Musiques VIDEO24 : compositions originales (licence GPL-3.0). Pour une musique importée, assure-toi d'avoir le droit de l'utiliser."))
     page.appendChild(el("div", "dock").add(button("Valider", "btn primary wide big") { App.audio.stop(); show(Step.PREVIEW) }))
     fill()
     return page
@@ -746,7 +746,7 @@ private fun exportPage(): HTMLElement {
         val video = el("video", "out")
         video.setAttribute("controls", ""); video.setAttribute("playsinline", ""); video.setAttribute("src", url)
         result.appendChild(video)
-        val name = "CODJIA_" + App.content.title.take(40).replace(Regex("[^A-Za-z0-9À-ÿ]+"), "_").trim('_') + ".mp4"
+        val name = App.content.title.take(40).replace(Regex("[^A-Za-z0-9À-ÿ]+"), "_").trim('_').ifEmpty { "video" } + ".mp4"
         val actions = el("div", "row")
         val dl = el("a", "btn primary")
         dl.appendChild(el("span", "ic").also { it.innerHTML = Ic.download }); dl.appendChild(el("span", "", "Enregistrer"))

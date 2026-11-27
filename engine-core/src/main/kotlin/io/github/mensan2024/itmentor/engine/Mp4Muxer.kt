@@ -124,7 +124,7 @@ class Mp4Muxer(
             bytes(fullBox("mdhd", 0, 0) { u32(0); u32(0); u32(timescale); u32(samples.sumOf { it.durationTicks }); u16(0x55C4); u16(0) })
             bytes(fullBox("hdlr", 0, 0) {
                 u32(0); tag(if (isVideo) "vide" else "soun"); zeros(12)
-                for (ch in (if (isVideo) "CODJIA video" else "CODJIA audio")) u8(ch.code); u8(0)
+                for (ch in (if (isVideo) "VIDEO24 video" else "VIDEO24 audio")) u8(ch.code); u8(0)
             })
             bytes(box("minf") {
                 if (isVideo) bytes(fullBox("vmhd", 0, 1) { zeros(8) }) else bytes(fullBox("smhd", 0, 0) { zeros(4) })

@@ -66,7 +66,7 @@ object Mp4Inspector {
 }
 
 /**
- * Copie la vidéo là où l'utilisateur la retrouve : Galerie > Movies/CODJIA (Android 10 et plus,
+ * Copie la vidéo là où l'utilisateur la retrouve : Galerie > Movies/VIDEO24 (Android 10 et plus,
  * sans aucune permission), ou dossier Movies de l'application sur Android 8 et 9.
  */
 object GalleryExport {
@@ -77,7 +77,7 @@ object GalleryExport {
                 put(MediaStore.Video.Media.DISPLAY_NAME, video.name)
                 put(MediaStore.Video.Media.TITLE, title)
                 put(MediaStore.Video.Media.MIME_TYPE, "video/mp4")
-                put(MediaStore.Video.Media.RELATIVE_PATH, Environment.DIRECTORY_MOVIES + "/CODJIA")
+                put(MediaStore.Video.Media.RELATIVE_PATH, Environment.DIRECTORY_MOVIES + "/VIDEO24")
                 put(MediaStore.Video.Media.IS_PENDING, 1)
             }
             val uri = resolver.insert(MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY), values)

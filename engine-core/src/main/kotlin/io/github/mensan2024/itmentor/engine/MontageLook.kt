@@ -908,7 +908,7 @@ internal class MontageLook(private val sb: Storyboard, private val kit: StyleKit
             g.fillRoundRect(gx - gw / 2 + 14f, gy - gh / 2 + 18f, gx + gw / 2 + 14f, gy + gh / 2 + 18f, 20f, 0x77000000)
             g.fillRoundRect(gx - gw / 2, gy - gh / 2, gx + gw / 2, gy + gh / 2, 20f, rgb(0xF4F4F2))
             g.drawText("GUIDE", gx - gw / 2 + 36f, gy - gh / 2 + 90f, FontSpec(FontFamily.HEAVY, 400, 52f), dark)
-            val sub = astuceNo?.let { "ASTUCE ${Fmt.pad(it, 3)}" } ?: "CODJIA"
+            val sub = astuceNo?.let { "ASTUCE ${Fmt.pad(it, 3)}" } ?: "ASTUCE"
             g.drawTracked(sub, gx - gw / 2 + 38f, gy - gh / 2 + 150f, FontSpec(FontFamily.MONO, 700, 22f), rgb(0x555555), 3f)
             for (i in 0 until 5) {
                 val ly = gy - gh / 2 + 205f + i * 44f

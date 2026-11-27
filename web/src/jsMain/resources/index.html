@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>CODJIA — ton texte devient une vidéo</title>
+<title>VIDEO24 — ton texte devient une vidéo</title>
 <meta name="description" content="Transforme ton texte en vidéo verticale animée (MP4) avec musique et voix off. Gratuit, libre, tout se passe sur ton appareil.">
 <meta name="theme-color" content="#070B16">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="CODJIA">
+<meta name="apple-mobile-web-app-title" content="VIDEO24">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -154,9 +154,9 @@
 </head>
 <body>
 <div id="app" class="boot"><div class="boot-logo">▶_</div></div>
-<noscript>CODJIA a besoin de JavaScript pour fabriquer tes vidéos sur ton appareil.</noscript>
+<noscript>VIDEO24 a besoin de JavaScript pour fabriquer tes vidéos sur ton appareil.</noscript>
 <script>
-(function(){function fail(m){var a=document.getElementById('app');if(a&&!window.codjiaReady){a.className='';a.innerHTML='<div style="padding:28px 8px;text-align:center;line-height:1.5"><b>CODJIA ne démarre pas.</b><br>'+m+'<br><br><button onclick="(async()=>{try{for(const k of await caches.keys())await caches.delete(k);for(const r of await navigator.serviceWorker.getRegistrations())await r.unregister()}catch(e){}location.reload()})()" style="padding:12px 20px;border-radius:12px;border:0;font:700 16px system-ui">Réinitialiser et recharger</button></div>'}}
+(function(){function fail(m){var a=document.getElementById('app');if(a&&!window.codjiaReady){a.className='';a.innerHTML='<div style="padding:28px 8px;text-align:center;line-height:1.5"><b>VIDEO24 ne démarre pas.</b><br>'+m+'<br><br><button onclick="(async()=>{try{for(const k of await caches.keys())await caches.delete(k);for(const r of await navigator.serviceWorker.getRegistrations())await r.unregister()}catch(e){}location.reload()})()" style="padding:12px 20px;border-radius:12px;border:0;font:700 16px system-ui">Réinitialiser et recharger</button></div>'}}
 window.addEventListener('error',function(e){if(!window.codjiaReady)fail('Erreur : '+(e.message||'chargement'))});
 setTimeout(function(){fail('Le chargement est trop long. Vérifie ta connexion.')},15000)})();
 </script>

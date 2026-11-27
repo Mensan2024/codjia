@@ -16,7 +16,7 @@ Le protocole RDP (Remote Desktop Protocol) permet de prendre le contrôle d'un o
 - Évitez d'exposer directement le port RDP (3389) sur Internet.
 #securiteinformatiquepourtous
 #BonnesPratiques
-#codjia
+#video24
 #Iamnotperfect""".trimIndent(),
         "Réseaux · VLAN" to """Astuce réseau 031 — Sépare ton réseau avec des VLAN
 Un VLAN (Virtual LAN) découpe un même switch en plusieurs réseaux logiques isolés : le trafic d'un VLAN ne voit pas celui des autres sans passer par un routeur.
