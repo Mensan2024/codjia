@@ -69,7 +69,7 @@ class UnderstandingTest {
     @Test fun lesTechniquesNeRecoiventPasDeFormatsDeMeditation() {
         for (f in listOf("famille_reseau_cours_vlan.txt", "famille_dev_api_rest.txt")) {
             val t = text(f)
-            for (seed in 1L..40L) assertTrue("$f : ${CreativeDirector.propose(t, seed).look}", CreativeDirector.propose(t, seed).look in setOf(Look.DEMO, Look.INFOGRAPHIE, Look.EXPLICATIF, Look.TABLEAU, Look.TERMINAL, Look.EXPLIC_BAS))
+            for (seed in 1L..40L) assertTrue("$f : ${CreativeDirector.propose(t, seed).look}", CreativeDirector.propose(t, seed).look in setOf(Look.DEMO, Look.INFOGRAPHIE, Look.EXPLICATIF, Look.TABLEAU, Look.TERMINAL, Look.EXPLIC_BAS, Look.DEMO3D, Look.DEMONSTRATION, Look.ATTAQUE))
         }
     }
 

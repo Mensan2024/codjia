@@ -35,6 +35,8 @@ internal class Part(
     val pivot: FloatArray = ZERO,
     val blink: Float = -1f,
     val label: String? = null,
+    /** Part de la progression d'éclatement avant laquelle la pièce ne bouge pas (0 = tout de suite, 0,5 = à mi-course). */
+    val delay: Float = 0f,
 ) {
     companion object { val ZERO = floatArrayOf(0f, 0f, 0f) }
 }
@@ -49,6 +51,8 @@ internal class Model3D(
     /** Unités visibles en hauteur, assemblé puis éclaté : sert à calculer l'échelle pour remplir la scène. */
     val fitAssembled: Float,
     val fitExploded: Float,
+    /** Largeur visible en unités (0 = sans contrainte de largeur). */
+    val fitWidth: Float = 0f,
 )
 
 /** Caméra en orbite : [s] pixels par unité au point visé, [dist] distance (perspective), centre d'écran ([cx], [cy]). */
@@ -87,6 +91,36 @@ internal object Solids {
         for (i in 0 until n) { val j = (i + 1) % n; faces += intArrayOf(i, j, n + j, n + i) }
         return Part(name, v, faces.toTypedArray(), color, emissive, explode, decalOf, 0f, Part.ZERO, -1f, label)
     }
+
+    /** Bouclier extrudé (contour convexe : haut plat, pointe en bas). [k] = taille, [d] = épaisseur. */
+    fun shield(name: String, cx: Float, cy: Float, cz: Float, k: Float, d: Float, color: Int, emissive: Float = 0f,
+               explode: FloatArray = Part.ZERO, decalOf: Int = -1, delay: Float = 0f): Part {
+        val o = arrayOf(-1f to 1.5f, 1f to 1.5f, 1f to 0.3f, 0f to -1.4f, -1f to 0.3f)
+        val n = o.size
+        val v = FloatArray(n * 2 * 3)
+        for (i in 0 until n) {
+            v[i * 3] = cx + o[i].first * k; v[i * 3 + 1] = cy + o[i].second * k; v[i * 3 + 2] = cz - d / 2f
+            v[(n + i) * 3] = cx + o[i].first * k; v[(n + i) * 3 + 1] = cy + o[i].second * k; v[(n + i) * 3 + 2] = cz + d / 2f
+        }
+        val faces = ArrayList<IntArray>()
+        faces += IntArray(n) { it }
+        faces += IntArray(n) { n + it }
+        for (i in 0 until n) { val j = (i + 1) % n; faces += intArrayOf(i, j, n + j, n + i) }
+        return Part(name, v, faces.toTypedArray(), color, emissive, explode, decalOf, 0f, Part.ZERO, -1f, null, delay)
+    }
+
+    /** Copie des pièces déplacée de ([dx], [dy], [dz]) et mise à l'échelle [k] ; sans éclatement ni repères si [still]. */
+    fun place(src: List<Part>, base: Int, dx: Float, dy: Float, dz: Float, k: Float, still: Boolean = true): List<Part> =
+        src.map { p ->
+            val v = FloatArray(p.v.size)
+            for (i in 0 until p.v.size / 3) {
+                v[i * 3] = p.v[i * 3] * k + dx; v[i * 3 + 1] = p.v[i * 3 + 1] * k + dy; v[i * 3 + 2] = p.v[i * 3 + 2] * k + dz
+            }
+            Part(p.name, v, p.f, p.color, p.emissive,
+                if (still) Part.ZERO else floatArrayOf(p.explode[0] * k, p.explode[1] * k, p.explode[2] * k),
+                if (p.decalOf >= 0) p.decalOf + base else -1, p.rotX,
+                floatArrayOf(p.pivot[0] * k + dx, p.pivot[1] * k + dy, p.pivot[2] * k + dz), p.blink, null, p.delay)
+        }
 
     /**
      * Tube à section rectangulaire le long d'une ligne brisée du plan (x, y) : un solide par segment, anneaux partagés
@@ -154,6 +188,13 @@ internal object Render3D {
     private fun px(cam: Cam3D, x: Float, z: Float): Float = cam.cx + cam.s * cam.dist / (z + cam.dist) * x
     private fun py(cam: Cam3D, y: Float, z: Float): Float = cam.cy - cam.s * cam.dist / (z + cam.dist) * y
 
+    /** Position à l'écran d'un point du monde : (x, y, facteur d'échelle de la perspective). */
+    fun project(cam: Cam3D, x: Float, y: Float, z: Float): FloatArray {
+        val o = FloatArray(3)
+        toCam(cam, x, y, z, o, 0)
+        return floatArrayOf(px(cam, o[0], o[2]), py(cam, o[1], o[2]), cam.dist / (o[2] + cam.dist))
+    }
+
     /** Ombre de contact et anneau lumineux au sol. */
     fun floor(g: Gfx, m: Model3D, cam: Cam3D, explode: Float, accent: Int) {
         val o = FloatArray(3)
@@ -184,7 +225,8 @@ internal object Render3D {
         val tmp = FloatArray(3)
         for ((i, p) in parts.withIndex()) {
             val vc = cv[i]
-            val ex = p.explode[0] * explode; val ey = p.explode[1] * explode; val ez = p.explode[2] * explode
+            val pe = if (p.delay > 0f) ((explode - p.delay) / (1f - p.delay)).coerceIn(0f, 1f) else explode
+            val ex = p.explode[0] * pe; val ey = p.explode[1] * pe; val ez = p.explode[2] * pe
             val rad = (p.rotX * PI / 180.0).toFloat()
             val cr = cos(rad); val sr = sin(rad)
             var sx = 0f; var sy = 0f; var sz = 0f
@@ -249,7 +291,7 @@ internal object Render3D {
 
 /** Objets de la bibliothèque 3D. Chaque modèle dépend de la palette du format. */
 internal object Models3D {
-    enum class Kind { LAPTOP, SERVER, LOCK }
+    enum class Kind { LAPTOP, SERVER, LOCK, BATTLE }
 
     class Pal(val body: Int, val dark: Int, val accent: Int, val screen: Int, val glow: Int)
 
@@ -257,6 +299,36 @@ internal object Models3D {
         Kind.LAPTOP -> laptop(p)
         Kind.SERVER -> server(p)
         Kind.LOCK -> padlock(p)
+        Kind.BATTLE -> battle(p)
+    }
+
+    val RED = rgb(0xFF4D5E)
+    val GREEN = rgb(0x3DDC97)
+
+    /**
+     * Scène d'attaque et de défense : un poste attaquant (écran rouge) à gauche, une baie de serveurs cible à droite,
+     * deux boucliers qui descendent entre les deux quand la défense s'active (progression d'« éclatement » 0 → 1).
+     */
+    private fun battle(p: Pal): Model3D {
+        val parts = ArrayList<Part>()
+        val attacker = Pal(0xFFC9C2C8.toInt(), 0xFF332A30.toInt(), RED, 0xFF2A0D14.toInt(), 0xFFFF8A94.toInt())
+        val lap = laptop(attacker).parts
+        parts += Solids.place(lap, parts.size, -4.0f, 0f, 0f, 0.8f)
+        val srv = server(p).parts
+        parts += Solids.place(srv, parts.size, 3.7f, 0f, 0f, 0.78f)
+        // Sol : plaque sombre à liseré lumineux
+        parts += Solids.box("sol", 0f, -0.21f, 0f, 11.2f, 0.1f, 3.6f, mix(p.dark, 0xFF000000.toInt(), 0.35f))
+        parts += Solids.box("sol-l", 0f, -0.15f, -1.78f, 11.2f, 0.03f, 0.05f, p.accent, 0.8f)
+        // Boucliers : au repos, haut hors de la scène ; ils descendent avec la défense.
+        val drop = floatArrayOf(0f, -8f, 0f)
+        val sh1 = parts.size
+        parts += Solids.shield("bouclier", 0.1f, 9.6f, -0.3f, 1.55f, 0.34f, mix(GREEN, 0xFF000000.toInt(), 0.35f), 0.2f, drop, delay = 0f)
+        parts += Solids.shield("emb1", 0.1f, 9.6f, -0.52f, 1.12f, 0.06f, GREEN, 0.85f, drop, decalOf = sh1, delay = 0f)
+        val sh2 = parts.size
+        parts += Solids.shield("bouclier2", 2.1f, 9.0f, -0.3f, 1.0f, 0.3f, mix(p.accent, 0xFF000000.toInt(), 0.35f), 0.2f, drop, delay = 0.35f)
+        parts += Solids.shield("emb2", 2.1f, 9.0f, -0.49f, 0.7f, 0.05f, p.accent, 0.85f, drop, decalOf = sh2, delay = 0.35f)
+        return Model3D(parts, groundY = -0.16f, footprint = 6.4f, centerAssembled = 2.0f, centerExploded = 2.0f,
+            fitAssembled = 6.4f, fitExploded = 6.4f, fitWidth = 11.4f)
     }
 
     private fun e(x: Float, y: Float, z: Float) = floatArrayOf(x, y, z)

@@ -2,6 +2,13 @@
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [2.9.0]
+
+### Ajouté
+- **Type « Attaque et défense 3D »** (cybersécurité, réseaux, systèmes, code, IA ; première recommandation pour les textes de cybersécurité) : en 3D, un poste attaquant à l'écran rouge envoie des paquets vers une baie de serveurs cible. Les scènes qui décrivent l'attaque restent en alerte rouge ; dès qu'une scène parle de parade (« comment l'éviter », étapes de défense, conclusion), deux boucliers descendent, les paquets s'arrêtent dessus et éclatent en vert, la cible passe en protégé. Repères « ATTAQUANT / CIBLE / BOUCLIER » et bandeau « ATTAQUE SIMULÉE » puis « DÉFENSE ACTIVE ». Tout est étiqueté « SIMULATION 3D » : aucun trafic réel, aucune attaque réelle.
+- Le type « Démonstration 3D » devient une recommandation de premier rang pour les réseaux, la cybersécurité, le code et l'IA.
+- Moteur 3D : boucliers extrudés, pièces qui apparaissent avec un décalage, projection d'un point 3D à l'écran (pour les repères et les paquets).
+
 ## [2.8.0]
 
 ### Ajouté

@@ -22,7 +22,7 @@ data class Direction(
 
 object ArtDirector {
     /** Formats exclus pour les sujets sensibles : clignotements, alertes, jargon visuel, effets bruyants. */
-    private val SENSITIVE_BANNED = setOf(Look.FLASH, Look.JOURNAL, Look.TERMINAL, Look.BD, Look.NEON, Look.DEMO, Look.MONTAGE, Look.KIT, Look.COLLAGE, Look.DEMONSTRATION, Look.DEMO3D)
+    private val SENSITIVE_BANNED = setOf(Look.FLASH, Look.JOURNAL, Look.TERMINAL, Look.BD, Look.NEON, Look.DEMO, Look.MONTAGE, Look.KIT, Look.COLLAGE, Look.DEMONSTRATION, Look.DEMO3D, Look.ATTAQUE)
 
     private fun d(id: String, name: String, look: Look, mood: Mood, music: List<String>, intensity: Int, why: String) =
         Direction(id, name, look, mood, music, intensity, why)
@@ -60,6 +60,7 @@ object ArtDirector {
             d("market-flash", "Flash promo", Look.FLASH, Mood.ENERGETIC, listOf("edm", "trap"), 3, "texte géant, effet d'annonce"),
         ),
         ContentFamily.NETWORK to listOf(
+            d("net-3d", "Démonstration 3D", Look.DEMO3D, Mood.TECH, listOf("synthwave", "future", "house"), 2, "baie de serveurs en 3D qui s'éclate, repères et lumière"),
             d("net-demo", "Simulation à l'écran", Look.DEMO, Mood.TECH, listOf("synthwave", "house", "edm"), 2, "terminal et fenêtres comme sur un vrai poste"),
             d("net-infographie", "Schémas animés", Look.INFOGRAPHIE, Mood.TECH, listOf("synthwave", "future", "house"), 2, "un schéma par idée : topologies, paquets, VLAN"),
             d("net-cours", "Cours explicatif", Look.EXPLICATIF, Mood.TECH, listOf("synthwave", "house"), 2, "chapitres numérotés et simulation d'interface"),
@@ -69,12 +70,15 @@ object ArtDirector {
         ),
         ContentFamily.DEV to listOf(
             d("dev-terminal", "Terminal et code", Look.TERMINAL, Mood.TECH, listOf("hiphop", "lofi", "synthwave"), 2, "le code et les commandes apparaissent tapés"),
+            d("dev-3d", "Démonstration 3D", Look.DEMO3D, Mood.TECH, listOf("lofi", "synthwave", "future"), 2, "ordinateur en 3D qui s'éclate en pièces"),
             d("dev-demo", "Démo d'interface", Look.DEMO, Mood.TECH, listOf("lofi", "synthwave"), 2, "fenêtres et clics comme sur un vrai poste"),
             d("dev-infographie", "Schémas animés", Look.INFOGRAPHIE, Mood.TECH, listOf("future", "house"), 2, "éditeur de code, flux client-serveur"),
             d("dev-cours", "Cours explicatif", Look.EXPLICATIF, Mood.TECH, listOf("lofi", "synthwave"), 2, "chapitres et simulation"),
             d("dev-tableau", "Tableau", Look.TABLEAU, Mood.TECH, listOf("lofi"), 1, "schémas d'architecture dessinés"),
         ),
         ContentFamily.CYBER to listOf(
+            d("cyber-attaque3d", "Attaque et défense 3D", Look.ATTAQUE, Mood.TECH, listOf("trap", "phonk", "cinematic"), 2, "un attaquant, une cible et des paquets en 3D, puis les boucliers de défense descendent"),
+            d("cyber-3d", "Démonstration 3D", Look.DEMO3D, Mood.TECH, listOf("trap", "cinematic", "edm"), 2, "cadenas ou serveurs en 3D, vue éclatée"),
             d("cyber-demo", "Démonstration de l'attaque", Look.DEMO, Mood.TECH, listOf("trap", "phonk", "cinematic"), 2, "montrer le piège et la parade à l'écran"),
             d("cyber-infographie", "Schémas animés", Look.INFOGRAPHIE, Mood.TECH, listOf("trap", "cinematic", "edm"), 2, "attaque, protection, étapes de défense"),
             d("cyber-alerte", "Alerte info", Look.FLASH, Mood.ENERGETIC, listOf("trap", "drill"), 3, "ton d'alerte pour un risque réel"),
@@ -83,6 +87,7 @@ object ArtDirector {
             d("cyber-cours", "Cours explicatif", Look.EXPLICATIF, Mood.TECH, listOf("cinematic", "synthwave"), 2, "chapitres numérotés"),
         ),
         ContentFamily.AI to listOf(
+            d("ai-3d", "Démonstration 3D", Look.DEMO3D, Mood.TECH, listOf("future", "edm"), 2, "ordinateur en 3D qui s'éclate en pièces"),
             d("ai-infographie", "Schémas animés", Look.INFOGRAPHIE, Mood.TECH, listOf("future", "edm"), 2, "prompt, données, réponse : le flux en images"),
             d("ai-cours", "Cours explicatif", Look.EXPLICATIF, Mood.TECH, listOf("future", "synthwave"), 2, "chapitres numérotés"),
             d("ai-kit", "Style unique", Look.KIT, Mood.TECH, listOf("future", "synthwave"), 3, "nouvelle combinaison à chaque version"),

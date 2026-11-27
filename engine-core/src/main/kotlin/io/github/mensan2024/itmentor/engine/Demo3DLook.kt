@@ -11,7 +11,7 @@ import kotlin.math.sin
  * étiquetée comme telle. Le texte de l'auteur est intégralement affiché sous la scène, dans l'ordre.
  * Si le texte d'une scène est trop long pour tenir sous l'objet, l'objet est retiré de cette scène plutôt que de couper le texte.
  */
-internal class Demo3DLook(private val sb: Storyboard) : LookRenderer {
+internal class Demo3DLook(private val sb: Storyboard, private val battle: Boolean = false) : LookRenderer {
     private class Palette(val bgTop: Int, val bgBottom: Int, val ink: Int, val muted: Int, val accent: Int, val pal: Models3D.Pal)
     private val palettes = listOf(
         Palette(rgb(0x0A1020), rgb(0x14213D), rgb(0xF2F6FF), rgb(0xA9B6CE), rgb(0x37C6F4),
@@ -39,7 +39,7 @@ internal class Demo3DLook(private val sb: Storyboard) : LookRenderer {
     private val bottomLimit = Safe.BOTTOM - 100f
     private val phase = (Rand.of(sb.seed, 0x3D0C).nextInt() ushr 1) % 628 / 100f
 
-    private val kind: Models3D.Kind = run {
+    private val kind: Models3D.Kind = if (battle) Models3D.Kind.BATTLE else run {
         val text = TextSanitizer.clean(sb.title + " " + sb.scenes.joinToString(" ") { it.title + " " + it.body + " " + it.items.joinToString(" ") }).lowercase()
         val domain = DomainDetector.detect(text)
         val net = Regex("serveur|vlan|switch|routeur|router|datacenter|data center|cloud|\\bdns\\b|ccna|ccnp|rÃ©seau|réseau|reseau|pare-?feu|firewall").containsMatchIn(text)
@@ -65,7 +65,7 @@ internal class Demo3DLook(private val sb: Storyboard) : LookRenderer {
         g.fillVerticalGradient(0f, 0f, 1080f, 1920f, pal.bgTop, pal.bgBottom)
         g.fillRadialGlow(540f, 520f, 780f, pal.accent.withAlpha(0.10f))
         val plan = plans.getOrPut(sc.id) { choose(g, sc) }
-        if (plan.stage) stage(g, sc, t, tGlobalMs, plan.stageBottom)
+        if (plan.stage) stage(g, sc, t, tGlobalMs, plan.stageBottom, slot.index)
         when (sc.layout) {
             Layout.HERO -> hero(g, sc, t, plan, true)
             Layout.DEFINITION -> definition(g, sc, t, plan, true)
@@ -108,6 +108,27 @@ internal class Demo3DLook(private val sb: Storyboard) : LookRenderer {
 
     // ───────────────────────────── L'objet 3D ─────────────────────────────
 
+    private val attackRe = Regex("attaque|attaquant|pirate|hacker|hame[cç]on|phishing|ransomware|rançongiciel|rancongiciel|malware|virus|intrusion|force brute|exploit|faille|vol de|usurp|piège|piege|arnaque|ddos|injection")
+    private val defenseRe = Regex("défend|defend|défense|defense|protèg|proteg|solution|conseil|réflexe|reflexe|bonne pratique|parade|prévenir|prevenir|éviter|eviter|comment se|mets à jour|mettre à jour|active|authentification|sauvegarde|vérifie|verifie|utilise|chiffr|bloque|signale")
+    private val defended = HashMap<String, Boolean>()
+
+    /** Une scène est « défense » si son texte parle de parade ; neutre, elle suit sa position (seconde moitié = défense). */
+    private fun isDefense(sc: Scene, index: Int): Boolean = defended.getOrPut(sc.id) {
+        val text = (sc.title + " " + sc.body + " " + sc.items.joinToString(" ")).lowercase()
+        val d = defenseRe.containsMatchIn(text); val a = attackRe.containsMatchIn(text)
+        when {
+            sc.layout == Layout.HERO -> false
+            sc.layout == Layout.CHECKLIST -> true
+            d && !a -> true
+            a && !d -> false
+            else -> index * 2 >= sb.scenes.size
+        }
+    }
+
+    /** Progression de la défense d'une scène : le bouclier descend au début d'une scène de défense. */
+    private fun defenseAt(sc: Scene, index: Int, t: Float): Float =
+        if (isDefense(sc, index)) Easing.EASE_IN_OUT.ease(window(t, 400f, 1700f)) else 0f
+
     private fun explodeAt(sc: Scene, t: Float): Float = when (sc.layout) {
         Layout.HERO -> 0f
         Layout.DEFINITION -> 0.6f * Easing.EASE_IN_OUT.ease(window(t, 500f, 2400f))
@@ -116,17 +137,17 @@ internal class Demo3DLook(private val sb: Storyboard) : LookRenderer {
         else -> 0.45f
     }
 
-    private fun stage(g: Gfx, sc: Scene, t: Float, tg: Float, bottom: Float) {
+    private fun stage(g: Gfx, sc: Scene, t: Float, tg: Float, bottom: Float, index: Int) {
         val top = 230f
         val h = bottom - top
-        val ex = explodeAt(sc, t)
+        val ex = if (battle) defenseAt(sc, index, t) else explodeAt(sc, t)
         val appear = fade(t, 0f, 900f)
         val fit = lerp(model.fitAssembled, model.fitExploded, ex)
         val cam = Cam3D(
-            yaw = -0.55f + 0.85f * sin(tg / 4300f + phase) + 0.20f * (1f - appear),
-            pitch = 0.40f + 0.09f * sin(tg / 6100f + phase),
+            yaw = if (battle) -0.12f + 0.32f * sin(tg / 4700f + phase) + 0.2f * (1f - appear) else -0.55f + 0.85f * sin(tg / 4300f + phase) + 0.20f * (1f - appear),
+            pitch = if (battle) 0.30f + 0.06f * sin(tg / 6100f + phase) else 0.40f + 0.09f * sin(tg / 6100f + phase),
             dist = 15f,
-            s = h * 0.92f / fit,
+            s = if (model.fitWidth > 0f) minOf(h * 0.92f / fit, 930f / model.fitWidth) else h * 0.92f / fit,
             cx = 540f - (if (labelsOn(sc, ex)) 120f else 0f), cy = (top + bottom) / 2f + 6f,
             targetY = lerp(model.centerAssembled, model.centerExploded, ex),
         )
@@ -142,11 +163,63 @@ internal class Demo3DLook(private val sb: Storyboard) : LookRenderer {
         g.withPose(Pose(alpha = appear, scale = lerp(0.92f, 1f, appear)), cam.cx, cam.cy) {
             Render3D.floor(g, model, cam, ex, pal.accent)
             val labels = Render3D.draw(g, model, cam, ex, tg)
-            if (labelsOn(sc, ex)) callouts(g, labels, ex, top, bottom)
+            if (battle) battleOverlay(g, cam, ex, tg, top, bottom)
+            else if (labelsOn(sc, ex)) callouts(g, labels, ex, top, bottom)
         }
         g.restore()
         val tf = tag
-        g.drawTracked("ILLUSTRATION 3D", L, 196f, tf, pal.accent.withAlpha(0.9f), 3f)
+        g.drawTracked(if (battle) "SIMULATION 3D" else "ILLUSTRATION 3D", L, 196f, tf, pal.accent.withAlpha(0.9f), 3f)
+        if (battle) {
+            val label = if (ex > 0.5f) "DÉFENSE ACTIVE" else "ATTAQUE SIMULÉE"
+            val col = if (ex > 0.5f) Models3D.GREEN else Models3D.RED
+            val w = g.measureTracked(label, tf, 3f)
+            g.drawTracked(label, R - w, 196f, tf, col, 3f)
+        }
+    }
+
+    /**
+     * Paquets d'attaque (rouges) qui vont du poste attaquant à la cible ; quand le bouclier est en place, ils s'arrêtent
+     * sur lui et éclatent en vert. Lueur d'alerte rouge sur la cible, puis lueur verte de protection. Pur décor : aucun trafic réel.
+     */
+    private fun battleOverlay(g: Gfx, cam: Cam3D, ex: Float, tg: Float, top: Float, bottom: Float) {
+        val a = Render3D.project(cam, -2.9f, 1.5f, -0.5f)
+        val b = Render3D.project(cam, 3.1f, 1.8f, -0.8f)
+        val shieldX = Render3D.project(cam, -0.5f, 1.6f, -0.5f)
+        val red = Models3D.RED; val green = Models3D.GREEN
+        val pulse = 0.5f + 0.5f * sin(tg / 260f)
+        // Lueur de la cible
+        g.fillRadialGlow(b[0], b[1] + 10f, 200f * b[2], red.withAlpha(0.22f * (1f - ex) * (0.6f + 0.4f * pulse)))
+        g.fillRadialGlow(b[0], b[1] + 10f, 220f * b[2], green.withAlpha(0.20f * ex))
+        // Câble pointillé
+        val n = 7
+        for (i in 0 until n) {
+            val u = ((tg / 1100f) + i.toFloat() / n) % 1f
+            val stopAt = 0.52f
+            val blocked = ex > 0.55f
+            val uu = if (blocked) u * stopAt else u
+            val x = lerp(a[0], b[0], uu); val y = lerp(a[1], b[1], uu) - sin(uu * PI.toFloat()) * 40f
+            val alpha = if (blocked) (1f - u * 0.2f) else 1f
+            g.fillCircle(x, y, 13f * a[2], red.withAlpha(0.20f * alpha))
+            g.fillRoundRect(x - 8f, y - 8f, x + 8f, y + 8f, 3f, red.withAlpha(0.95f * alpha))
+            if (blocked && u > 0.94f) {
+                val k = (u - 0.94f) / 0.06f
+                g.strokeCircle(shieldX[0] + 30f, y, 18f + 40f * k, 3f, green.withAlpha(0.7f * (1f - k)))
+            }
+        }
+        // Repères
+        val f = FontSpec(FontFamily.TEXT, 700, 26f)
+        fun lab(text: String, wx: Float, wy: Float, color: Int, alpha: Float) {
+            if (alpha <= 0f) return
+            val p = Render3D.project(cam, wx, wy, -0.5f)
+            val w = g.measureTracked(text, f, 3f)
+            val y = p[1].coerceIn(top + 52f, bottom - 14f)
+            val x = (p[0] - w / 2f).coerceIn(L + 14f, R - w - 14f)
+            g.fillRoundRect(x - 14f, y - 30f, x + w + 14f, y + 10f, 10f, pal.bgTop.withAlpha(0.82f * alpha))
+            g.drawTracked(text, x, y, f, color.withAlpha(alpha), 3f)
+        }
+        lab("ATTAQUANT", -4.0f, 4.0f, red, 1f)
+        lab("CIBLE", 3.7f, 6.2f, pal.ink, 1f)
+        lab("BOUCLIER", 0.0f, 4.7f, green, clamp01((ex - 0.3f) / 0.4f))
     }
 
     private fun labelsOn(sc: Scene, ex: Float): Boolean =

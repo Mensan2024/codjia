@@ -30,6 +30,8 @@ enum class Look(val label: String, val tagline: String, val transitions: List<Tr
         listOf(TransitionType.FADE, TransitionType.ZOOM, TransitionType.FADE)),
     DEMO3D("Démonstration 3D", "Objet en volume qui tourne et s'éclate en pièces : ordinateur, serveurs, cadenas (3D stylisée, illustration)",
         listOf(TransitionType.FADE, TransitionType.ZOOM, TransitionType.FADE)),
+    ATTAQUE("Attaque et défense 3D", "Un attaquant, une cible, des paquets en 3D : puis les boucliers de défense descendent (simulation étiquetée)",
+        listOf(TransitionType.FADE, TransitionType.ZOOM, TransitionType.FADE)),
     EXPLICATIF("Explicatif simulé", "Chapitres numérotés, simulation d'interface et explication mot clé par mot clé",
         listOf(TransitionType.FADE, TransitionType.CUT)),
     EXPLIC_BAS("Explicatif · carte dessous", "Simulation en haut, carte de chapitre dessous, mots clés en bas",
@@ -79,7 +81,7 @@ object Looks {
     /** Formats adaptés à un domaine (la démo à l'écran n'a de sens que pour l'informatique). */
     fun forDomain(d: Domain): List<Look> = when (d) {
         Domain.RESEAUX, Domain.SYSTEMES, Domain.CYBER, Domain.FULLSTACK, Domain.IA -> Look.entries
-        else -> Look.entries - Look.DEMO - Look.DEMO3D
+        else -> Look.entries - Look.DEMO - Look.DEMO3D - Look.ATTAQUE
     }
 
     /** Remplace les transitions du template par celles du format (sauf Motion design). */
@@ -113,6 +115,7 @@ object Looks {
         Look.INFOGRAPHIE -> InfographicLook(storyboard, StyleKit.infographic(storyboard.seed))
         Look.DEMONSTRATION -> InfographicLook(storyboard, StyleKit.infographic(storyboard.seed), smart = true)
         Look.DEMO3D -> Demo3DLook(storyboard)
+        Look.ATTAQUE -> Demo3DLook(storyboard, battle = true)
         Look.EXPLICATIF -> ExplainerLook(storyboard, 0)
         Look.EXPLIC_BAS -> ExplainerLook(storyboard, 1)
         Look.EXPLIC_BANDEAU -> ExplainerLook(storyboard, 2)
