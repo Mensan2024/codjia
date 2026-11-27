@@ -72,7 +72,7 @@ internal class ScenarioPlan(val intents: List<SceneIntent>, val picks: List<Pick
     fun report(): String = intents.indices.joinToString("\n") { i ->
         val it = intents[i]; val p = picks[i]
         "Scène ${i + 1} : ${it.concept.label} · ${it.role.label} · ${it.action?.label ?: "—"} · ${it.relation.label} · objectif : ${it.goal.label}" +
-            (if (p != null) "  =>  ${p.kind.id}/${p.beat.id} (${"%.2f".format(p.fit)})" else "  =>  texte seul")
+            (if (p != null) "  =>  ${p.kind.id}/${p.beat.id} (${fmt2(p.fit)})" else "  =>  texte seul")
     }
 }
 
@@ -154,7 +154,7 @@ internal object ScenarioPlanner {
         val intents = IntentAnalyzer.analyze(sb, profile)
         return intents.map { it0 ->
             SceneRegistry.kinds.flatMap { k -> k.beats.map { b -> Triple(k, b, if (profile.sensitive && !b.calm) 0f else SceneRegistry.fit(it0, k, b)) } }
-                .filter { it.third > 0f }.sortedByDescending { it.third }.take(top).map { "${it.first.id}/${it.second.id}=${"%.2f".format(it.third)}" }
+                .filter { it.third > 0f }.sortedByDescending { it.third }.take(top).map { "${it.first.id}/${it.second.id}=${fmt2(it.third)}" }
         }
     }
 }

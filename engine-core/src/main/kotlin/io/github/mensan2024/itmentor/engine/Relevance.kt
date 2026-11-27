@@ -8,6 +8,9 @@ package io.github.mensan2024.itmentor.engine
  * Constat à l'origine : la famille « IA » recommandait en premier une démonstration 3D d'ordinateur portable éclaté pour une
  * « méthode en 4 points » (rôle, contexte, tâche, format), parce que le choix de l'objet suivait le domaine et non le passage.
  */
+/** Deux décimales, sans `String.format` (absent du Kotlin commun : le moteur doit compiler aussi pour le Web). */
+internal fun fmt2(x: Float): String { val r = kotlin.math.round(x * 100f).toInt(); return "${r / 100}.${(r % 100).toString().padStart(2, '0')}" }
+
 internal object SemanticGate {
     /** Mots qui désignent un objet que le volume 3D sait montrer : ordinateur et ses pièces, serveur et réseau physique, cadenas. */
     private val OBJECT = Regex("(?<![a-z0-9])(?:ordinateur|laptop|pc portable|\\bpc\\b|processeur|carte mere|clavier|batterie|materiel|serveurs?|datacenter|data center|baie|vlan|switch|routeur|commutateur|pare-?feu|firewall|cadenas|chiffrement|chiffrer|verrou|mots? de passe)")
@@ -45,7 +48,7 @@ object QualityControl {
             val it = plan.intents[i]
             val dur = sb.scenes[i].durationMs
             // 1. pertinence : la note du plan doit dépasser le seuil
-            if (p.fit < SceneRegistry.MIN_FIT) out += QcFinding(i, "pertinence", "plan ${p.key} noté ${"%.2f".format(p.fit)} (< ${SceneRegistry.MIN_FIT})", true)
+            if (p.fit < SceneRegistry.MIN_FIT) out += QcFinding(i, "pertinence", "plan ${p.key} noté ${fmt2(p.fit)} (< ${SceneRegistry.MIN_FIT})", true)
             // 2. objets : tout indice obligatoire du plan figure dans le passage
             val manque = p.beat.needs.filter { it !in plan.intents[i].cues }
             if (manque.isNotEmpty()) out += QcFinding(i, "objet", "plan ${p.key} montre des objets que le passage ne cite pas : $manque", true)
@@ -57,7 +60,7 @@ object QualityControl {
             // 5. répétition : un plan non répétable ne sert qu'une fois
             val prev = seen[p.key]
             if (prev != null && !p.beat.repeatable) out += QcFinding(i, "répétition", "plan ${p.key} déjà utilisé à la scène ${prev + 1}", true)
-            seen.putIfAbsent(p.key, i)
+            if (p.key !in seen) seen[p.key] = i
             // 6. sujet sensible : seulement des plans sobres
             if (profile.sensitive && !p.beat.calm) out += QcFinding(i, "sensibilité", "plan ${p.key} non sobre pour un sujet sensible", true)
         }
