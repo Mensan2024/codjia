@@ -1,0 +1,5 @@
+Voix off de CODJIA (navigateur)
+- Voix française « siwis » : Piper (rhasspy), données SIWIS, licence CC BY 4.0.
+- Voix anglaise « alba » : Piper (rhasspy), données Alba (Université d'Édimbourg), licence CC BY 4.0.
+- Phonémiseur : piper-phonemize + espeak-ng (GPL-3.0) compilés en WebAssembly (build MIT de diffusion-studio).
+- Moteur : ONNX Runtime Web (MIT, Microsoft).
