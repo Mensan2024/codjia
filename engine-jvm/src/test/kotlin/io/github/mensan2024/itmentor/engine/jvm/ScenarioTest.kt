@@ -28,13 +28,16 @@ class ScenarioTest {
         "famille_marketing_tunnel.txt" to "funnel",
     )
 
+    /** Phase C : une famille de situations (personnages, lieux) peut illustrer le même sujet que l'ancienne famille. */
+    private fun family(kind: String) = listOf(kind) + when (kind) { "phishing" -> listOf("sit-phishing"); "stress" -> listOf("sit-mental"); "water" -> listOf("sit-aid"); "funnel" -> listOf("sit-shop"); "clientserver", "topology", "firewall" -> listOf("sit-net"); else -> emptyList() }
+
     @Test fun chaqueSujetRecoitSaPropreFamilleDeScenes() {
         for ((f, kind) in subjects) {
             val sb = storyboard(f)
             val picks = Scenario.picks(sb).filterNotNull()
             println("$f -> $picks")
             assertTrue("$f : au moins la moitié des scènes doit avoir une représentation (${Scenario.coverage(sb)})", Scenario.coverage(sb) >= 0.5f)
-            val own = picks.count { it.startsWith("$kind/") }
+            val own = picks.count { family(kind).any { p -> it.startsWith("$p/") } }
             assertTrue("$f : la majorité des plans doit venir du genre « $kind » : $picks", own * 2 > picks.size)
         }
     }

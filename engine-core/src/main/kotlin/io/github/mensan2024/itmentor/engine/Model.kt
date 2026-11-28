@@ -138,6 +138,8 @@ data class Storyboard(
      * Une scène « épinglée » ne dépend plus des autres : la remplacer ne change rien ailleurs.
      */
     val pins: Map<String, String> = emptyMap(),
+    /** Plans déjà attribués à des scènes d'AUTRES épisodes de la même série : un plan non répétable n'y est pas réutilisé (ex. la carte d'ouverture). */
+    val reserved: Set<String> = emptySet(),
 ) {
     init {
         require(scenes.isNotEmpty()) { "Le storyboard est vide" }

@@ -388,13 +388,20 @@ object StoryboardPlanner {
             var curG = ArrayList<String>()
             val pieces = prose.flatMap { sn -> if (sn.length <= 240) listOf(sn) else splitLong(sn) }
             for (sentence in pieces) {
-                if (curG.isNotEmpty() && curG.sumOf { it.length + 1 } + sentence.length > 240) { groups += curG; curG = ArrayList() }
+                if (curG.isNotEmpty() && curG.sumOf { it.length + 1 } + sentence.length > (if (compress) 240 else 150)) { groups += curG; curG = ArrayList() }
                 curG += sentence
             }
             if (curG.isNotEmpty()) groups += curG
             for ((gi, picked) in groups.withIndex()) {
-                val body = picked.joinToString(" ")
+                var body = picked.joinToString(" ")
+                // Mode studio : sans intitulé d'auteur, la tête de la première phrase (« Ensuite, le DNS : … ») sert de titre : ce sont ses mots, pas un titre générique.
+                var leadTitle: String? = null
+                if (!compress && headed == null && fam != ContentFamily.BIBLE) {
+                    val head = body.substringBefore(':', "")
+                    if (head.length in 6..56 && body.length - head.length > 12 && !head.contains('.') && !head.contains('?') && !head.contains('!')) { leadTitle = head.trim(); body = body.substring(head.length + 1).trim().replaceFirstChar { it.uppercase() } }
+                }
                 val defTitle = when {
+                    leadTitle != null -> leadTitle.let { emphasize(cap(it), d) }
                     headed != null -> emphasize(headed, d) + if (groups.size > 1) " (${gi + 1}/${groups.size})" else ""
                     fam == ContentFamily.BIBLE -> if (defCount == 0) "Pour *méditer*" else "À *méditer*"
                     defCount > 0 -> if (english) "And also" else pick(listOf("Et *aussi*", "À *savoir*", "*Concrètement*"))
@@ -409,7 +416,7 @@ object StoryboardPlanner {
                         else -> pick(listOf("DÉFINITION", "LE SAVIEZ-VOUS$NB?", "EN BREF"))
                     },
                     icon = icons[1 % icons.size], shape = listOf(ShapeKind.HEXAGON, ShapeKind.RING, ShapeKind.DIAMOND)[(r.nextInt() ushr 1) % 3],
-                    title = frenchTypo(defTitle), body = frenchTypo(body), variant = variant(), authorTitle = headed != null)
+                    title = frenchTypo(defTitle), body = frenchTypo(body), variant = variant(), authorTitle = headed != null || leadTitle != null)
                 defCount++
             }
             val allItems = sec.items.map { frenchTypo(item(it)) }
@@ -637,7 +644,7 @@ object CreativeDirector {
         var sb = StoryboardPlanner.plan(text, seed, template.id, compress).copy(look = look, mood = direction.mood, profile = profile)
         // Mode studio (sans compression) : une démonstration d'écran n'est insérée que si le texte nomme un système
         // (Windows, macOS, Linux, Cisco…). Sinon elle montrerait un système choisi au hasard, sans lien avec le texte.
-        Procedures.match(TextSanitizer.clean(text))?.takeIf { compress || Procedures.osIn(text) != null }?.let { topic -> sb = withDemo(sb, topic, text, seed, compress) }
+        Procedures.match(TextSanitizer.clean(text))?.takeIf { compress || Procedures.osIn(text).let { os -> os != null && it.procedures.any { p -> p.os == os } } }?.let { topic -> sb = withDemo(sb, topic, text, seed, compress) }
         return Proposal(sb, template, music, domain, profile, direction, ArtDirector.recommend(profile))
     }
 

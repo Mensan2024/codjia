@@ -1,0 +1,14 @@
+Astuce 040 — Le faux courriel de ta banque
+Lundi matin, Awa ouvre sa boîte de réception. Un courriel de « sa banque » lui annonce que son compte sera suspendu sous 24 heures. Il lui demande de confirmer ses informations en cliquant sur un lien.
+C'est du hameçonnage : un fraudeur imite ta banque pour voler tes identifiants.
+Comment le reconnaître :
+- Un message urgent qui menace de suspendre ton compte
+- Une adresse d'expéditeur qui ressemble à celle de la banque sans être la sienne
+- Un lien dont l'adresse réelle ne correspond pas au texte affiché
+Comment réagir :
+Ne clique pas. Survole le lien avec ta souris : l'adresse réelle s'affiche, et elle n'a rien à voir avec ta banque.
+Appelle ta banque avec le numéro inscrit au dos de ta carte, jamais avec celui du message.
+Signale le courriel à ton service informatique, puis supprime-le.
+Si tu as déjà saisi ton mot de passe : change-le immédiatement sur le site officiel et préviens ta banque.
+À retenir : une banque ne te demande jamais ton mot de passe par courriel.
+#securiteinformatiquepourtous

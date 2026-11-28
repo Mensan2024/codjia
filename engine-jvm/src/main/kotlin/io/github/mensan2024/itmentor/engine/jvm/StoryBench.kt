@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package io.github.mensan2024.itmentor.engine.jvm
 
+import io.github.mensan2024.itmentor.engine.Gallery
 import io.github.mensan2024.itmentor.engine.AudioMix
 import io.github.mensan2024.itmentor.engine.Composer
 import io.github.mensan2024.itmentor.engine.Episodes
@@ -51,6 +52,27 @@ fun storyMain(a: List<String>) {
             File(a[4]).writeText(next.toJson())
             println("scène ${a[2]} : ${plan.pins[a[2]]} → ${next.pins[a[2]]} ; ${next.pins.count { (k, v) -> plan.pins[k] != v }} épingle(s) modifiée(s) sur ${next.pins.size}")
             next.qc().filter { it.contains(a[2]) }.forEach { println("  $it") }
+        }
+        "gallery" -> {
+            // gallery <image.png> [filtre] [t_ms] : une vignette 500×350 par plan 2D du registre (cadre virtuel 1000×700).
+            val filter = a.getOrNull(2)?.takeIf { it != "-" }
+            val tMs = a.getOrNull(3)?.toFloat() ?: 4200f
+            val keys = Gallery.keys().filter { filter == null || it.contains(filter) }
+            val big = keys.size <= 2
+            val tw = if (big) 1000 else 500; val th = if (big) 700 else 350; val cols = if (big) 1 else 3; val rows = (keys.size + cols - 1) / cols
+            val sheet = BufferedImage(tw * cols, (th + 22) * rows, BufferedImage.TYPE_INT_RGB)
+            val g2 = sheet.createGraphics()
+            g2.color = Color(18, 18, 22); g2.fillRect(0, 0, sheet.width, sheet.height)
+            g2.font = Font("SansSerif", Font.BOLD, 14)
+            for ((i, key) in keys.withIndex()) {
+                val img = BufferedImage(1000, 700, BufferedImage.TYPE_INT_RGB)
+                Gallery.draw(Java2DGfx(img, fonts), key, tMs)
+                val x = (i % cols) * tw; val y = (i / cols) * (th + 22)
+                g2.drawImage(img.getScaledInstance(tw, th, java.awt.Image.SCALE_SMOOTH), x, y + 22, null)
+                g2.color = Color.WHITE; g2.drawString("$key", x + 6, y + 16)
+            }
+            ImageIO.write(sheet, "png", File(a[1]))
+            println("galerie : ${keys.size} plan(s)")
         }
         "sheet" -> {
             val plan = StoryPlan.fromJson(File(a[1]).readText())

@@ -117,7 +117,7 @@ object Episodes {
 
     /**
      * Les storyboards de la série : les scènes de chaque épisode (dans l'ordre du texte) précédées, à partir du 2ᵉ épisode, de leur carte d'ouverture.
-     * Les visuels imposés ([Storyboard.pins]) sont transmis ; les cartes d'ouverture n'ont pas d'image.
+     * Les visuels imposés ([Storyboard.pins]) sont transmis ; la carte d'ouverture reçoit son affiche comme n'importe quelle scène (plan « poster »).
      */
     fun assemble(base: Storyboard, assignment: List<Int>): List<Storyboard> {
         require(assignment.size == base.scenes.size) { "Une scène n'a pas d'épisode" }
@@ -126,8 +126,9 @@ object Episodes {
         return (1..count).map { k ->
             val own = base.scenes.filterIndexed { i, _ -> assignment[i] == k }
             val scenes = if (k == 1) own else listOf(opener(base, k, count)) + own
-            val pins = base.pins.filterKeys { id -> own.any { it.id == id } } + if (k == 1) emptyMap() else mapOf("ep$k-open" to Pins.TEXT_ONLY)
-            base.copy(id = base.id + "-e$k", scenes = scenes, episode = EpisodeInfo(k, count), pins = pins)
+            val pins = base.pins.filterKeys { id -> own.any { it.id == id } }
+            val reserved = base.pins.filterKeys { id -> own.none { it.id == id } }.values.filter { it != Pins.TEXT_ONLY }.toSet()
+            base.copy(id = base.id + "-e$k", scenes = scenes, episode = EpisodeInfo(k, count), pins = pins, reserved = reserved)
         }
     }
 }

@@ -18,7 +18,8 @@ enum class Concept(val label: String) {
     PHISHING("Hameçonnage"), BRUTE_FORCE("Force brute"), MALWARE("Logiciel malveillant ou attaque technique"),
     FIREWALL("Pare-feu"), TOPOLOGY("Topologie réseau"), SEGMENTATION("Segmentation (VLAN)"), CLIENT_SERVER("Client et serveur"),
     GRATITUDE("Gratitude"), STRESS("Stress et apaisement"), FUNNEL("Tunnel de vente"),
-    METHOD("Méthode ou enchaînement d'étapes"), WATER("Accès à l'eau potable"), NONE("Sans concept visuel net"),
+    METHOD("Méthode ou enchaînement d'étapes"), WATER("Accès à l'eau potable"),
+    AID("Aide humanitaire et situations humaines"), NETFLOW("Circulation des données dans un réseau"), NONE("Sans concept visuel net"),
 }
 
 /** Place de la scène dans le récit pédagogique. */
@@ -91,9 +92,11 @@ data class SceneIntent(
     /** 0 = aucun indice, 1 = sans ambiguïté. */
     val confidence: Float,
     val evidence: List<String>,
+    /** Sujets précis cités par la scène (« dns », « camp », « inbox »…) : ils départagent les plans d'un même domaine. */
+    val topics: Set<String> = emptySet(),
 ) {
     /** Indices comparables à ceux d'une représentation. */
-    val cues: Set<String> by lazy { (acts.map { "act:" + it.name } + things.map { "thing:" + it.name } + (actors + impliedActors).map { "actor:" + it.name }).toSet() }
+    val cues: Set<String> by lazy { (acts.map { "act:" + it.name } + things.map { "thing:" + it.name } + (actors + impliedActors).map { "actor:" + it.name } + topics.map { "topic:$it" }).toSet() }
 }
 
 object IntentAnalyzer {
@@ -126,11 +129,71 @@ object IntentAnalyzer {
         Lex(Concept.STRESS, listOf("stress" to 6, "anxi" to 5, "respire" to 4, "respiration" to 4, "inspire" to 3, "expire" to 3, "calme" to 2, "apais" to 3, "emotion" to 2,
             "tension" to 1, "burn-?out" to 5, "epuis" to 3, "detente" to 2, "relax" to 3, "charge mentale" to 5, "tu n'es pas seul" to 4, "souffrance" to 2, "pensees" to 1)),
         Lex(Concept.FUNNEL, listOf("tunnel de vente" to 9, "tunnel" to 4, "conversion" to 4, "convertis|convertir" to 3, "prospect" to 3, "audience" to 2, "capte" to 2,
-            "fidelis" to 3, "attire" to 2, "taux de conversion" to 6, "lead" to 3, "publicite" to 1)),
+            "fidelis" to 3, "attire" to 2, "taux de conversion" to 6, "lead" to 3, "publicite" to 1,
+            "clients?" to 2, "clientele" to 3, "produits?" to 2, "boutique|magasin|stand\\b" to 3, "parcours (?:client|d'achat)" to 6, "panier" to 3, "achat" to 2, "vente" to 2, "marque" to 1,
+            "commande" to 2, "paiement" to 2, "avis" to 1, "reseaux sociaux" to 2, "visibilite" to 2, "promotion" to 2, "recommand" to 1)),
         Lex(Concept.METHOD, listOf("workflow" to 9, "methode" to 5, "processus" to 4, "enchainement" to 6, "etapes?" to 3, "mission" to 3, "role" to 2, "contexte" to 2,
             "tache" to 2, "format attendu" to 4, "pas a pas" to 3, "en \\d points?" to 4, "procedure" to 2, "pipeline" to 5)),
+        Lex(Concept.AID, listOf("humanitaire" to 5, "deplace" to 6, "refugie" to 6, "\\bcamps?\\b" to 5, "aide alimentaire" to 7, "distribution" to 2, "\\bong\\b" to 4, "benevole" to 4,
+            "crise" to 2, "urgence" to 2, "solidarite" to 4, "abri" to 3, "tentes?" to 3, "kit" to 1, "vaccin" to 3, "famille" to 1, "orphelin" to 4, "sinistr" to 4, "inondation" to 4,
+            "secours" to 4, "vulnerable" to 3, "dignite" to 3, "donateur" to 3, "dons?\\b" to 2, "mobilis" to 2, "conflit" to 3, "famine|malnutrition" to 5, "enfants?" to 1, "ecole" to 1, "communaute" to 1, "terrain" to 1)),
+        Lex(Concept.NETFLOW, listOf("\\bdns\\b" to 6, "dhcp" to 6, "\\bnat\\b" to 5, "wi-?fi|wifi" to 5, "\\bvpn\\b" to 5, "adresse ip" to 5, "passerelle" to 3, "\\bip\\b" to 2, "\\blan\\b" to 3, "\\bwan\\b" to 3,
+            "flux" to 3, "paquets?" to 2, "protocole" to 3, "ethernet" to 3, "modele osi|couche" to 2, "bande passante" to 3, "latence" to 3, "tcp" to 3, "udp" to 3, "access point|point d'acces" to 4,
+            "reseau d'entreprise|reseau informatique|reseaux informatiques" to 5, "fournisseur d'acces" to 3, "internet" to 1, "serveur" to 1, "postes?" to 1, "imprimante" to 2, "ping" to 3, "cable" to 2)),
         Lex(Concept.WATER, listOf("eau potable" to 9, "points? d'eau" to 7, "puits" to 6, "forage" to 6, "pompe" to 3, "\\beau\\b" to 2, "assainissement" to 5, "communaute" to 2,
             "village" to 3, "corvee d'eau" to 6, "maladies? hydriques?" to 6, "hygiene" to 2, "humanitaire" to 3)),
+    )
+
+
+    /** Sujets précis (sur le texte de la scène sans accents) : ils ne portent aucun concept à eux seuls, ils orientent le choix du plan. */
+    private val TOPICS = listOf(
+        "inbox" to Regex("courriel|e-?mail|\\bmail\\b|boite de reception|message"),
+        "urgency" to Regex("urgen|24 ?h|immediat|suspendu|expire|sous \\d+|menace|pression|vite"),
+        "sender" to Regex("expediteur|adresse|domaine|usurp|imite|ressemble"),
+        "link" to Regex("\\blien|url|clique"),
+        "login" to Regex("mots? de passe|identifiant|connexion|saisi|formulaire|code"),
+        "callback" to Regex("appel|telephon|contacte|numero|banque|officiel"),
+        "report" to Regex("signal|supprim|transmet|alerte|previens|declare"),
+        "attachment" to Regex("piece jointe|fichier|document|telecharg"),
+        "lying" to Regex("allonge|au lit|dans le lit|couche|il est (?:vingt|minuit|\\w+ heures)"),
+        "sleepgood" to Regex("dormir|sommeil|coucher|bonne nuit|horaire de coucher"),
+        "night" to Regex("nuit|soir|dormir|insomnie|sommeil|pensees|ruminer|coucher"),
+        "overload" to Regex("charge|trop de|surcharge|taches|deborde|epuis|pression|echeance|travail|burn"),
+        "breath" to Regex("respir|inspire|expire|souffle"),
+        "talk" to Regex("parle|parler|confie|partag|ecoute|ami|proche|confiance|entourage"),
+        "walk" to Regex("march|bouge|sport|promenade|dehors|exterieur|activite physique|nature"),
+        "journal" to Regex("carnet|journal|cahier|ecri|noter|gratitude"),
+        "alone" to Regex("seul|isole|isolement|honte|silence"),
+        "hope" to Regex("mieux|apaise|lumiere|progres|espoir|souffle|reprendre|aller mieux"),
+        "pro" to Regex("professionnel|medecin|psycholog|consult|therapeute|aide specialisee"),
+        "camp" to Regex("\\bcamps?\\b|deplace|refugie|abri|tente|site d'accueil"),
+        "food" to Regex("aliment|vivres|nourriture|faim|riz|repas|ration|malnutrition"),
+        "health" to Regex("sante|soin|vaccin|medic|clinique|maladie|infirmi|hygiene"),
+        "school" to Regex("ecole|enfants|education|apprendre|classe|etude"),
+        "volunteer" to Regex("benevole|\\bong\\b|equipe|solidarite|donateur|partenaire|mobilis|engage|agir"),
+        "family" to Regex("famille|mere|parents?|enfants?|orphelin|village|habitants|population"),
+        "logistics" to Regex("camion|transport|stock|livraison|acheminer|distribution|route|convoi"),
+        "water" to Regex("\\beau\\b|puits|forage|pompe|jerrican|assainissement"),
+        "attract" to Regex("publicite|reseaux sociaux|audience|visibilite|attire|contenu|post|abonne|campagne"),
+        "product" to Regex("produit|offre|prix|promotion|catalogue|article|service"),
+        "pay" to Regex("paiement|achat|commande|panier|mobile money|caisse|payer|facture"),
+        "retain" to Regex("fidel|rachat|avis|recommand|suivi|apres-vente|revient|reviens|deuxieme"),
+        "measure" to Regex("mesure|taux|chiffre|indicateur|analyse|statistique|resultat|donnees"),
+        "customer" to Regex("\\bclients?\\b|acheteur|prospect|consommateur"),
+        "shop" to Regex("boutique|magasin|commerce|vendeur|stand\\b|marche\\b|entrepreneur"),
+        "dns" to Regex("\\bdns\\b|nom de domaine|resolution de nom|annuaire"),
+        "dhcp" to Regex("dhcp|adresse automatique|attribu\\w+ (?:une )?adresse|bail"),
+        "nat" to Regex("\\bnat\\b|adresse publique|adresses? privees?|traduction d'adresse"),
+        "wifi" to Regex("wi-?fi|point d'acces|sans fil|borne"),
+        "vpn" to Regex("\\bvpn\\b|tunnel chiffre|teletravail|a distance"),
+        "gateway" to Regex("passerelle|routeur|sortie vers internet|route par defaut"),
+        "cabling" to Regex("cable|port\\b|prise|rj45|fibre|brass"),
+        "troubleshoot" to Regex("maillon|panne|diagnos|ping|depann|probleme|ne fonctionne pas|coupure|incident|traceroute|verifie"),
+        "firstfail" to Regex("premier maillon|premiere etape qui echoue|qui echoue|se trouve souvent"),
+        "office" to Regex("entreprise|bureau|employes?|postes?|reseau local|\\blan\\b|salaries|site"),
+        "internet" to Regex("internet|fournisseur|\\bfai\\b|cloud|externe|web"),
+        "serverroom" to Regex("serveur|datacenter|baie|salle technique|rack"),
+        "flow" to Regex("flux|trafic|paquet|donnees|circule|transit|achemin"),
     )
 
     private fun hits(t: String, lex: Lex): Pair<Int, List<String>> {
@@ -268,10 +331,12 @@ object IntentAnalyzer {
             val allowed = allowedConcepts(profile.family)
             val filtered = ranked.filter { it.key in allowed }
             val best = filtered.firstOrNull()
-            val concept = if (best != null && best.value >= 5) best.key else Concept.NONE
-            val second = if (concept == Concept.NONE) emptyList()
+            // Une scène qui n'a pas de mot du lexique (« À retenir… », une ouverture) garde le sujet de la vidéo entière quand celui-ci est net.
+            val ownConcept = best != null && best.value >= 5
+            val concept = if (ownConcept) best!!.key else if (profile.concept != Concept.NONE && profile.concept in allowed) profile.concept else Concept.NONE
+            val second = if (concept == Concept.NONE || !ownConcept) emptyList()
             else filtered.drop(1).filter { it.value >= 4 && it.value * 5 >= best!!.value * 2 }.map { it.key }.take(2)
-            val confidence = if (concept == Concept.NONE) 0f else {
+            val confidence = if (concept == Concept.NONE) 0f else if (!ownConcept) 0.35f else {
                 val rival = filtered.getOrNull(1)?.value ?: 0
                 clamp01((best!!.value - rival).toFloat() / (best.value + 6f) + 0.25f).coerceAtMost(1f)
             }
@@ -285,6 +350,7 @@ object IntentAnalyzer {
             if (SemanticGate.hasObject3D(t)) things += Thing.OBJET_3D
             if (SemanticGate.hasAttack(videoNorm)) things += Thing.ATTAQUE
             val acts = ACTS.filter { it.re.containsMatchIn(t) }.map { it.value }.toMutableSet()
+            val topics = TOPICS.filter { it.second.containsMatchIn(t) }.map { it.first }.toSet()
             // Un lexique de concept ne fait pas un acte : on retire ce que le concept n'autorise pas à illustrer seul.
             val implied = HashSet<Actor>()
             if (concept in IMPLIES_ATTACKER && Actor.ATTAQUANT !in actors) implied += Actor.ATTAQUANT
@@ -296,7 +362,7 @@ object IntentAnalyzer {
             val recognizeWords = RECOGNIZE_RE.containsMatchIn(" " + DomainDetector.normalize(sc.title) + " ")
             val attackWords = ATTACK_WORDS.containsMatchIn(t)
             val role = when {
-                i == 0 && sc.layout == Layout.HERO -> Role.INTRO
+                (i == 0 && sc.layout == Layout.HERO) || sc.isEpisodeOpener -> Role.INTRO
                 sc.layout == Layout.CHECKLIST && i == last -> Role.RECAP
                 sc.layout == Layout.CHECKLIST -> Role.RECAP
                 sc.layout == Layout.COMPARE -> Role.CONTRAST
@@ -327,7 +393,8 @@ object IntentAnalyzer {
                 concept == Concept.STRESS && (role == Role.INTRO || role == Role.DEFINE) -> Relation.TRANSFORMATION
                 concept == Concept.STRESS && Act.PARTAGER in acts -> Relation.SOUTIEN
                 concept == Concept.FUNNEL || concept == Concept.METHOD || sc.layout == Layout.STEPS && concept != Concept.NONE -> Relation.PROGRESSION
-                concept == Concept.WATER -> Relation.TRANSFORMATION
+                concept == Concept.WATER || concept == Concept.AID -> Relation.TRANSFORMATION
+                concept == Concept.NETFLOW -> Relation.CONNEXION
                 sc.layout == Layout.COMPARE -> Relation.CONTRASTE
                 else -> Relation.AUCUNE
             }
@@ -335,7 +402,7 @@ object IntentAnalyzer {
             val context = when {
                 concept == Concept.GRATITUDE || concept == Concept.STRESS -> Context.INTIME
                 concept == Concept.FUNNEL -> Context.COMMERCIAL
-                concept == Concept.WATER -> Context.COMMUNAUTE
+                concept == Concept.WATER || concept == Concept.AID -> Context.COMMUNAUTE
                 Regex("entreprise|societe|collaborateur|equipe|bureau|reseau local|datacenter|dmz").containsMatchIn(t) -> Context.ENTREPRISE
                 concept == Concept.CLIENT_SERVER || Regex("\\bcode\\b|commande|`|console").containsMatchIn(t) || clean.contains('`') -> Context.TECHNIQUE
                 concept in IMPLIES_ATTACKER || concept == Concept.FIREWALL -> Context.INTERNET
@@ -349,7 +416,8 @@ object IntentAnalyzer {
                 concept == Concept.GRATITUDE -> if (profile.objective == Objective.MOTIVER) Goal.MOTIVER else Goal.APAISER
                 concept == Concept.FUNNEL -> if (role == Role.INTRO) Goal.CONVAINCRE else Goal.SUIVRE_PROCEDURE
                 concept == Concept.METHOD -> if (role == Role.DEFINE || role == Role.INTRO || role == Role.MECHANISM) Goal.COMPRENDRE_MECANISME else Goal.SUIVRE_PROCEDURE
-                concept == Concept.WATER -> Goal.MOTIVER
+                concept == Concept.WATER || concept == Concept.AID -> Goal.MOTIVER
+                concept == Concept.NETFLOW -> if (role == Role.PROCEDURE || role == Role.ADVICE) Goal.SUIVRE_PROCEDURE else Goal.COMPRENDRE_MECANISME
                 role == Role.ADVICE -> Goal.APPRENDRE_REFLEXE
                 role == Role.RECOGNIZE -> Goal.IDENTIFIER_MENACE
                 role == Role.MECHANISM -> Goal.COMPRENDRE_MECANISME
@@ -361,10 +429,10 @@ object IntentAnalyzer {
 
             val action = pickAction(acts, concept, role)
             val ev = ArrayList<String>()
-            if (concept != Concept.NONE) ev += local.getValue(concept).second.take(4).ifEmpty { listOf("contexte de la vidéo") }
+            if (concept != Concept.NONE) ev += local.getValue(concept).second.take(4).ifEmpty { listOf("sujet de la vidéo entière") }
             ev += "rôle : ${role.label}"
             val motifs = sc.items.map { itemMotif(it) }
-            SceneIntent(profile.domain, profile.family, concept, second, role, actors, implied, things, acts, action, context, relation, goal, params, motifs, confidence, ev)
+            SceneIntent(profile.domain, profile.family, concept, second, role, actors, implied, things, acts, action, context, relation, goal, params, motifs, confidence, ev, topics)
         }
     }
 
@@ -396,18 +464,18 @@ object IntentAnalyzer {
 
     /** Domaines où un concept peut s'appliquer : « stress » dans un texte de réseau n'est pas un sujet d'apaisement. */
     private fun allowedConcepts(f: ContentFamily): Set<Concept> = when (f) {
-        ContentFamily.CYBER -> setOf(Concept.PHISHING, Concept.BRUTE_FORCE, Concept.MALWARE, Concept.FIREWALL, Concept.CLIENT_SERVER, Concept.TOPOLOGY, Concept.SEGMENTATION)
-        ContentFamily.NETWORK -> setOf(Concept.TOPOLOGY, Concept.SEGMENTATION, Concept.FIREWALL, Concept.CLIENT_SERVER, Concept.MALWARE, Concept.BRUTE_FORCE, Concept.PHISHING)
-        ContentFamily.DEV -> setOf(Concept.CLIENT_SERVER, Concept.FIREWALL, Concept.MALWARE, Concept.BRUTE_FORCE, Concept.METHOD)
+        ContentFamily.CYBER -> setOf(Concept.PHISHING, Concept.BRUTE_FORCE, Concept.MALWARE, Concept.FIREWALL, Concept.CLIENT_SERVER, Concept.TOPOLOGY, Concept.SEGMENTATION, Concept.NETFLOW)
+        ContentFamily.NETWORK -> setOf(Concept.TOPOLOGY, Concept.SEGMENTATION, Concept.FIREWALL, Concept.CLIENT_SERVER, Concept.MALWARE, Concept.BRUTE_FORCE, Concept.PHISHING, Concept.NETFLOW)
+        ContentFamily.DEV -> setOf(Concept.CLIENT_SERVER, Concept.FIREWALL, Concept.MALWARE, Concept.BRUTE_FORCE, Concept.METHOD, Concept.NETFLOW)
         ContentFamily.AI -> setOf(Concept.CLIENT_SERVER, Concept.MALWARE, Concept.PHISHING, Concept.METHOD)
         ContentFamily.MENTAL, ContentFamily.HEALTH -> setOf(Concept.STRESS, Concept.GRATITUDE)
-        ContentFamily.PERSONAL -> setOf(Concept.GRATITUDE, Concept.STRESS, Concept.METHOD, Concept.WATER)
+        ContentFamily.PERSONAL -> setOf(Concept.GRATITUDE, Concept.STRESS, Concept.METHOD, Concept.WATER, Concept.AID)
         ContentFamily.MARKETING -> setOf(Concept.FUNNEL, Concept.METHOD)
         ContentFamily.BIBLE -> setOf(Concept.GRATITUDE)
         // Famille indéterminée (phrase seule, texte court) : aucun domaine ne restreint, c'est le lexique du concept qui décide.
         ContentFamily.GENERAL -> Concept.entries.filter { it != Concept.NONE }.toSet()
-        ContentFamily.HEALTH -> setOf(Concept.STRESS, Concept.GRATITUDE, Concept.WATER)
-        else -> setOf(Concept.METHOD, Concept.WATER, Concept.GRATITUDE)
+        ContentFamily.HEALTH -> setOf(Concept.STRESS, Concept.GRATITUDE, Concept.WATER, Concept.AID)
+        else -> setOf(Concept.METHOD, Concept.WATER, Concept.GRATITUDE, Concept.AID)
     }
 
     /** Action principale : la plus spécifique au concept, sinon la première dans l'ordre du texte. */

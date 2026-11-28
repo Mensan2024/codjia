@@ -310,5 +310,5 @@ internal object FirewallScenes {
         }
     }
 
-    val kind = SceneKind("firewall", "Pare-feu", setOf(Concept.FIREWALL), listOf(filter, rules, zones, recap))
+    val kind = SceneKind("firewall", "Pare-feu", setOf(Concept.FIREWALL), listOf(filter, rules, zones, recap), fallbackFor = setOf(Concept.NETFLOW))
 }

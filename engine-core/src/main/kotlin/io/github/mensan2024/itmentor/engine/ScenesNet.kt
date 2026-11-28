@@ -224,7 +224,7 @@ internal object TopologyScenes {
         }
     }
 
-    val kind = SceneKind("topology", "Topologie et VLAN", setOf(Concept.TOPOLOGY, Concept.SEGMENTATION), listOf(star, path, vlan, trunk, inter, recap, recapStar))
+    val kind = SceneKind("topology", "Topologie et VLAN", setOf(Concept.TOPOLOGY, Concept.SEGMENTATION), listOf(star, path, vlan, trunk, inter, recap, recapStar), fallbackFor = setOf(Concept.NETFLOW))
 }
 
 /** Client et serveur : requête, couches, codes de statut. */
@@ -336,5 +336,5 @@ internal object ClientServerScenes {
         g.restore()
     }
 
-    val kind = SceneKind("clientserver", "Client et serveur", setOf(Concept.CLIENT_SERVER), listOf(request, layers, status, recap))
+    val kind = SceneKind("clientserver", "Client et serveur", setOf(Concept.CLIENT_SERVER), listOf(request, layers, status, recap), fallbackFor = setOf(Concept.NETFLOW))
 }

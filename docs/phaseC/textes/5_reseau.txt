@@ -1,0 +1,11 @@
+Comment une demande traverse le réseau de l'entreprise
+Quand un employé ouvre un site depuis son poste de travail, plusieurs équipements travaillent en quelques millisecondes.
+D'abord, le DHCP : à son arrivée, l'ordinateur reçoit automatiquement une adresse IP du routeur.
+Ensuite, le DNS : le nom du site est traduit en adresse IP, comme un annuaire.
+Puis le trafic passe par le switch, qui relie les postes entre eux, et atteint le routeur.
+Le routeur applique le NAT : les adresses privées de l'entreprise sont traduites en une seule adresse publique pour sortir sur Internet.
+Le pare-feu filtre ce qui entre et ce qui sort selon des règles précises.
+Pour les employés à distance, un VPN crée un tunnel chiffré jusqu'au réseau de l'entreprise.
+En cas de panne, teste maillon par maillon : le câble, le switch, la passerelle, puis le DNS. Le problème se trouve souvent au premier maillon qui échoue.
+À retenir : un réseau fiable, c'est une chaîne dont chaque maillon est compris.
+#reseaux

@@ -34,8 +34,9 @@ class CorrectionTest {
         for ((f, kind) in essais) for (seed in listOf(1L, 7L, 19L)) {
             val picks = Scenario.picks(sb(f, seed)).filterNotNull()
             println("$f/$seed -> $picks")
-            assertTrue("$f (graine $seed) : aucun plan de « $kind » : $picks", picks.any { it.startsWith("$kind/") })
-            assertTrue("$f (graine $seed) : un plan étranger au sujet : $picks", picks.all { it.startsWith("$kind/") })
+            val fam = listOf(kind) + when (kind) { "phishing" -> listOf("sit-phishing"); "water" -> listOf("sit-aid"); else -> emptyList() }
+            assertTrue("$f (graine $seed) : aucun plan de « $kind » : $picks", picks.any { p -> fam.any { p.startsWith("$it/") } })
+            assertTrue("$f (graine $seed) : un plan étranger au sujet : $picks", picks.all { p -> fam.any { p.startsWith("$it/") } })
         }
     }
 

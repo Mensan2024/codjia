@@ -170,13 +170,13 @@ class StoryPlan(
                 val things = it.things.map { t -> t.label }
                 val actors = (it.actors + it.impliedActors).map { a -> a.label }
                 val image = when {
-                    sc.isEpisodeOpener -> "Carte d'ouverture de l'épisode (titre de la série), ajoutée par l'application : texte seul."
+                    sc.isEpisodeOpener && pick == null -> "Carte d'ouverture de l'épisode (titre de la série), ajoutée par l'application : texte seul."
                     pick != null -> "« ${pick.beat.label} » (${pick.kind.label}) : ${it.relation.label}" +
                         (if (things.isNotEmpty()) " ; objets montrés : ${things.joinToString(", ")}" else "") +
                         (if (actors.isNotEmpty()) " ; acteurs : ${actors.joinToString(", ")}" else "") +
                         " — pour ${it.goal.label}. Adéquation ${fmt2(pick.fit)}" + if (pick.fit < SceneRegistry.MIN_FIT) " (sous le seuil de ${fmt2(SceneRegistry.MIN_FIT)} : choix de l'utilisateur)." else "."
                     sc.id in userPins && pins[sc.id] == Pins.TEXT_ONLY -> "Texte seul (choix de l'utilisateur)."
-                    else -> "Aucun visuel du registre n'atteint ${fmt2(SceneRegistry.MIN_FIT)} pour cette scène (concept : ${it.concept.label}, rôle : ${it.role.label}) : texte seul. À couvrir en phase C."
+                    else -> "Aucun visuel du registre n'atteint ${fmt2(SceneRegistry.MIN_FIT)} pour cette scène (concept : ${it.concept.label}, rôle : ${it.role.label}) : texte seul."
                 }
                 val framing = when {
                     pick == null -> "texte plein cadre"

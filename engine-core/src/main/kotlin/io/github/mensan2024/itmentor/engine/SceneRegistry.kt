@@ -78,7 +78,7 @@ internal class ScenarioPlan(val intents: List<SceneIntent>, val picks: List<Pick
 
 internal object SceneRegistry {
     val kinds: List<SceneKind> by lazy {
-        listOf(PhishingScenes.kind, BruteForceScenes.kind, FirewallScenes.kind, TopologyScenes.kind, ClientServerScenes.kind,
+        listOf(SitPhishing.kind, SitMental.kind, SitAid.kind, SitShop.kind, SitNet.kind, PhishingScenes.kind, BruteForceScenes.kind, FirewallScenes.kind, TopologyScenes.kind, ClientServerScenes.kind,
             GratitudeScenes.kind, StressScenes.kind, FunnelScenes.kind, MethodScenes.kind, WaterScenes.kind, Attack3DScenes.attackKind, Attack3DScenes.objectKind)
     }
 
@@ -106,7 +106,9 @@ internal object SceneRegistry {
         val r = if (i.role in b.roles) 1f else 0.1f
         val a = if (b.cues.isEmpty()) 0.5f else min(1f, b.cues.count { it in i.cues }.toFloat() / min(3f, b.cues.size.toFloat()))
         val g = if (i.goal in b.goals) 1f else 0.3f
-        return 0.25f * c + 0.35f * r + 0.30f * a + 0.10f * g
+        // Phase C : à notes égales, une situation incarnée (personnages, objets, lieu) passe avant un schéma abstrait.
+        val situation = if (k.id.startsWith("sit-") && b.id != "poster") 0.07f else 0f
+        return 0.25f * c + 0.35f * r + 0.30f * a + 0.10f * g + situation
     }
 }
 
@@ -126,7 +128,7 @@ internal object ScenarioPlanner {
         val picks = arrayOfNulls<Pick>(n)
         // Scènes « épinglées » (choix imposé par l'utilisateur ou figé à la génération) : leur plan ne dépend plus des autres scènes.
         val pinned = BooleanArray(n)
-        val used = HashSet<String>()
+        val used = HashSet<String>(sb.reserved)
         for (i in 0 until n) {
             val key = sb.pins[sb.scenes[i].id] ?: continue
             pinned[i] = true
@@ -153,6 +155,8 @@ internal object ScenarioPlanner {
                 for ((j, c) in cands.withIndex()) {
                     var f = if (dur < c.b.minMs) 0f else SceneRegistry.fit(intents[i], c.k, c.b)
                     if (c.copy == 1) f -= 0.08f
+                    // Carte d'ouverture d'épisode : de préférence l'affiche en situation du sujet (personnages, lieu), pas un schéma abstrait.
+                    if (f > 0f && sb.scenes[i].isEpisodeOpener && c.b.id == "poster" && c.k.id.startsWith("sit-")) f += 0.12f
                     w[row][j] = if (f >= SceneRegistry.MIN_FIT) f + SK.hash01(i * 131 + (c.k.id + c.b.id).hashCode() + c.copy, salt) * 0.02 else -1.0
                 }
                 for (d in 0 until r) w[row][m + d] = SceneRegistry.MIN_FIT.toDouble()

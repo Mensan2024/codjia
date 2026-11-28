@@ -2,6 +2,19 @@
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [2.12.0] — Phase C : situations visuelles par domaine
+
+### Ajouté
+- **Moteur de situations** : personnages 2D (`Cast`, 6 apparences, 13 expressions, poses), décors et accessoires (`Props`) et 47 plans de situation pour 5 domaines — hameçonnage, santé mentale, humanitaire, marketing, réseaux — choisis d'après les **sujets précis** du texte (`topics`/`needs`), pas seulement d'après le domaine.
+- Les cartes d'ouverture d'épisode ont une affiche en situation ; un plan non répétable n'est jamais réutilisé entre épisodes d'une même série.
+- Outil `story gallery` ; exemples avant/après : `docs/phaseC/`. Tests : `PhaseCTest`.
+
+### Corrigé
+- Scènes de démonstration macOS inventées pour un texte réseau sans procédure ; numérotation de liste comptée comme mots absents (fidélité 97,6 % → 100 %) ; remarque « BLOQUANT … noté 0,00 » due au contexte par épisode.
+
+### Résultat (5 textes d'essai)
+- Scènes sans image : 20/40 → 0/42 ; fidélité 100 %/100 % ; contrôle qualité 0 remarque. Voir `docs/PHASE_C.md` pour les limites (voix non validée, schémas anciens résiduels, titres de gabarit).
+
 ## [2.11.0] — Phase B : pipeline Scénario, épisodes, storyboard éditable
 
 ### Ajouté

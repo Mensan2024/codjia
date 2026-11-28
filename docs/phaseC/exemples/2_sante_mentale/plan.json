@@ -1,0 +1,180 @@
+{
+  "format": "VIDEO24-STORYPLAN",
+  "version": 1,
+  "source": {
+    "text": "Quand la tête ne s'arrête plus le soir\nIl est vingt-trois heures. Tu es allongé, la maison est calme, mais tes pensées tournent encore : le travail, les messages sans réponse, ce que tu n'as pas fini aujourd'hui.\nCette charge mentale est courante. Quand tout s'accumule, le corps reste en alerte, même au repos.\nVoici des gestes simples pour redescendre :\n- Respire lentement : inspire quatre secondes, expire quatre secondes, pendant deux minutes.\n- Écris ce qui occupe ton esprit dans un carnet, pour le sortir de ta tête.\n- Marche dix minutes dehors, sans téléphone.\n- Parle à une personne de confiance : dire les choses à voix haute allège souvent.\n- Pose ton téléphone loin du lit et garde un horaire de coucher régulier.\nTu n'as pas à tout porter seul. Si cette fatigue dure ou t'empêche de vivre normalement, parle-en à un professionnel de santé.\nÀ retenir : un geste simple à la fois suffit pour commencer à te sentir mieux.\n#santementale\n",
+    "seed": 7,
+    "look": "SCENARIO",
+    "template": "medical-clean",
+    "music": "lofi",
+    "voice": true,
+    "budgetMs": 50000
+  },
+  "scenes": [
+    {
+      "id": "s-hero",
+      "episode": 1,
+      "visual": "sit-mental/awake"
+    },
+    {
+      "id": "s-def",
+      "episode": 1,
+      "visual": "sit-mental/overload"
+    },
+    {
+      "id": "s-def0-1",
+      "episode": 1,
+      "visual": "sit-mental/night"
+    },
+    {
+      "id": "s-steps0",
+      "episode": 2,
+      "visual": "sit-mental/gestures"
+    },
+    {
+      "id": "s-note1-0",
+      "episode": 2,
+      "visual": "sit-mental/consult"
+    },
+    {
+      "id": "s-end",
+      "episode": 2,
+      "visual": "sit-mental/morning"
+    }
+  ],
+  "cards": [
+    {
+      "scene": "s-hero",
+      "episode": 1,
+      "layout": "HERO",
+      "texteExact": "ASTUCE SANTÉ\nQuand la tête ne s'arrête plus le soir\nIl est vingt-trois heures.",
+      "narration": "Quand la tête ne s'arrête plus le soir. Il est vingt-trois heures.",
+      "image": "« Allongé, les yeux ouverts, les pensées tournent » (Bien-être en situation) : un état qui devient un autre ; objets montrés : soirée, journée — pour s'apaiser. Adéquation 0.97.",
+      "personnages": [],
+      "objets": ["soirée, journée"],
+      "action": null,
+      "decor": "format Scénario visuel, modèle Medical Clean",
+      "animation": "entrée slide_up, sortie fade_out",
+      "cadrage": "plan plein cadre",
+      "camera": "fixe",
+      "dureeMs": 6200,
+      "transition": "fade 500 ms",
+      "son": "musique « lofi », voix off",
+      "hash": "f76e7c5c0ffacec9"
+    },
+    {
+      "scene": "s-def",
+      "episode": 1,
+      "layout": "DEFINITION",
+      "texteExact": "Tu es allongé, la maison est calme, mais tes pensées tournent encore : le travail, les messages sans réponse, ce que tu n'as pas fini aujourd'hui.",
+      "narration": "Tu es allongé, la maison est calme, mais tes pensées tournent encore : le travail, les messages sans réponse, ce que tu n'as pas fini aujourd'hui.",
+      "image": "« Une journée qui déborde » (Bien-être en situation) : un état qui devient un autre ; objets montrés : message, réponse — pour s'apaiser. Adéquation 0.97.",
+      "personnages": [],
+      "objets": ["message", "réponse"],
+      "action": "répondre",
+      "decor": "format Scénario visuel, modèle Medical Clean",
+      "animation": "entrée slide_up, sortie fade_out",
+      "cadrage": "plan plein cadre",
+      "camera": "fixe",
+      "dureeMs": 13681,
+      "transition": "fade 500 ms",
+      "son": "musique « lofi », voix off",
+      "hash": "d4ef25572917fd29"
+    },
+    {
+      "scene": "s-def0-1",
+      "episode": 1,
+      "layout": "DEFINITION",
+      "texteExact": "Cette charge mentale est courante. Quand tout s'accumule, le corps reste en alerte, même au repos.",
+      "narration": "Cette charge mentale est courante. Quand tout s'accumule, le corps reste en alerte, même au repos.",
+      "image": "« Une nuit où les pensées tournent » (Bien-être en situation) : un état qui devient un autre ; objets montrés : sommeil — pour s'apaiser. Adéquation 0.97.",
+      "personnages": [],
+      "objets": ["sommeil"],
+      "action": "dormir",
+      "decor": "format Scénario visuel, modèle Medical Clean",
+      "animation": "entrée slide_up, sortie fade_out",
+      "cadrage": "plan plein cadre",
+      "camera": "fixe",
+      "dureeMs": 9607,
+      "transition": "fin de l'épisode",
+      "son": "musique « lofi », voix off",
+      "hash": "6af68fc509d6a0f0"
+    },
+    {
+      "scene": "ep2-open",
+      "episode": 2,
+      "layout": "HERO",
+      "texteExact": "ÉPISODE 2/2\nQuand la tête ne s'arrête plus le soir",
+      "narration": "Quand la tête ne s'arrête plus le soir.",
+      "image": "« Affiche : un souffle à la fenêtre » (Bien-être en situation) : un état qui devient un autre ; objets montrés : soirée, journée — pour s'apaiser. Adéquation 0.78.",
+      "personnages": [],
+      "objets": ["soirée, journée"],
+      "action": null,
+      "decor": "format Scénario visuel, modèle Medical Clean",
+      "animation": "entrée slide_up, sortie fade_out",
+      "cadrage": "plan plein cadre",
+      "camera": "fixe",
+      "dureeMs": 2600,
+      "transition": "fade 500 ms",
+      "son": "musique « lofi », voix off",
+      "hash": "edf629dd1ec63d32"
+    },
+    {
+      "scene": "s-steps0",
+      "episode": 2,
+      "layout": "STEPS",
+      "texteExact": "Voici des gestes simples pour redescendre\n• Respire lentement : inspire quatre secondes, expire quatre secondes, pendant deux minutes\n• Écris ce qui occupe ton esprit dans un carnet : pour le sortir de ta tête\n• Marche dix minutes dehors, sans téléphone\n• Parle à une personne de confiance : dire les choses à voix haute allège souvent\n• Pose ton téléphone loin du lit et garde un horaire de coucher régulier",
+      "narration": "Voici des gestes simples pour redescendre. Respire lentement. Écris ce qui occupe ton esprit dans un carnet. Marche dix minutes dehors, sans téléphone. Parle à une personne de confiance. Pose ton téléphone loin du lit et garde un horaire de coucher régulier.",
+      "image": "« Chaque geste, une personne qui le fait » (Bien-être en situation) : une présence qui soutient ; objets montrés : carnet, respiration, marche ; acteurs : personne de confiance — pour s'apaiser. Adéquation 1.07.",
+      "personnages": ["personne de confiance"],
+      "objets": ["carnet", "respiration", "marche"],
+      "action": "respirer",
+      "decor": "format Scénario visuel, modèle Medical Clean",
+      "animation": "entrée slide_up, sortie fade_out",
+      "cadrage": "plan plein cadre",
+      "camera": "fixe",
+      "dureeMs": 19000,
+      "transition": "fade 500 ms",
+      "son": "musique « lofi », voix off",
+      "hash": "c2f3c39f3395b3fe"
+    },
+    {
+      "scene": "s-note1-0",
+      "episode": 2,
+      "layout": "DEFINITION",
+      "texteExact": "Tu n'as pas à tout porter seul. Si cette fatigue dure ou t'empêche de vivre normalement, parle-en à un professionnel de santé",
+      "narration": "Tu n'as pas à tout porter seul. Si cette fatigue dure ou t'empêche de vivre normalement, parle-en à un professionnel de santé.",
+      "image": "« Consulter un professionnel » (Bien-être en situation) : un état qui devient un autre ; acteurs : professionnel de santé — pour s'apaiser. Adéquation 1.07.",
+      "personnages": ["professionnel de santé"],
+      "objets": [],
+      "action": null,
+      "decor": "format Scénario visuel, modèle Medical Clean",
+      "animation": "entrée slide_up, sortie fade_out",
+      "cadrage": "plan plein cadre",
+      "camera": "fixe",
+      "dureeMs": 11829,
+      "transition": "fade 500 ms",
+      "son": "musique « lofi », voix off",
+      "hash": "91b3541bec0555f2"
+    },
+    {
+      "scene": "s-end",
+      "episode": 2,
+      "layout": "CHECKLIST",
+      "texteExact": "À retenir\n• Un geste simple à la fois suffit pour commencer à te sentir mieux",
+      "narration": "À retenir. Un geste simple à la fois suffit pour commencer à te sentir mieux. Partage à quelqu’un qui en a besoin.",
+      "image": "« Le matin, la lumière revient » (Bien-être en situation) : une présence qui soutient — pour retenir l'essentiel. Adéquation 0.87.",
+      "personnages": [],
+      "objets": [],
+      "action": "partager, parler",
+      "decor": "format Scénario visuel, modèle Medical Clean",
+      "animation": "entrée slide_up, sortie fade_out",
+      "cadrage": "plan plein cadre",
+      "camera": "fixe",
+      "dureeMs": 9000,
+      "transition": "fin de l'épisode",
+      "son": "musique « lofi », voix off",
+      "hash": "ac11c4d15fb15453"
+    }
+  ]
+}

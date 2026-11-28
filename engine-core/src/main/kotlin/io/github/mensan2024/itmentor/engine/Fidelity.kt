@@ -36,7 +36,10 @@ object Fidelity {
             val l = lines[i].trim().dropWhile { !it.isLetterOrDigit() }
             NUMBERED.find(l)?.let { m -> lines[i] = m.groupValues[1] + " " + l.removeRange(m.range) } ?: run { lines[i] = PREFIXED.find(l)?.let { m -> l.removeRange(m.range) } ?: l }
         }
-        return words(stripInlineTags(lines.joinToString("\n")))
+        // Le numéro d'une liste ordonnée (« 1. Il te découvre ») est une numérotation, non un mot de l'auteur : la mise en page la refait.
+        val marker = Regex("^\\s*\\d{1,2}[.)]\\s+")
+        val body = lines.mapIndexed { k, l -> if (k > i) marker.replace(l, "") else l }
+        return words(stripInlineTags(body.joinToString("\n")))
     }
 
     /**

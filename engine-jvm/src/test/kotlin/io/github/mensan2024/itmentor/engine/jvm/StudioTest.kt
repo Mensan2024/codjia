@@ -155,7 +155,7 @@ class StudioTest {
 
     @Test fun lesFichesDonnentLes13ChampsSansRienInventer() {
         val cards = Studio.plan(text("longs/pare_feu_long.txt"), 7).cards()
-        assertEquals(12, cards.size)
+        assertEquals(16, cards.size) // phase C : groupes de 150 caractères → davantage de scènes plus courtes (12 en phase B)
         for (c in cards) {
             assertTrue(c.hash.length == 16 && c.durationMs > 0 && c.setting.isNotBlank() && c.animation.isNotBlank() && c.audio.isNotBlank())
             if (c.visualKey == null && !c.id.endsWith("-open")) assertTrue("${c.id} : ${c.image}", c.image.contains("Aucun visuel"))
