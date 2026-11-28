@@ -1,0 +1,61 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+package io.github.mensan2024.itmentor.engine.jvm
+
+import io.github.mensan2024.itmentor.engine.Knowledge
+import io.github.mensan2024.itmentor.engine.LessonWriter
+import io.github.mensan2024.itmentor.engine.Studio
+import io.github.mensan2024.itmentor.engine.TechLevel
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+/** Phase D.1 (28/11/2026) : une demande courte devient une leçon écrite à partir d'une fiche vérifiée, jamais inventée. */
+class LessonTest {
+    @Test fun `des demandes courtes de formes differentes designent la meme fiche`() {
+        for (q in listOf("Phishing", "phishing", "Explique-moi le phishing", "Qu'est-ce que le hameçonnage ?", "Comment fonctionne un faux courriel ?", "Attaque phishing"))
+            assertEquals("« $q »", "phishing", LessonWriter.understand(q).card?.id)
+    }
+
+    @Test fun `un sujet hors bibliotheque ne produit aucune lecon inventee`() {
+        val (ask, plan) = Studio.ask("zorglub quantique", TechLevel.DEBUTANT)
+        assertNull(ask.card); assertNull(plan)
+        assertTrue(ask.note.contains("aucune leçon n'est inventée"))
+    }
+
+    @Test fun `les noms de fiches ne se recouvrent pas`() {
+        val seen = HashMap<String, String>()
+        for (c in Knowledge.cards) for (n in c.names) { val k = LessonWriter.normalize(n); val other = seen.put(k, c.id); assertTrue("« $n » partagé entre $other et ${c.id}", other == null || other == c.id) }
+    }
+
+    @Test fun `le niveau enrichit la lecon sans retirer ce qui precede`() {
+        for (c in Knowledge.cards) {
+            val sizes = TechLevel.entries.map { LessonWriter.write(c, it).length }
+            assertTrue("${c.id} $sizes", sizes.zipWithNext().all { (a, b) -> a <= b })
+            assertTrue("${c.id} : le niveau expert doit apporter du contenu de plus que débutant", sizes.last() > sizes.first())
+        }
+    }
+
+    @Test fun `la lecon suit la progression pedagogique d'une attaque`() {
+        val t = LessonWriter.write(Knowledge.byId("phishing")!!, TechLevel.INTERMEDIAIRE)
+        val order = listOf("Comment l'attaque se déroule", "Les conséquences", "Comment le reconnaître", "Comment le détecter", "Comment s'en protéger", "À retenir")
+        val pos = order.map { t.indexOf(it) }
+        assertTrue("sections absentes : $pos", pos.all { it >= 0 })
+        assertEquals(pos.sorted(), pos)
+    }
+
+    @Test fun `la lecon est un plan complet sans scene vide ni texte omis`() {
+        for (level in TechLevel.entries) {
+            val (ask, plan) = Studio.ask("Phishing", level)
+            assertNotNull(plan); plan!!
+            val f = plan.fidelity()
+            assertEquals("${level.label} : ${f.missing}", 1.0, f.presence, 1e-9)
+            assertEquals(1.0, f.ordered, 1e-9)
+            val sans = plan.cards().filter { it.visualKey == null }.map { it.id }
+            assertTrue("${level.label} : scènes sans image $sans", sans.isEmpty())
+            assertTrue(plan.qc().none { it.startsWith("BLOQUANT") })
+            assertTrue(ask.note.contains(level.label))
+        }
+    }
+}

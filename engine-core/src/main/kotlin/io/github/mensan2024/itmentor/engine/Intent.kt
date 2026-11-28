@@ -151,6 +151,8 @@ object IntentAnalyzer {
         "urgency" to Regex("urgen|24 ?h|immediat|suspendu|expire|sous \\d+|menace|pression|vite"),
         "sender" to Regex("expediteur|adresse|domaine|usurp|imite|ressemble"),
         "link" to Regex("\\blien|url|clique"),
+        "chain" to Regex("se deroule|etape par etape|marque connue|fausse page de connexion|revend tes identifiants"),
+        "damage" to Regex("consequence|virements? |achats? frauduleux|compte est vole|piege(?:r)? tes contacts|reseau de ton entreprise"),
         "login" to Regex("mots? de passe|identifiant|connexion|saisi|formulaire|code"),
         "callback" to Regex("appel|telephon|contacte|numero|banque|officiel"),
         "report" to Regex("signal|supprim|transmet|alerte|previens|declare"),

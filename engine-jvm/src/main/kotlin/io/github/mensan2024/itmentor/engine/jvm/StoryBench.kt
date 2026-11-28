@@ -14,8 +14,16 @@ import io.github.mensan2024.itmentor.engine.Pins
 import io.github.mensan2024.itmentor.engine.StoryPlan
 import io.github.mensan2024.itmentor.engine.Storyboard
 import io.github.mensan2024.itmentor.engine.Studio
+import io.github.mensan2024.itmentor.engine.TechLevel
+import io.github.mensan2024.itmentor.engine.LessonWriter
 import io.github.mensan2024.itmentor.engine.VideoFormat
 import io.github.mensan2024.itmentor.engine.Wav
+import kotlin.coroutines.Continuation
+import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.coroutines.startCoroutine
+import io.github.mensan2024.itmentor.engine.Narration
+import io.github.mensan2024.itmentor.engine.Pcm
+import io.github.mensan2024.itmentor.engine.VoiceMode
 import java.awt.Color
 import java.awt.Font
 import java.awt.image.BufferedImage
@@ -45,6 +53,31 @@ fun storyMain(a: List<String>) {
             File(dir, "plan.json").writeText(plan.toJson())
             File(dir, "storyboard.md").writeText(storyboardMarkdown(plan))
             println(summary(plan))
+        }
+        "ask" -> {
+            // ask "<demande courte>" <niveau> <graine> <dossier> : la demande devient une leçon (D.1), puis un plan de production.
+            val level = TechLevel.valueOf(a[2].uppercase())
+            val (ask, plan) = Studio.ask(a[1], level, a[3].toLong())
+            println(ask.note)
+            if (plan == null) return
+            val dir = File(a[4]).apply { mkdirs() }
+            File(dir, "lecon.txt").writeText(LessonWriter.write(ask.card!!, level))
+            File(dir, "plan.json").writeText(plan.toJson())
+            File(dir, "storyboard.md").writeText(storyboardMarkdown(plan))
+            println(summary(plan))
+        }
+        "timing" -> {
+            // timing <plan.json> <sortie.tsv> : une ligne par scène (épisode, id, début ms, fin ms, narration) pour poser une voix off et en mesurer le calage.
+            val plan = StoryPlan.fromJson(File(a[1]).readText())
+            val music = catalogTrack(plan, musicDir)
+            val cards = plan.cards().associateBy { it.id }
+            val out = StringBuilder()
+            for ((k, sb) in plan.prepared(music).withIndex()) {
+                val r = FrameRenderer(sb, VideoFormat(270, 480, 30), plan.template)
+                for (sl in r.timeline.slots) out.appendLine("${k + 1}\t${sl.scene.id}\t${sl.startMs}\t${sl.endMs}\t${(cards[sl.scene.id]?.narration ?: "").replace('\t', ' ').replace('\n', ' ')}")
+            }
+            File(a[2]).writeText(out.toString())
+            println("calage : ${out.lines().count { it.isNotBlank() }} scène(s)")
         }
         "replace" -> {
             val plan = StoryPlan.fromJson(File(a[1]).readText())
@@ -105,10 +138,41 @@ fun storyMain(a: List<String>) {
             val music = catalogTrack(plan, musicDir)
             val cache = File(dir, "cache").apply { mkdirs() }
             val report = StringBuilder()
-            for ((k, sb) in plan.prepared(music).withIndex()) {
+            val voiceModel = a.getOrNull(4)?.takeIf { it != "-" }
+            val musicPcm = music?.let { m ->
+                val raw = File(dir, "music.src.wav")
+                run("ffmpeg", "-v", "error", "-y", "-i", File(musicDir, m.file.removePrefix("music/")).path, "-ac", "2", "-ar", "44100", "-c:a", "pcm_s16le", raw.path)
+                Wav.read(raw.readBytes()).also { raw.delete() }
+            }
+            for ((k, sb0) in plan.prepared(music).withIndex()) {
                 val out = File(dir, "episode_${k + 1}.mp4")
                 val t0 = System.nanoTime()
-                val st = renderSegments(plan, sb, format, fonts, cache, out, music?.let { File(musicDir, it.file.removePrefix("music/")) })
+                var sb = sb0
+                var voiced: Pcm? = null
+                if (voiceModel != null) {
+                    val vd = File(dir, "voix").apply { mkdirs() }
+                    val v = blocking {
+                        Narration.prepare(sb0, VoiceMode.FR, setOf("fr"),
+                            synth = { text, _, _ -> piperClip(voiceModel, text, vd) },
+                            music = { total -> musicPcm?.let { AudioMix.musicBed(it, total, MusicVolume.NORMAL.gain) } },
+                            allowSpeedUp = false)
+                    }
+                    sb = v.storyboard; voiced = v.audio
+                    // Calage mesuré : pour chaque scène, marge entre la fin de la phrase et le début de la scène suivante (≥ 0 = pas de chevauchement).
+                    val tl = io.github.mensan2024.itmentor.engine.Timeline.build(sb)
+                    val st0 = Narration.starts(tl)
+                    val margins = Narration.lines(sb, VoiceMode.FR).map { l ->
+                        val slot = tl.slots.first { it.scene.id == l.sceneId }
+                        val end = st0.getValue(l.sceneId) + piperClip(voiceModel, l.text, vd).durationMs
+                        val nextStart = tl.slots.getOrNull(tl.slots.indexOf(slot) + 1)?.startMs ?: tl.totalMs
+                        l.sceneId to (nextStart - end)
+                    }
+                    println("  calage : marge minimale ${margins.minOf { it.second }} ms (${margins.minByOrNull { it.second }!!.first}) ; " + margins.joinToString(" ") { "${it.first}:${it.second}" })
+                    val grown = sb.scenes.zip(sb0.scenes).filter { (x, y) -> x.durationMs != y.durationMs }
+                    println("  voix : ${v.voiceMs / 1000.0} s de parole ; ${grown.size} scène(s) allongée(s) " +
+                        grown.joinToString(", ") { (x, y) -> "${x.id} +${x.durationMs - y.durationMs} ms" })
+                }
+                val st = renderSegments(plan, sb, format, fonts, cache, out, music?.let { File(musicDir, it.file.removePrefix("music/")) }, voiced)
                 val line = "épisode ${k + 1}/${plan.episodeCount} : ${st.total} segments, ${st.encoded} encodé(s) [${st.encodedIds.joinToString(", ")}], ${st.reused} réutilisé(s), " +
                     "${st.frames} images, ${st.durationMs / 1000.0} s, ${(System.nanoTime() - t0) / 1_000_000_000} s de calcul"
                 println(line); report.appendLine(line)
@@ -178,7 +242,7 @@ class SegStats(val total: Int, val encoded: Int, val encodedIds: List<String>, v
  * mis en cache sous l'empreinte de ce qui le détermine. Modifier une scène ne ré-encode que son segment et celui d'avant (qui contient
  * le fondu vers elle) ; les autres sont réutilisés tels quels, puis tout est assemblé sans ré-encodage.
  */
-fun renderSegments(plan: StoryPlan, sb: Storyboard, format: VideoFormat, fonts: FontBank, cache: File, out: File, musicFile: File?): SegStats {
+fun renderSegments(plan: StoryPlan, sb: Storyboard, format: VideoFormat, fonts: FontBank, cache: File, out: File, musicFile: File?, voiced: Pcm? = null): SegStats {
     val r = FrameRenderer(sb, format, plan.template)
     val slots = r.timeline.slots
     val starts = slots.map { it.startMs.toFloat() } + listOf(Float.MAX_VALUE)
@@ -208,7 +272,13 @@ fun renderSegments(plan: StoryPlan, sb: Storyboard, format: VideoFormat, fonts: 
     val silent = File(out.parentFile, out.nameWithoutExtension + ".video.mp4")
     run("ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", list.path, "-c", "copy", silent.path)
     val tmp = File(out.parentFile, out.nameWithoutExtension + ".tmp.mp4")
-    if (musicFile != null) {
+    if (voiced != null) {
+        val bed = File(out.parentFile, out.nameWithoutExtension + ".bed.wav")
+        bed.writeBytes(Wav.write(voiced))
+        run("ffmpeg", "-y", "-loglevel", "error", "-i", silent.path, "-i", bed.path, "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-shortest",
+            "-metadata", "title=${sb.title}${sb.episode?.let { " — " + it.label } ?: ""}", "-metadata", "comment=Créé avec VIDEO24", "-movflags", "+faststart", tmp.path)
+        bed.delete()
+    } else if (musicFile != null) {
         val raw = File(out.parentFile, out.nameWithoutExtension + ".src.wav")
         run("ffmpeg", "-v", "error", "-y", "-i", musicFile.path, "-ac", "2", "-ar", "44100", "-c:a", "pcm_s16le", raw.path)
         val bed = File(out.parentFile, out.nameWithoutExtension + ".bed.wav")
@@ -246,4 +316,23 @@ private fun encodeFrames(r: FrameRenderer, fonts: FontBank, format: VideoFormat,
     sink.close()
     check(proc.waitFor() == 0) { "ffmpeg a échoué" }
     check(tmp.renameTo(out)) { "Impossible de renommer ${tmp.path}" }
+}
+
+/** Synthèse locale par le programme `piper` (voix de démonstration de l'atelier ; l'application, elle, lit avec la voix du téléphone). Un clip par phrase, mis en cache. */
+private fun piperClip(model: String, text: String, dir: File): Pcm {
+    val wav = File(dir, "${Hash64.of(model + "|" + text)}.wav")
+    if (!wav.exists()) {
+        val tmp = File(dir, wav.name + ".part")
+        val p = ProcessBuilder("piper", "-m", model, "-f", tmp.path).redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start()
+        p.outputStream.use { it.write(text.toByteArray(Charsets.UTF_8)) }
+        check(p.waitFor() == 0 && tmp.renameTo(wav)) { "piper a échoué sur : $text" }
+    }
+    return Wav.read(wav.readBytes())
+}
+
+/** Exécute une fonction suspendante sans bibliothèque de coroutines (toutes nos suspensions s'achèvent sans changer de fil). */
+private fun <T> blocking(block: suspend () -> T): T {
+    var out: Result<T>? = null
+    block.startCoroutine(Continuation(EmptyCoroutineContext) { out = it })
+    return out!!.getOrThrow()
 }

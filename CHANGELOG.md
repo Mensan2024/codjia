@@ -2,6 +2,17 @@
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [Non publié] — Phase D.1 : leçons à partir d'une demande courte
+
+### Ajouté
+- **Bibliothèque de fiches** (`Knowledge`, `TopicCard`, 4 niveaux) et **rédacteur de leçon** (`LessonWriter`, `Studio.ask`) : « Phishing » → leçon complète, sans jamais inventer un sujet absent. Fiche : phishing. Voir `docs/PHASE_D.md`.
+- Plans `chain` et `damage` pour l'hameçonnage ; commandes `story ask`, `story timing` ; rendu avec voix off et mesure du calage (`story render … <modèle piper>`).
+- Tests : `LessonTest`.
+
+### Corrigé
+- Un visuel sous le seuil de pertinence dans le contexte de son épisode (scène d'ouverture, niveaux supérieurs) est remplacé au lieu d'être conservé.
+- Le plan « citation » (STAT) n'est plus produit en mode studio (scène de texte seul redondante).
+
 ## [2.12.0] — Phase C : situations visuelles par domaine
 
 ### Ajouté

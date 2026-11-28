@@ -466,7 +466,8 @@ object StoryboardPlanner {
         }
 
         // 5. Chiffre clé : le premier nombre accompagné d'une unité parlante.
-        val stat = findStat(a)?.let { (value, sentence) ->
+        // Mode studio : le chiffre clé répéterait un passage déjà lu, en fin de vidéo ; il n'est produit que par le chemin historique (compression).
+        val stat = (if (compress) findStat(a) else null)?.let { (value, sentence) ->
             Scene(id = "s-stat", layout = Layout.STAT, durationMs = 1, statValue = value,
                 title = frenchTypo(emphasize(shorten(sentence.trimEnd('.'), 60), d)), variant = variant())
         }

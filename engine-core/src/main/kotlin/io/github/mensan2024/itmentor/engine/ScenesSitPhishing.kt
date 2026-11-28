@@ -211,6 +211,85 @@ internal object SitPhishing {
     }
 
 
+    private fun along(pts: List<Pair<Float, Float>>, u: Float): Pair<Float, Float> {
+        val seg = pts.size - 1; val p = u.coerceIn(0f, 0.9999f) * seg; val i = p.toInt(); val f = p - i
+        return lerp(pts[i].first, pts[i + 1].first, f) to lerp(pts[i].second, pts[i + 1].second, f)
+    }
+
+    private val chain = beat("chain", "L'attaque de bout en bout : du fraudeur au compte volé", SitKit.BODY + setOf(Role.MECHANISM, Role.PROCEDURE), setOf(Goal.COMPRENDRE_MECANISME, Goal.SUIVRE_PROCEDURE, Goal.IDENTIFIER_MENACE),
+        cueSet(Actor.ATTAQUANT, Thing.EMAIL, Thing.LIEN, Thing.MOT_DE_PASSE, Act.ENVOYER) + setOf("topic:chain"), minMs = 8000, needs = setOf("topic:chain")) { c ->
+        val g = c.g; val th = c.th; val t = c.t
+        val floor = SitKit.office(c, 600f)
+        SitKit.fiction(c)
+        val xs = listOf(100f, 300f, 500f, 705f, 900f); val y = 300f
+        val stepMs = ((c.scene.durationMs - 1200f) / 5f).coerceIn(1200f, 3200f)
+        fun lit(i: Int) = SK.ease(t, 500f + i * stepMs, 400f)
+        for (i in 0..3) g.line(xs[i] + 40f, y + 90f, xs[i + 1] - 40f, y + 90f, 6f, th.line.withAlpha(0.7f))
+        // 1 le fraudeur
+        g.withPose(Pose(alpha = SK.pop(t, 200f), scale = 1f), xs[0], y) {
+            SK.hood(g, xs[0], y - 40f, 58f, rgb(0x1B2233), th.bad); SK.laptop(g, xs[0], y + 150f, 150f, th, screen = th.bad.withAlpha(0.35f))
+        }
+        // 2 le faux message
+        val p2 = SK.pop(t, 500f + stepMs)
+        g.withPose(Pose(alpha = p2, scale = 0.8f + 0.2f * p2), xs[1], y) { SK.envelope(g, xs[1], y + 70f, 150f, th.bad, th.bgTop); SK.text(g, "!", xs[1] + 62f, y + 20f, 46f, th.warn, center = true) }
+        // 3 la victime
+        val p3 = SK.pop(t, 500f + 2 * stepMs)
+        g.withPose(Pose(alpha = p3, scale = 0.85f + 0.15f * p3), xs[2], y) {
+            Cast.draw(g, xs[2], y + 250f, 330f, Cast.persona(1), Face.mix(Face.NEUTRAL, Face.WORRIED, lit(3)), Poses.holdFront(t), t, 1)
+        }
+        // 4 la fausse page
+        val p4 = SK.pop(t, 500f + 3 * stepMs)
+        g.withPose(Pose(alpha = p4, scale = 0.85f + 0.15f * p4), xs[3], y) {
+            g.fillRoundRect(xs[3] - 92f, y - 70f, xs[3] + 92f, y + 150f, 14f, th.panel); g.strokeRoundRect(xs[3] - 92f, y - 70f, xs[3] + 92f, y + 150f, 14f, 4f, th.bad)
+            SK.text(g, "banque-verif.example", xs[3], y - 40f, 15f, th.bad, 600, center = true, family = FontFamily.MONO)
+            g.fillRoundRect(xs[3] - 68f, y - 14f, xs[3] + 68f, y + 20f, 7f, th.bgBottom); g.fillRoundRect(xs[3] - 68f, y + 40f, xs[3] + 68f, y + 74f, 7f, th.bgBottom)
+            val dots = (lit(3) * 8f).toInt(); for (k in 0 until dots) g.fillCircle(xs[3] - 56f + k * 16f, y + 57f, 5f, th.ink)
+            g.fillRoundRect(xs[3] - 68f, y + 92f, xs[3] + 68f, y + 126f, 7f, th.bad)
+        }
+        // 5 le compte volé
+        val p5 = SK.pop(t, 500f + 4 * stepMs)
+        g.withPose(Pose(alpha = p5, scale = 0.85f + 0.15f * p5), xs[4], y) {
+            g.fillRoundRect(xs[4] - 80f, y - 40f, xs[4] + 80f, y + 150f, 18f, th.panel); g.strokeRoundRect(xs[4] - 80f, y - 40f, xs[4] + 80f, y + 150f, 18f, 4f, mix(th.line, th.bad, lit(4)))
+            SK.lock(g, xs[4], y + 70f, 66f, th.panelHi, mix(th.good, th.bad, lit(4)), open = lit(4), shake = 0f)
+        }
+        // L'information voyage : le message vers la victime, puis les identifiants jusqu'au compte volé.
+        val u = clamp01((t - 500f) / (stepMs * 4f))
+        if (t > 500f) { val (px, py) = along(xs.map { it to y + 90f }, u); SK.packet(g, px, py, 15f, if (u < 0.5f) th.warn else th.bad) }
+        val names = listOf("FRAUDEUR", "FAUX MESSAGE", "VICTIME", "FAUSSE PAGE", "COMPTE")
+        for (i in 0..4) SK.pill(g, names[i], xs[i], 520f, th.muted, th.bgTop.withAlpha(0.85f), 20f, SK.pop(t, 300f + i * stepMs))
+        val labels = listOf("1  CHOISIT UNE MARQUE", "2  ENVOIE LE MESSAGE", "3  LA VICTIME CLIQUE", "4  SAISIT SES IDENTIFIANTS", "5  COMPTE VOLÉ")
+        val cur = (((t - 500f) / stepMs).toInt()).coerceIn(0, 4)
+        SK.pill(g, labels[cur], 500f, 600f, th.ink, th.bgTop.withAlpha(0.9f), 28f)
+    }
+
+    private val damage = beat("damage", "Ce que coûte un compte volé", SitKit.BODY + setOf(Role.MECHANISM, Role.RECAP), setOf(Goal.IDENTIFIER_MENACE, Goal.COMPRENDRE_MECANISME),
+        cueSet(Actor.ATTAQUANT, Thing.COMPTE) + setOf("topic:damage"), minMs = 6000, needs = setOf("topic:damage")) { c ->
+        val g = c.g; val th = c.th; val t = c.t
+        val floor = SitKit.office(c, 600f)
+        SitKit.fiction(c)
+        Cast.draw(g, 150f, floor + 20f, 380f, Cast.persona(1), Face.mix(Face.WORRIED, Face.ALARMED, SK.ease(t, 1800f, 500f)), Poses.holdFront(t), t, 1)
+        // Le compte : un cadenas qui s'ouvre.
+        val open = SK.ease(t, 700f, 600f)
+        g.fillRoundRect(320f, 200f, 520f, 420f, 22f, th.panel); g.strokeRoundRect(320f, 200f, 520f, 420f, 22f, 4f, mix(th.line, th.bad, open))
+        SK.lock(g, 420f, 300f, 70f, th.panelHi, mix(th.good, th.bad, open), open = open)
+        SK.pill(g, "COMPTE", 420f, 450f, th.ink, th.bgTop.withAlpha(0.9f), 24f)
+        // Trois conséquences qui partent du compte, une à la fois.
+        val rows = listOf(120f to "DONNÉES VOLÉES", 285f to "VIREMENTS FRAUDULEUX", 470f to "CONTACTS PIÉGÉS")
+        for ((i, rw) in rows.withIndex()) {
+            val ts = 1600f + i * 1700f; val p = SK.ease(t, ts, 500f)
+            val y = rw.first
+            g.line(520f, 310f, 640f, y, 4f, th.bad.withAlpha(0.5f * p))
+            g.withPose(Pose(alpha = p, scale = 0.8f + 0.2f * p), 740f, y) {
+                when (i) {
+                    0 -> { g.fillRoundRect(650f, y - 36f, 770f, y + 36f, 10f, th.panel); for (k in 0..2) g.line(662f, y - 18f + k * 18f, 758f - k * 14f, y - 18f + k * 18f, 3f, th.muted); SK.hood(g, 850f, y - 6f, 30f, rgb(0x1B2233), th.bad) }
+                    1 -> { for (k in 0..2) g.fillCircle(670f + k * 34f, y + 8f - 10f * sin(t / 300f + k), 15f, th.warn); SK.hood(g, 850f, y - 6f, 30f, rgb(0x1B2233), th.bad) }
+                    else -> { for (k in 0..2) { Cast.draw(g, 690f + k * 90f, y + 80f, 120f, Cast.persona(2 + k), Face.SURPRISED, Poses.idle(t), t, 2 + k); SK.envelope(g, 690f + k * 90f, y - 75f, 44f, th.bad, th.bgTop) } }
+                }
+            }
+            SK.pill(g, rw.second, 740f, if (i == 2) y + 108f else y + 64f, th.bad, th.bgTop.withAlpha(0.9f), 20f, p)
+        }
+    }
+
     /** Affiche courte (cartes d'ouverture) : une personne, un message, un doute. */
     private val poster = beat("poster", "Affiche : un message qui fait douter", setOf(Role.INTRO), setOf(Goal.MEMORISER), emptySet(), repeatable = true) { c ->
         val g = c.g; val th = c.th; val t = c.t
@@ -220,5 +299,5 @@ internal object SitPhishing {
         g.withPose(Pose(alpha = p, scale = 0.6f + 0.4f * p), 700f, 290f) { SK.glow(g, 700f, 290f, 280f, th.bad, 0.14f); SK.envelope(g, 700f, 290f, 330f, th.panelHi, th.warn); Props.notifBadge(g, 840f, 190f, 1, 1f, th.bad); SK.text(g, "?", 700f, 330f, 120f, th.bad, 800, center = true) }
     }
 
-    val kind = SceneKind("sit-phishing", "Hameçonnage en situation", setOf(Concept.PHISHING), listOf(inbox, clues, hover, callback, report, victim, poster), fallbackFor = setOf(Concept.MALWARE))
+    val kind = SceneKind("sit-phishing", "Hameçonnage en situation", setOf(Concept.PHISHING), listOf(inbox, clues, hover, callback, report, victim, chain, damage, poster), fallbackFor = setOf(Concept.MALWARE))
 }

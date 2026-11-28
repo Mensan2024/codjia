@@ -1,0 +1,28 @@
+Le phishing : le faux courriel qui vole ton mot de passe
+Lundi matin, Awa ouvre sa boîte de réception. Un courriel de « sa banque » lui annonce que son compte sera suspendu sous 24 heures. Il lui demande de confirmer ses informations en cliquant sur un lien.
+C'est du hameçonnage, ou phishing : un fraudeur imite un organisme de confiance pour te pousser à révéler tes identifiants ou tes données bancaires, ou à ouvrir un fichier piégé.
+Comment l'attaque se déroule :
+- Le fraudeur choisit une marque connue et copie son logo et son style.
+- Il envoie un message urgent : compte suspendu, colis bloqué ou facture impayée.
+- Le lien mène à une fausse page de connexion, hébergée sur une adresse qui ressemble à la vraie.
+- Tu saisis ton identifiant et ton mot de passe : ils sont envoyés directement au fraudeur.
+- Il se connecte à ton vrai compte, ou il revend tes identifiants.
+Les conséquences :
+- Ton compte est volé, avec toutes les données qu'il contient.
+- Des virements ou des achats frauduleux sont faits en ton nom.
+- Le fraudeur utilise ton compte pour piéger tes contacts ou entrer dans le réseau de ton entreprise.
+Comment le reconnaître :
+- Un message urgent qui menace de suspendre ton compte
+- Une adresse d'expéditeur qui ressemble à celle de la banque sans être la sienne
+- Un lien dont l'adresse réelle ne correspond pas au texte affiché
+- Une formule générique à la place de ton nom, ou une pièce jointe que tu n'attendais pas
+Comment le détecter :
+- Survole le lien avec ta souris : l'adresse réelle s'affiche, compare-la au site officiel.
+Comment s'en protéger :
+- Ne clique pas sur le lien : ouvre le site en tapant toi-même son adresse.
+- Appelle l'organisme avec le numéro officiel, jamais avec celui du message.
+- Active la double authentification : un second contrôle s'ajoute à ton mot de passe.
+- Signale le courriel à ton service informatique, puis supprime-le.
+Si tu as déjà saisi ton mot de passe : change-le immédiatement sur le site officiel et préviens ta banque ou ton service informatique.
+À retenir : face à un message urgent qui demande tes identifiants, ne clique pas : vérifie par un canal officiel.
+#securiteinformatiquepourtous

@@ -86,6 +86,9 @@ class StoryPlan(
     private fun need(id: String) = require(storyboard.scenes.any { it.id == id }) { "Scène inconnue : $id" }
 
     /** Remplace le visuel d'une scène (clé « genre/plan » ou [Pins.TEXT_ONLY]). Rien d'autre ne bouge. */
+    /** Fixe le visuel choisi par le moteur (et non par l'utilisateur) : ne marque pas la scène comme choisie à la main. */
+    internal fun withEnginePin(id: String, key: String): StoryPlan = copy(pins = pins + (id to key))
+
     fun replaceVisual(id: String, key: String): StoryPlan {
         need(id)
         require(key == Pins.TEXT_ONLY || SceneRegistry.find(key) != null) { "Visuel inconnu : $key" }
@@ -298,6 +301,13 @@ class StoryPlan(
 
 /** Point d'entrée « studio » : du texte à un plan de production modifiable, sans compression des scènes. */
 object Studio {
+    /** Phase D.1 : une demande courte → la leçon écrite par [LessonWriter] → plan de production. Null si le sujet n'est pas dans la bibliothèque. */
+    fun ask(prompt: String, level: TechLevel = TechLevel.DEBUTANT, seed: Long = 7, voice: Boolean = true, look: Look = Look.SCENARIO, budgetMs: Int = Episodes.BUDGET_MS): Pair<Ask, StoryPlan?> {
+        val a = LessonWriter.understand(prompt, level)
+        val card = a.card ?: return a to null
+        return a to plan(LessonWriter.write(card, level), seed, voice, look, budgetMs)
+    }
+
     /**
      * @param voice avec voix off, les durées tiennent compte de la phrase lue
      * @param look format de réalisation (par défaut Scénario, le pipeline principal)
@@ -308,6 +318,17 @@ object Studio {
         val picks = ScenarioPlanner.plan(sb).picks
         val pins = sb.scenes.mapIndexed { i, s -> s.id to (picks[i]?.key ?: Pins.TEXT_ONLY) }.toMap()
         val a = Episodes.assign(sb.scenes, voice, budgetMs)
-        return StoryPlan(text, seed, look, p.template.id, p.musicId, voice, budgetMs, sb.scenes.mapIndexed { i, s -> s.id to a[i] }.toMap(), pins)
+        var plan = StoryPlan(text, seed, look, p.template.id, p.musicId, voice, budgetMs, sb.scenes.mapIndexed { i, s -> s.id to a[i] }.toMap(), pins)
+        // Les plans ont été attribués sur toute la vidéo ; or chaque épisode est évalué avec son propre contexte (durée, texte voisin).
+        // Un plan qui y tombe sous le seuil de pertinence est remplacé par le meilleur plan libre de l'épisode, sinon la scène reste sans image.
+        for (s in sb.scenes) {
+            val key = plan.pins[s.id] ?: continue
+            if (key == Pins.TEXT_ONLY) continue
+            val alt = plan.alternatives(s.id, 300).firstOrNull { it.key == key }
+            if (alt != null && !alt.belowThreshold) continue
+            val better = plan.alternatives(s.id, 12).firstOrNull { !it.belowThreshold && it.usedBy == null }?.key ?: Pins.TEXT_ONLY
+            plan = plan.withEnginePin(s.id, better)
+        }
+        return plan
     }
 }
