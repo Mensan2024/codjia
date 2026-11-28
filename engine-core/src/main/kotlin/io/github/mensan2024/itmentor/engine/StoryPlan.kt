@@ -185,7 +185,7 @@ class StoryPlan(
                     else -> "ok : le texte cite " + shown.filter { c -> c in it.textCues }.joinToString(", ") { c -> c.substringAfter(':') }
                 }
                 val repeat = pick?.let { p -> seen[p.key]?.let { f -> "déjà montré en $f" } }
-                if (pick != null) seen.putIfAbsent(pick.key, "$epNo.${i + 1}")
+                if (pick != null) if (pick.key !in seen) seen[pick.key] = "$epNo.${i + 1}"
                 out += AuditRow(epNo, i + 1, sc.id, sc.layout.name, exactText(sc), if (voice) Narration.textOf(sc) else "", it.concept.label, it.role.label,
                     it.textCues.sorted(), pick?.key, pick?.beat?.label, shown.map { c -> c.substringAfter(':') }.sorted(), pick?.fit, note, repeat, sc.durationMs)
             }
@@ -207,7 +207,7 @@ class StoryPlan(
                 refusal != null -> "refusé : $refusal"
                 dur < b.minMs -> "trop court (${dur} ms < ${b.minMs} ms)"
                 f <= 0f -> "écarté (domaine, indices obligatoires ou concept)"
-                else -> "note ${"%.2f".format(f)}"
+                else -> "note ${fmt2(f)}"
             }
             if (f > 0f || refusal != null && (k.id.startsWith("net3d") || k.id == "firewall")) out += "${k.id}/${b.id} : $note"
         }
