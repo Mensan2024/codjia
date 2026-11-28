@@ -267,6 +267,8 @@ object StoryboardPlanner {
         return cut.trimEnd(',', ';', ':', ' ') + "…"
     }
 
+    private val CONTINUATION = Regex("^(d'|d’|de |du |des |et |ou |ni |puis |ainsi que )")
+
     /** Élément de liste → « libellé : détail » pour une hiérarchie visuelle claire. */
     private fun item(raw: String): String {
         val s = raw.trim().trimEnd('.', ';').trim()
@@ -275,6 +277,8 @@ object StoryboardPlanner {
         for (sep in listOf(" (", ", ", " pour ", " afin ", " avec ", " sur ", " lorsque ", " quand ")) {
             val i = s.indexOf(sep)
             if (sep == " (" && !s.endsWith(")")) continue
+            // une virgule qui prolonge une énumération (« comptes d'utilisateurs, d'ordinateurs et de groupes ») ne sépare pas un libellé de son détail
+            if (sep == ", " && CONTINUATION.containsMatchIn(s.substringAfter(sep).trimStart().lowercase())) continue
             if (i in 14..52 && s.length - i >= 18) {
                 val label = s.substring(0, i).trim()
                 val detail = s.substring(i + if (sep == " (") 2 else sep.length).trim().trimEnd(')')
@@ -406,6 +410,8 @@ object StoryboardPlanner {
                     fam == ContentFamily.BIBLE -> if (defCount == 0) "Pour *méditer*" else "À *méditer*"
                     defCount > 0 -> if (english) "And also" else pick(listOf("Et *aussi*", "À *savoir*", "*Concrètement*"))
                     english -> pick(listOf("The idea", "In short", "Why it matters"))
+                    // Mode studio : le titre dit ce que la scène EST (une définition ou la suite d'une situation), pas une accroche au hasard.
+                    !compress -> if (Regex("\\b(est|sont) (un|une|le|la|l[’'])|désigne|signifie").containsMatchIn(body)) "Le *principe*" else "La *situation*"
                     else -> pick(listOf("Le *principe*", "Ce qu’il faut *savoir*", "*Pourquoi* c’est important$NB?", "*Comprendre* en 10 secondes"))
                 }
                 scenes += Scene(id = if (defCount == 0) "s-def" else "s-def$si-$gi", layout = Layout.DEFINITION, durationMs = 1,
@@ -428,14 +434,20 @@ object StoryboardPlanner {
             if (items.size >= 2) {
                 val nChunks = (items.size + 4) / 5
                 val per = (items.size + nChunks - 1) / nChunks
-                val chunks = items.chunked(per).let { ch -> if (ch.size > 1 && ch.last().size < 2) ch.dropLast(2) + listOf(ch[ch.size - 2] + ch.last()) else ch }
+                // Mode studio, sections de mécanisme : une scène par mécanisme (Hello, LSA, calcul du chemin…), pour qu'une seule animation les illustre.
+                val byMechanism = if (!compress && headed != null && DomainDetector.normalize(headed).trimStart().let { h -> MECH_SECTIONS.any { h.startsWith(it) } }) mechanismChunks(items, IntentAnalyzer.subjectOf(ContentAnalyzer.analyze(raw).concept)) else null
+                val chunks = byMechanism ?: items.chunked(per).let { ch -> if (ch.size > 1 && ch.last().size < 2) ch.dropLast(2) + listOf(ch[ch.size - 2] + ch.last()) else ch }
                 for ((k, chunk) in chunks.withIndex()) {
                     val t = when {
                         headed != null && headed.length in 3..64 -> headed + if (chunks.size > 1) " (${k + 1}/${chunks.size})" else ""
                         english -> "Step by step"
                         else -> pick(listOf("Les bons réflexes", "Comment faire$NB?", "Étape par étape", "Passe à l’action"))
                     }
-                    val sc = Scene(id = if (stepScenes.isEmpty()) "s-steps$k" else "s-steps$si-$k", layout = Layout.STEPS, durationMs = 1, icon = icons.last(),
+                    val sid = if (stepScenes.isEmpty()) "s-steps$k" else "s-steps$si-$k"
+                    // Un mécanisme qui n'a qu'une puce est une scène de lecture (comme un paragraphe), pas une liste d'un seul élément.
+                    val sc = if (chunk.size == 1 && byMechanism != null) Scene(id = sid, layout = Layout.DEFINITION, durationMs = 1, kicker = if (english) "IN DETAIL" else "EN DÉTAIL",
+                        icon = icons[1 % icons.size], shape = ShapeKind.RING, title = frenchTypo(emphasize(t, d)), body = chunk.first(), variant = variant(), authorTitle = headed != null && headed.length in 3..64)
+                    else Scene(id = sid, layout = Layout.STEPS, durationMs = 1, icon = icons.last(),
                         title = frenchTypo(emphasize(t, d)), items = chunk, variant = variant(), authorTitle = headed != null && headed.length in 3..64)
                     stepScenes += sc
                     scenes += sc
@@ -514,7 +526,25 @@ object StoryboardPlanner {
         }
 
         return fit(compress, Storyboard(id = "gen-${seed.toString(16)}", title = Marked.strip(a.title), templateId = templateId ?: Templates.recommendFor(d).id,
-            scenes = scenes.map { withDuration(it) }, hashtag = a.hashtags.firstOrNull() ?: "#codjia", seed = seed))
+            scenes = scenes.map { withDuration(it).copy(fullVoice = !compress) }, hashtag = a.hashtags.firstOrNull() ?: "#codjia", seed = seed))
+    }
+
+    private val MECH_SECTIONS = listOf("comment ca fonctionne", "comment l'attaque se deroule", "erreurs frequentes", "comment le detecter", "comment s'en proteger")
+
+    /**
+     * Découpe une liste de puces en scènes d'un seul mécanisme (voir [IntentAnalyzer.stepGroup]) : séries de puces du même mécanisme,
+     * trois au plus par scène. `null` si les puces ne se laissent pas classer (alors la découpe habituelle s'applique).
+     */
+    private fun mechanismChunks(items: List<String>, subject: String?): List<List<String>>? {
+        if (items.size < 2) return null
+        val keys = items.map { IntentAnalyzer.stepGroup(it, subject) }
+        if (keys.count { it != null } * 10 < items.size * 6 || keys.filterNotNull().toSet().size < 2) return null
+        // Une puce sans mécanisme reconnu suit la précédente (la première, la suivante).
+        val filled = keys.toMutableList()
+        for (i in filled.indices) if (filled[i] == null) filled[i] = filled.getOrNull(i - 1) ?: keys.drop(i).firstOrNull { it != null }
+        val runs = ArrayList<ArrayList<String>>()
+        for ((i, item) in items.withIndex()) { if (i == 0 || filled[i] != filled[i - 1]) runs.add(ArrayList()); runs[runs.size - 1].add(item) }
+        return runs.flatMap { r -> if (r.size <= 3) listOf(r) else r.chunked((r.size + 1) / 2) }
     }
 
     private fun findStat(a: TextAnalysis): Pair<String, String>? {

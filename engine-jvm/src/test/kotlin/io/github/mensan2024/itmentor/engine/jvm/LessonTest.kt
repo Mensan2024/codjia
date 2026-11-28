@@ -58,4 +58,33 @@ class LessonTest {
             assertTrue(ask.note.contains(level.label))
         }
     }
+
+    @Test fun `les cinq demandes de demonstration sont reconnues et planifiees sans scene sans image au niveau intermediaire`() {
+        val demandes = mapOf("Phishing" to "phishing", "OSPF" to "ospf", "Ransomware" to "ransomware", "Active Directory" to "active-directory", "Pare-feu" to "firewall",
+            "Explique-moi OSPF" to "ospf", "C'est quoi un pare-feu ?" to "firewall", "Comment fonctionne Active Directory" to "active-directory")
+        for ((q, id) in demandes) {
+            val (ask, plan) = Studio.ask(q, TechLevel.INTERMEDIAIRE)
+            assertEquals("« $q »", id, ask.card?.id)
+            assertNotNull(plan); plan!!
+            assertEquals("« $q » : ${plan.fidelity().missing}", 1.0, plan.fidelity().presence, 1e-9)
+            assertTrue("« $q » : ${plan.qc()}", plan.qc().none { it.startsWith("BLOQUANT") })
+            val vis = plan.cards().mapNotNull { it.visualKey }
+            assertTrue("« $q » : un seul genre de plan attendu pour une notion", vis.isNotEmpty())
+        }
+    }
+
+    @Test fun `un plan de rancongiciel ne montre jamais de visuel d'hameconnage`() {
+        for (level in TechLevel.entries) {
+            val (_, plan) = Studio.ask("Ransomware", level)
+            val keys = plan!!.cards().mapNotNull { it.visualKey }
+            assertTrue("${level.label} : $keys", keys.none { it.startsWith("sit-phishing") || it.startsWith("phishing/") })
+        }
+    }
+
+    @Test fun `les plans 3D d'un sujet ne servent que ce sujet`() {
+        val (_, ospf) = Studio.ask("OSPF", TechLevel.INTERMEDIAIRE)
+        val (_, ad) = Studio.ask("Active Directory", TechLevel.INTERMEDIAIRE)
+        assertTrue(ospf!!.cards().mapNotNull { it.visualKey }.none { it.startsWith("net3d-ad") || it.startsWith("net3d-ransom") })
+        assertTrue(ad!!.cards().mapNotNull { it.visualKey }.none { it.startsWith("net3d-ospf") || it.startsWith("net3d-ransom") })
+    }
 }

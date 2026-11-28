@@ -197,7 +197,7 @@ internal object SitAid {
     }
 
 
-    private val poster = beat("poster", "Affiche : une famille au camp", setOf(Role.INTRO), setOf(Goal.MEMORISER), emptySet(), repeatable = true) { c ->
+    private val poster = beat("poster", "Affiche : une famille au camp", setOf(Role.INTRO, Role.RECAP), setOf(Goal.MEMORISER), emptySet(), repeatable = true) { c ->
         val g = c.g; val t = c.t
         val hz = dusk(c, 380f); caption(c)
         for (i in 0 until 5) Props.tent(g, 90f + i * 210f, hz + 30f + (i % 2) * 16f, 130f, if (i % 2 == 0) Props.CANVAS else rgb(0xC9D8E8), rgb(0x3A7BD5))

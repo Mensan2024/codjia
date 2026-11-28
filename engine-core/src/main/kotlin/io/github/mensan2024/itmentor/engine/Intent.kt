@@ -19,7 +19,8 @@ enum class Concept(val label: String) {
     FIREWALL("Pare-feu"), TOPOLOGY("Topologie réseau"), SEGMENTATION("Segmentation (VLAN)"), CLIENT_SERVER("Client et serveur"),
     GRATITUDE("Gratitude"), STRESS("Stress et apaisement"), FUNNEL("Tunnel de vente"),
     METHOD("Méthode ou enchaînement d'étapes"), WATER("Accès à l'eau potable"),
-    AID("Aide humanitaire et situations humaines"), NETFLOW("Circulation des données dans un réseau"), NONE("Sans concept visuel net"),
+    AID("Aide humanitaire et situations humaines"), NETFLOW("Circulation des données dans un réseau"),
+    ROUTING("Routage dynamique (OSPF)"), DIRECTORY("Annuaire et domaine Windows"), NONE("Sans concept visuel net"),
 }
 
 /** Place de la scène dans le récit pédagogique. */
@@ -96,6 +97,9 @@ data class SceneIntent(
     val topics: Set<String> = emptySet(),
 ) {
     /** Indices comparables à ceux d'une représentation. */
+    /** Indices tirés du TEXTE de la scène (sans les acteurs que le concept suppose) : c'est ce qu'un plan doit pouvoir montrer. */
+    val textCues: Set<String> by lazy { (acts.map { "act:" + it.name } + things.map { "thing:" + it.name } + actors.map { "actor:" + it.name } + topics.map { "topic:$it" }).toSet() }
+
     val cues: Set<String> by lazy { (acts.map { "act:" + it.name } + things.map { "thing:" + it.name } + (actors + impliedActors).map { "actor:" + it.name } + topics.map { "topic:$it" }).toSet() }
 }
 
@@ -140,6 +144,10 @@ object IntentAnalyzer {
         Lex(Concept.NETFLOW, listOf("\\bdns\\b" to 6, "dhcp" to 6, "\\bnat\\b" to 5, "wi-?fi|wifi" to 5, "\\bvpn\\b" to 5, "adresse ip" to 5, "passerelle" to 3, "\\bip\\b" to 2, "\\blan\\b" to 3, "\\bwan\\b" to 3,
             "flux" to 3, "paquets?" to 2, "protocole" to 3, "ethernet" to 3, "modele osi|couche" to 2, "bande passante" to 3, "latence" to 3, "tcp" to 3, "udp" to 3, "access point|point d'acces" to 4,
             "reseau d'entreprise|reseau informatique|reseaux informatiques" to 5, "fournisseur d'acces" to 3, "internet" to 1, "serveur" to 1, "postes?" to 1, "imprimante" to 2, "ping" to 3, "cable" to 2)),
+        Lex(Concept.ROUTING, listOf("ospf" to 9, "routage" to 5, "\\blsa\\b" to 6, "etats? de liens?" to 7, "adjacence" to 6, "voisins?" to 2, "dijkstra|\\bspf\\b" to 6,
+            "convergence" to 4, "table de routage" to 4, "\\bhello\\b" to 3, "backbone" to 3, "\\baires?\\b" to 2, "eigrp|\\bbgp\\b|\\brip\\b" to 4, "plus court chemin" to 5, "cout du lien|cout d'un lien" to 3)),
+        Lex(Concept.DIRECTORY, listOf("active directory" to 9, "controleurs? de domaine" to 8, "kerberos" to 7, "ldap" to 6, "strategies? de groupe|\\bgpo\\b" to 6, "unites? d'organisation" to 6,
+            "annuaire" to 3, "domaine" to 2, "ticket" to 2, "comptes? d'utilisateurs?" to 3, "foret" to 3, "replication" to 3, "ouverture de session|ouvrir une session" to 3, "groupes?" to 1)),
         Lex(Concept.WATER, listOf("eau potable" to 9, "points? d'eau" to 7, "puits" to 6, "forage" to 6, "pompe" to 3, "\\beau\\b" to 2, "assainissement" to 5, "communaute" to 2,
             "village" to 3, "corvee d'eau" to 6, "maladies? hydriques?" to 6, "hygiene" to 2, "humanitaire" to 3)),
     )
@@ -147,7 +155,7 @@ object IntentAnalyzer {
 
     /** Sujets précis (sur le texte de la scène sans accents) : ils ne portent aucun concept à eux seuls, ils orientent le choix du plan. */
     private val TOPICS = listOf(
-        "inbox" to Regex("courriel|e-?mail|\\bmail\\b|boite de reception|message"),
+        "inbox" to Regex("courriel|e-?mail|\\bmail\\b|boite de reception|message urgent|recoit un message"),
         "urgency" to Regex("urgen|24 ?h|immediat|suspendu|expire|sous \\d+|menace|pression|vite"),
         "sender" to Regex("expediteur|adresse|domaine|usurp|imite|ressemble"),
         "link" to Regex("\\blien|url|clique"),
@@ -155,6 +163,16 @@ object IntentAnalyzer {
         "damage" to Regex("consequence|virements? |achats? frauduleux|compte est vole|piege(?:r)? tes contacts|reseau de ton entreprise"),
         "login" to Regex("mots? de passe|identifiant|connexion|saisi|formulaire|code"),
         "callback" to Regex("appel|telephon|contacte|numero|banque|officiel"),
+        "phish-urgent" to Regex("suspendu sous|sera suspendu|sous 24 (h|heures)|dans les 24 heures"),
+        "phish-click" to Regex("cliquant sur un lien|confirmer (ses|vos|tes) informations|demande de confirmer"),
+        "phish-hover" to Regex("survol|avec ta souris|passe la souris"),
+        "phish-callback" to Regex("appelle|numero officiel|rappelle"),
+        "phish-reset" to Regex("change-le|deja saisi|change ton mot de passe|changer ton mot de passe"),
+        "phish-variants" to Regex("spear|whaling|smishing|vishing"),
+        "phish-headers" to Regex("\\bspf\\b|dkim|dmarc|en-?tete"),
+        "phish-typed" to Regex("en tapant|tape toi-?meme|tapant toi"),
+        "phish-mfa" to Regex("double authentification|deuxieme facteur|second controle|\\bmfa\\b|\\b2fa\\b"),
+        "phish-passkey" to Regex("passkey|cle de securite"),
         "report" to Regex("signal|supprim|transmet|alerte|previens|declare"),
         "attachment" to Regex("piece jointe|fichier|document|telecharg"),
         "lying" to Regex("allonge|au lit|dans le lit|couche|il est (?:vingt|minuit|\\w+ heures)"),
@@ -180,7 +198,7 @@ object IntentAnalyzer {
         "product" to Regex("produit|offre|prix|promotion|catalogue|article|service"),
         "pay" to Regex("paiement|achat|commande|panier|mobile money|caisse|payer|facture"),
         "retain" to Regex("fidel|rachat|avis|recommand|suivi|apres-vente|revient|reviens|deuxieme"),
-        "measure" to Regex("mesure|taux|chiffre|indicateur|analyse|statistique|resultat|donnees"),
+        "measure" to Regex("mesure|taux|chiffre|indicateur|analyse|statistique|resultat|donnees|corrige\\w* la fuite|fuite d[eu]s? (clients|visiteurs|ventes|tunnel)|entonnoir"),
         "customer" to Regex("\\bclients?\\b|acheteur|prospect|consommateur"),
         "shop" to Regex("boutique|magasin|commerce|vendeur|stand\\b|marche\\b|entrepreneur"),
         "dns" to Regex("\\bdns\\b|nom de domaine|resolution de nom|annuaire"),
@@ -195,6 +213,44 @@ object IntentAnalyzer {
         "office" to Regex("entreprise|bureau|employes?|postes?|reseau local|\\blan\\b|salaries|site"),
         "internet" to Regex("internet|fournisseur|\\bfai\\b|cloud|externe|web"),
         "serverroom" to Regex("serveur|datacenter|baie|salle technique|rack"),
+        "ospf" to Regex("\\bospf\\b|etats? de liens?|routage dynamique|routeurs? voisins?|open shortest"),
+        "ospf-hello" to Regex("\\bhello\\b|voisins?|adjacences?|decouvrir ses voisins"),
+        "ospf-lsa" to Regex("\\blsa\\b|diffus|inond|meme carte|base d'etats|etat de ses liens"),
+        "ospf-map" to Regex("carte du reseau|meme carte|partagent la carte"),
+        "ospf-spf" to Regex("\\bspf\\b|dijkstra|plus court|convergence|panne|lien tombe|recalcul|table de routage|meilleurs? chemins?|autre chemin"),
+        "ospf-cost" to Regex("\\bcouts?\\b|bande passante|metrique"),
+        "ospf-dr" to Regex("\\bdr\\b|\\bbdr\\b|routeur designe|reseau ethernet partage"),
+        "ospf-ver" to Regex("ospfv2|ospfv3|ipv4|ipv6|\\bietf\\b|protocole ouvert"),
+        "ospf-mismatch" to Regex("intervalles? hello|delai de mort|aire,? ou un masque|differents? entre deux voisins|adjacence ne se forme pas"),
+        "ospf-area" to Regex("\\babr\\b|backbone|aire 0|decoupant le reseau en aires|routeurs? de bordure"),
+        "purpose" to Regex("a quoi ca sert|a quoi il sert"),
+        "signs" to Regex("comment le reconnaitre|comment les reconnaitre"),
+        "protect" to Regex("s'en proteger|se proteger|comment s'en proteger"),
+        "consequences" to Regex("^ ?les consequences|\\bles consequences\\b"),
+        "ad" to Regex("active directory|controleurs? de domaine|annuaire|domaine|unites? d'organisation|\\bgpo\\b|strategies? de groupe"),
+        "ad-central" to Regex("a quoi ca sert|a quoi il sert|centralise les identites|une seule identite"),
+        "ad-domain" to Regex("centralise les comptes|domaine regroupe|base commune|replication|se la copient|unites? d'organisation|heberg\\w+ par des controleurs"),
+        "ad-gpo" to Regex("strategies? de groupe|\\bgpo\\b|regles? de securite"),
+        "ad-auth" to Regex("kerberos|ticket|ouverture de session|ouvrir une session|authentif|prouve l'identite"),
+        "ad-group" to Regex("places dans des groupes|groupes? qui recoivent|permissions?|droits sont donnes a des groupes"),
+        "ad-admin" to Regex("droits d'administrateur|au quotidien|moindre privilege|comptes? d'administration"),
+        "ad-dcfail" to Regex("un seul controleur|plus personne ne peut s'authentifier"),
+        "fw" to Regex("pare-?feu|firewall|\\bdmz\\b|regles?"),
+        "fw-zones" to Regex("relie des zones|\\bzones?\\b|\\bdmz\\b|serveurs? publics?"),
+        "fw-packet" to Regex("chaque paquet|lit chaque paquet|adresses? source|protocole et port"),
+        "fw-rule" to Regex("de haut en bas|premiere regle|par defaut|dans l'ordre|compare le paquet aux regles"),
+        "fw-state" to Regex("a etats|stateful|reponse a une requete|connexion entrante"),
+        "fw-mistake" to Regex("regle trop large|tout autoriser|ordre des regles|trop haut|masque les regles"),
+        "ransom" to Regex("rancon|ransomware|chiffr"),
+        "ransom-spread" to Regex("explore le reseau|se propage|dossiers partages|chiffre les fichiers|un a un|sauvegardes accessibles"),
+        "ransom-note" to Regex("message de rancon|reclame|paiement|delai"),
+        "ransom-impact" to Regex("l'activite s'arrete|inutilisables?"),
+        "ransom-leak" to Regex("double extorsion|vol des donnees|donnees peuvent etre volees|publier|publiees"),
+        "ransom-react" to Regex("debranche|previens|ne paie pas|si tu vois le message"),
+        "ransom-entry" to Regex("l'entree|courriel piege|acces a distance|faille"),
+        "ransom-detect" to Regex("\\bedr\\b|detection|journaux|isole|alerte"),
+        "ransom-segment" to Regex("segmente|segmentation|limite les droits|ne se propage|compte ordinaire"),
+        "backup" to Regex("hors ligne|immuable|restauration|3-2-1|teste leur"),
         "flow" to Regex("flux|trafic|paquet|donnees|circule|transit|achemin"),
     )
 
@@ -285,7 +341,7 @@ object IntentAnalyzer {
         Cue(Act.PUISER, "puise|pompe|acces a|approvision|collecter l'eau|ameliore"),
     )
 
-    private val ADVICE_RE = Regex("comment l'eviter|comment l'eviter|eviter|conseil|reflexe|protege|proteger|solution|bonnes? pratiques?|que faire|si tu as clique|comporter|parade|prevenir|gestes?|a essayer|essayer|mets en place|active\\b|utilise\\b|surveille|ne clique")
+    private val ADVICE_RE = Regex("comment l'eviter|comment l'eviter|eviter|conseil|reflexe|protege|proteger|solution|bonnes? pratiques?|que faire|si tu as clique|comporter|parade|prevenir|gestes?|a essayer|essayer|mets en place|active\\b(?! directory)|utilise\\b|surveille|ne clique")
     private val RECOGNIZE_RE = Regex("reconnai|indices?|signes?|detecter|repere|comment savoir|alerte|symptome")
     private val ATTACK_WORDS = Regex("attaque|pirate|hacker|piege|arnaque|usurp|imite|essayer de nombreuses|intrusion|rancon|malveillant|vol de")
 
@@ -321,6 +377,7 @@ object IntentAnalyzer {
         val videoNorm = " " + DomainDetector.normalize(TextSanitizer.clean(videoText(sb))) + " "
         val video = conceptScores(videoNorm)
         val last = sb.scenes.lastIndex
+        val subject = videoSubject(profile)
         return sb.scenes.mapIndexed { i, sc ->
             val clean = TextSanitizer.clean(sceneText(sc))
             val t = " " + DomainDetector.normalize(clean) + " "
@@ -352,7 +409,10 @@ object IntentAnalyzer {
             if (SemanticGate.hasObject3D(t)) things += Thing.OBJET_3D
             if (SemanticGate.hasAttack(videoNorm)) things += Thing.ATTAQUE
             val acts = ACTS.filter { it.re.containsMatchIn(t) }.map { it.value }.toMutableSet()
-            val topics = TOPICS.filter { it.second.containsMatchIn(t) }.map { it.first }.toSet()
+            // Les sujets techniques dédiés (OSPF, AD, pare-feu, rançongiciel) ne valent que dans une vidéo qui parle de CE sujet :
+            // « chemin » dans un texte d'hameçonnage n'est pas du routage.
+            val topics = TOPICS.filter { it.second.containsMatchIn(t) }.map { it.first }
+                .filter { tp -> val sj = tp.substringBefore('-'); sj !in SUBJECT_TOPICS || sj == subject }.toSet()
             // Un lexique de concept ne fait pas un acte : on retire ce que le concept n'autorise pas à illustrer seul.
             val implied = HashSet<Actor>()
             if (concept in IMPLIES_ATTACKER && Actor.ATTAQUANT !in actors) implied += Actor.ATTAQUANT
@@ -438,6 +498,38 @@ object IntentAnalyzer {
         }
     }
 
+    /**
+     * Mécanisme d'une puce de leçon : le premier sujet (dans cet ordre) que la puce cite. Des puces consécutives du même mécanisme
+     * partagent une scène ; un autre mécanisme ouvre une nouvelle scène, pour qu'une scène n'ait qu'un plan qui l'illustre.
+     */
+    private val SUBJECT_TOPICS = setOf("ospf", "ad", "fw", "ransom", "phish")
+
+    private fun videoSubject(profile: ContentProfile): String? = subjectOf(profile.concept)
+
+    /** (sujet, indice de sujet précis, mécanisme) : l'ordre est la priorité quand une puce en cite plusieurs. Le sujet de la vidéo restreint la liste. */
+    private val STEP_GROUPS = listOf(
+        Triple("ospf", "ospf-dr", "dr"), Triple("ospf", "ospf-mismatch", "timers"), Triple("ospf", "ospf-area", "area"), Triple("ospf", "ospf-spf", "path"),
+        Triple("ospf", "ospf-cost", "path"), Triple("ospf", "ospf-lsa", "lsa"), Triple("ospf", "ospf-map", "lsa"), Triple("ospf", "ospf-hello", "hello"),
+        Triple("ad", "ad-dcfail", "dcfail"), Triple("ad", "ad-admin", "admin"), Triple("ad", "ad-group", "group"), Triple("ad", "ad-auth", "auth"), Triple("ad", "ad-domain", "domain"),
+        Triple("fw", "fw-state", "state"), Triple("fw", "fw-mistake", "mistake"), Triple("fw", "fw-rule", "rules"), Triple("fw", "fw-packet", "packet"), Triple("fw", "fw-zones", "zones"),
+        Triple("ransom", "ransom-leak", "leak"), Triple("ransom", "ransom-note", "note"), Triple("ransom", "ransom-spread", "spread"), Triple("ransom", "ransom-entry", "entry"),
+        Triple("phish", "phish-typed", "typed"), Triple("phish", "phish-headers", "headers"), Triple("phish", "phish-passkey", "passkey"), Triple("phish", "phish-mfa", "mfa"),
+        Triple("phish", "phish-reset", "reset"), Triple("phish", "phish-hover", "hover"), Triple("phish", "phish-callback", "callback"), Triple("phish", "report", "report"),
+    )
+
+    /** Mécanisme que cite une puce, dans le sujet de la vidéo seulement (ex. « ospf », « phish »), ou `null`. */
+    fun stepGroup(item: String, subject: String?): String? {
+        if (subject == null) return null
+        val t = " " + DomainDetector.normalize(TextSanitizer.clean(Marked.strip(item))) + " "
+        val topics = TOPICS.filter { it.second.containsMatchIn(t) }.map { it.first }.toSet()
+        return STEP_GROUPS.firstOrNull { it.first == subject && it.second in topics }?.third
+    }
+
+    /** Sujet technique dédié d'une vidéo, d'après son concept dominant. */
+    fun subjectOf(concept: Concept): String? = when (concept) {
+        Concept.ROUTING -> "ospf"; Concept.DIRECTORY -> "ad"; Concept.FIREWALL -> "fw"; Concept.MALWARE -> "ransom"; Concept.PHISHING -> "phish"; else -> null
+    }
+
     private val MOTIFS = listOf(
         "mfa" to Regex("\\bmfa\\b|double authentification|deux facteurs|2fa"),
         "limit" to Regex("limit|fail2ban|verrouill|bannit"),
@@ -466,8 +558,8 @@ object IntentAnalyzer {
 
     /** Domaines où un concept peut s'appliquer : « stress » dans un texte de réseau n'est pas un sujet d'apaisement. */
     private fun allowedConcepts(f: ContentFamily): Set<Concept> = when (f) {
-        ContentFamily.CYBER -> setOf(Concept.PHISHING, Concept.BRUTE_FORCE, Concept.MALWARE, Concept.FIREWALL, Concept.CLIENT_SERVER, Concept.TOPOLOGY, Concept.SEGMENTATION, Concept.NETFLOW)
-        ContentFamily.NETWORK -> setOf(Concept.TOPOLOGY, Concept.SEGMENTATION, Concept.FIREWALL, Concept.CLIENT_SERVER, Concept.MALWARE, Concept.BRUTE_FORCE, Concept.PHISHING, Concept.NETFLOW)
+        ContentFamily.CYBER -> setOf(Concept.ROUTING, Concept.DIRECTORY, Concept.PHISHING, Concept.BRUTE_FORCE, Concept.MALWARE, Concept.FIREWALL, Concept.CLIENT_SERVER, Concept.TOPOLOGY, Concept.SEGMENTATION, Concept.NETFLOW)
+        ContentFamily.NETWORK -> setOf(Concept.ROUTING, Concept.DIRECTORY, Concept.TOPOLOGY, Concept.SEGMENTATION, Concept.FIREWALL, Concept.CLIENT_SERVER, Concept.MALWARE, Concept.BRUTE_FORCE, Concept.PHISHING, Concept.NETFLOW)
         ContentFamily.DEV -> setOf(Concept.CLIENT_SERVER, Concept.FIREWALL, Concept.MALWARE, Concept.BRUTE_FORCE, Concept.METHOD, Concept.NETFLOW)
         ContentFamily.AI -> setOf(Concept.CLIENT_SERVER, Concept.MALWARE, Concept.PHISHING, Concept.METHOD)
         ContentFamily.MENTAL, ContentFamily.HEALTH -> setOf(Concept.STRESS, Concept.GRATITUDE)

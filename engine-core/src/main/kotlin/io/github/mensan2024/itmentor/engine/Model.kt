@@ -109,6 +109,12 @@ data class Scene(
     val demo: DemoStep? = null,
     /** Vrai si le titre est l'intitulé écrit par l'auteur (à montrer tel quel), faux s'il est généré. */
     val authorTitle: Boolean = false,
+    /**
+     * Mode studio : la voix lit TOUT ce que la scène affiche (chaque puce en entier). Dans une astuce courte, la voix ne lit que
+     * l'intitulé de chaque puce et l'écran porte le détail ; dans une leçon technique, une phrase tronquée (« Quand un lien tombe. »)
+     * ne veut plus rien dire pour qui écoute.
+     */
+    val fullVoice: Boolean = false,
 ) {
     init {
         require(id.isNotBlank()) { "Une scène doit avoir un identifiant" }

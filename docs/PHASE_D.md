@@ -25,3 +25,10 @@ Un plan attribué sur toute la vidéo pouvait tomber sous le seuil de pertinence
 
 ## À venir
 D.2 : fiches et rendus pour OSPF, ransomware, Active Directory, pare-feu (puis VLAN, EtherChannel, adressage, durcissement SSH, Wi-Fi, cloud). D.3 : extensions 3D du moteur logiciel `Engine3D`, connecteur LLM optionnel (sortie toujours validée contre les fiches), réglages d'interface.
+
+
+## D.2 — validation par la pertinence texte ↔ image (28/11/2026)
+
+Critère de réussite : pour chaque scène, la voix, le texte affiché, les objets, l'animation et les personnages se correspondent ; aucun plan n'est choisi parce qu'un mot de son nom ressemble à un mot du texte. Un plan manquant est créé, pas remplacé par une animation voisine.
+Résultat sur les 5 sujets (Phishing, OSPF, Ransomware, Active Directory, Pare-feu ; niveau intermédiaire) : 19 épisodes, 76 scènes, 62 illustrées par un plan dédié au mécanisme cité, 14 cartes d'ouverture (affiche de série), 0 refusée, 0 sans image. Rendu avec voix Piper (voix d'atelier), marge voix/animation ≥ 250 ms, chaque épisode < 50 s. Comparaison et limites : `docs/phaseD/comparaison_avant_apres.md`.
+Limites : pas de sous-titres incrustés ; 7 scènes reprennent le plan d'un épisode précédent pour le même mécanisme ; la pièce jointe citée dans le 4ᵉ signe d'hameçonnage n'est pas dessinée.

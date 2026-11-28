@@ -261,7 +261,7 @@ internal object SitMental {
         }
     }
 
-    private val poster = beat("poster", "Affiche : un souffle à la fenêtre", setOf(Role.INTRO), setOf(Goal.MEMORISER), emptySet(), calm = true, repeatable = true) { c ->
+    private val poster = beat("poster", "Affiche : un souffle à la fenêtre", setOf(Role.INTRO, Role.RECAP), setOf(Goal.MEMORISER), emptySet(), calm = true, repeatable = true) { c ->
         val g = c.g; val t = c.t
         val floor = roomDay(c, rgb(0xCDE9F7)); Props.sun(g, 210f, 150f, 30f, t)
         val u = SK.loop(t, 8000f); val inh = if (u < 0.5f) Easing.EASE_IN_OUT.ease(u * 2f) else 1f - Easing.EASE_IN_OUT.ease((u - 0.5f) * 2f)

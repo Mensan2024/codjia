@@ -52,8 +52,14 @@ object LessonWriter {
         sb.appendLine(card.title)
         sb.appendLine(card.hook)
         sb.appendLine((listOf(card.definition) + keep(card.variants)).joinToString(" "))
-        section(if (card.kind == TopicKind.ATTACK) "Comment l'attaque se déroule :" else "Comment ça fonctionne :", keep(card.steps))
-        section(if (card.kind == TopicKind.ATTACK) "Les conséquences :" else "À quoi ça sert :", keep(card.consequences))
+        if (card.kind == TopicKind.ATTACK) {
+            section("Comment l'attaque se déroule :", keep(card.steps))
+            section("Les conséquences :", keep(card.consequences))
+        } else {
+            // Notion : à quoi ça sert avant le fonctionnement.
+            section("À quoi ça sert :", keep(card.consequences))
+            section("Comment ça fonctionne :", keep(card.steps))
+        }
         section("Comment le reconnaître :", keep(card.signs))
         section("Comment le détecter :", keep(card.detection))
         section("Comment s'en protéger :", keep(card.prevention))

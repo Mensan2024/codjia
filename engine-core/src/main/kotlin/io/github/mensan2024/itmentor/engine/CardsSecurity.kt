@@ -53,5 +53,51 @@ internal object CardsSecurity {
         recap = "face à un message urgent qui demande tes identifiants, ne clique pas : vérifie par un canal officiel.",
     )
 
-    val cards: List<TopicCard> = listOf(phishing)
+    private val ransomware = TopicCard(
+        id = "ransomware", kind = TopicKind.ATTACK,
+        title = "Le rançongiciel : l'attaque qui chiffre tes fichiers",
+        names = listOf("ransomware", "rancongiciel", "rancon informatique", "logiciel de rancon", "rancon"),
+        hook = "Un mardi matin, Moussa, comptable dans une petite entreprise, ouvre une facture reçue par courriel. Quelques minutes plus tard, ses fichiers ne s'ouvrent plus et un message réclame de l'argent.",
+        definition = "Un rançongiciel, ou ransomware, est un logiciel malveillant qui chiffre tes fichiers et exige une rançon pour les déchiffrer.",
+        variants = listOf(Fact("La double extorsion ajoute le vol des données avant le chiffrement : l'attaquant menace de les publier, même si la victime restaure ses sauvegardes.", INTERMEDIAIRE)),
+        steps = listOf(
+            Fact("L'entrée se fait souvent par un courriel piégé, un accès à distance mal protégé ou une faille non corrigée."),
+            Fact("Le programme malveillant s'installe et se cache sur le poste."),
+            Fact("Il explore le réseau et cherche les dossiers partagés et les sauvegardes accessibles."),
+            Fact("Il chiffre les fichiers un à un avec une clé que seul l'attaquant possède."),
+            Fact("Un message de rançon s'affiche et demande un paiement, souvent avec un délai."),
+            Fact("Avant de chiffrer, les attaquants cherchent souvent à obtenir des droits d'administrateur, à désactiver l'antivirus et à supprimer les sauvegardes accessibles.", AVANCE),
+        ),
+        consequences = listOf(
+            Fact("L'activité s'arrête : fichiers, applications et serveurs deviennent inutilisables."),
+            Fact("Des données peuvent être volées, puis publiées."),
+            Fact("Payer ne garantit pas de récupérer les fichiers et finance les criminels."),
+        ),
+        signs = listOf(
+            Fact("Des fichiers qui changent d'extension ou ne s'ouvrent plus"),
+            Fact("Un message qui réclame une rançon"),
+            Fact("Un poste très lent, avec une activité disque inhabituelle"),
+            Fact("Des sauvegardes ou des partages soudainement inaccessibles"),
+        ),
+        detection = listOf(
+            Fact("Les outils de détection sur les postes, les EDR, repèrent le chiffrement massif de fichiers et peuvent isoler le poste.", INTERMEDIAIRE),
+            Fact("Les journaux montrent un grand nombre de fichiers renommés ou modifiés en peu de temps, et des connexions inhabituelles vers les serveurs de fichiers.", AVANCE),
+        ),
+        prevention = listOf(
+            Fact("Garde des sauvegardes hors ligne ou immuables, et teste leur restauration."),
+            Fact("Mets à jour le système et les logiciels dès que les correctifs sortent."),
+            Fact("Méfie-toi des pièces jointes et des liens inattendus."),
+            Fact("Limite les droits : un compte ordinaire ne doit pas pouvoir modifier tous les partages."),
+            Fact("Active la double authentification sur les accès à distance.", INTERMEDIAIRE),
+            Fact("Segmente le réseau pour que l'infection ne se propage pas d'un poste à tout le parc.", AVANCE),
+        ),
+        reaction = "Si tu vois le message de rançon : débranche le poste du réseau, préviens tout de suite ton service informatique, et ne paie pas avant d'avoir l'avis d'experts.",
+        practices = listOf(
+            Fact("Applique la règle 3-2-1 : trois copies, sur deux supports, dont une hors ligne.", AVANCE),
+            Fact("Prépare et entraîne un plan de réponse aux incidents, avec les contacts à prévenir.", AVANCE),
+        ),
+        recap = "des sauvegardes hors ligne, testées, sont la meilleure réponse à un rançongiciel.",
+    )
+
+    val cards: List<TopicCard> = listOf(phishing, ransomware)
 }

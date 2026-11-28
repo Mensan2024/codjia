@@ -177,7 +177,7 @@ internal object SitShop {
     }
 
 
-    private val poster = beat("poster", "Affiche : l'étal et sa cliente", setOf(Role.INTRO), setOf(Goal.MEMORISER), emptySet(), repeatable = true) { c ->
+    private val poster = beat("poster", "Affiche : l'étal et sa cliente", setOf(Role.INTRO, Role.RECAP), setOf(Goal.MEMORISER), emptySet(), repeatable = true) { c ->
         val g = c.g; val th = c.th; val t = c.t
         val floor = market(c); stall(c, 640f, floor, 560f)
         Cast.draw(g, 640f, floor - 104f, 380f, Cast.persona(1), Face.HAPPY, Poses.wave(t), t, 1, mirror = true)

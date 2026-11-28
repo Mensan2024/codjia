@@ -19,6 +19,14 @@ data class Alternative(val key: String, val kind: String, val label: String, val
     val belowThreshold: Boolean get() = fit < SceneRegistry.MIN_FIT
 }
 
+/** Une ligne de l'audit de pertinence (voir [StoryPlan.audit]). */
+data class AuditRow(
+    val episode: Int, val index: Int, val id: String, val layout: String, val shownText: String, val narration: String,
+    val concept: String, val role: String, val textCues: List<String>,
+    val visualKey: String?, val visualLabel: String?, val depicts: List<String>, val fit: Float?,
+    val verdict: String, val repeat: String?, val durationMs: Int,
+)
+
 /**
  * Fiche d'une scène du storyboard : les 13 éléments demandés (texte exact, narration, image, personnages, objets, action,
  * décor, animation, cadrage, caméra, durée, transition, son). Chaque champ vient de ce que le moteur sait réellement ;
@@ -153,6 +161,57 @@ class StoryPlan(
         val ep = series.first { e -> e.scenes.any { it.id == id } }
         val sc = ep.scenes.first { it.id == id }
         return Hash64.of("${sc}|pin=${ep.pins[id]}|$look|$templateId|$seed")
+    }
+
+    /**
+     * Audit de pertinence, scène par scène : ce que dit la scène, ce que le plan retenu dessine réellement, et le verdict de la garde
+     * sémantique. « Aucun contrôle ne signale rien » ne suffit pas : cette liste est faite pour être LUE avec les images.
+     */
+    fun audit(): List<AuditRow> {
+        val out = ArrayList<AuditRow>()
+        val seen = HashMap<String, String>()
+        for (ep in series) {
+            val profile = ep.profile ?: ContentAnalyzer.analyze(IntentAnalyzer.videoText(ep))
+            val plan = ScenarioPlanner.plan(ep, profile)
+            val epNo = ep.episode?.index ?: 1
+            for ((i, sc) in ep.scenes.withIndex()) {
+                val it = plan.intents[i]; val pick = plan.picks[i]
+                val shown = pick?.let { p -> SemanticGuard.shownBy(p.beat) }.orEmpty()
+                val refusal = pick?.let { p -> SemanticGuard.refusal(it, p.kind, p.beat) }
+                val note = when {
+                    pick == null -> "texte seul"
+                    refusal != null -> "REFUSÉ : $refusal"
+                    shown.isEmpty() -> "plan générique (${it.role.label}) : sujet « ${it.concept.label} »"
+                    else -> "ok : le texte cite " + shown.filter { c -> c in it.textCues }.joinToString(", ") { c -> c.substringAfter(':') }
+                }
+                val repeat = pick?.let { p -> seen[p.key]?.let { f -> "déjà montré en $f" } }
+                if (pick != null) seen.putIfAbsent(pick.key, "$epNo.${i + 1}")
+                out += AuditRow(epNo, i + 1, sc.id, sc.layout.name, exactText(sc), if (voice) Narration.textOf(sc) else "", it.concept.label, it.role.label,
+                    it.textCues.sorted(), pick?.key, pick?.beat?.label, shown.map { c -> c.substringAfter(':') }.sorted(), pick?.fit, note, repeat, sc.durationMs)
+            }
+        }
+        return out
+    }
+
+    /** Pourquoi chaque plan du catalogue est (ou n'est pas) admis pour une scène : outil de diagnostic de l'audit. */
+    fun why(episode: Int, index: Int): List<String> {
+        val ep = series.firstOrNull { (it.episode?.index ?: 1) == episode } ?: return emptyList()
+        val profile = ep.profile ?: ContentAnalyzer.analyze(IntentAnalyzer.videoText(ep))
+        val it = ScenarioPlanner.plan(ep, profile).intents[index - 1]
+        val dur = ep.scenes[index - 1].durationMs
+        val out = ArrayList<String>()
+        for (k in SceneRegistry.kinds) for (b in k.beats) {
+            val refusal = SemanticGuard.refusal(it, k, b)
+            val f = SceneRegistry.fit(it, k, b)
+            val note = when {
+                refusal != null -> "refusé : $refusal"
+                dur < b.minMs -> "trop court (${dur} ms < ${b.minMs} ms)"
+                f <= 0f -> "écarté (domaine, indices obligatoires ou concept)"
+                else -> "note ${"%.2f".format(f)}"
+            }
+            if (f > 0f || refusal != null && (k.id.startsWith("net3d") || k.id == "firewall")) out += "${k.id}/${b.id} : $note"
+        }
+        return out
     }
 
     /** Une fiche par scène de chaque épisode (cartes d'ouverture comprises). */

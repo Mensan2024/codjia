@@ -33,7 +33,7 @@ object Narration {
         val parts: List<String> = when (s.layout) {
             Layout.HERO -> listOf(p(s.title), p(s.subtitle))
             Layout.DEFINITION -> listOf(p(s.body.ifEmpty { s.subtitle ?: s.title }))
-            Layout.STEPS -> listOf(p(s.title)) + s.items.map { splitLabel(p(it)).first }
+            Layout.STEPS -> listOf(p(s.title)) + s.items.map { if (s.fullVoice) p(it).replace(" : ", ", ") else splitLabel(p(it)).first }
             Layout.STAT -> listOf(p(s.statValue), p(s.title))
             Layout.COMPARE -> s.compare?.let { listOf("${it.badLabel} : ${it.badText()}", "${it.goodLabel} : ${it.goodText()}") } ?: listOf(p(s.title))
             Layout.CHECKLIST -> listOf(p(s.title)) + s.items.map { p(it) } + listOf(p(s.body))

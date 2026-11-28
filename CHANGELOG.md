@@ -2,7 +2,20 @@
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la numérotation [SemVer](https://semver.org/lang/fr/).
 
-## [Non publié] — Phase D.1 : leçons à partir d'une demande courte
+## [Non publié] — Phase D.2 : fiches OSPF, ransomware, Active Directory, pare-feu et garde sémantique
+
+### Ajouté
+- **Quatre fiches** (OSPF, rançongiciel, Active Directory, pare-feu) et 4 familles de plans 3D dédiés (`Scenes3DNet`, 41 plans dont 4 affiches) ; 8 nouveaux plans d'hameçonnage dédiés à un mécanisme (`ScenesSitPhishing2`).
+- **Garde sémantique** (`SemanticGuard`) : un plan n'est admis que si le texte cite ce qu'il montre ; plans génériques réservés à l'ouverture, la définition et le récapitulatif ; un plan propre à un sujet ne sert jamais un autre sujet ; un mécanisme nommé exclut affiches et plans voisins.
+- Commandes `story audit` (verdict par scène) et `story why` (pourquoi chaque plan est admis ou refusé) ; découpage des sections « comment ça fonctionne », « erreurs fréquentes »… en épisodes par mécanisme.
+- Tests : `SemanticReuseTest`.
+
+### Corrigé
+- Virgule d'une énumération prise pour un séparateur titre/détail (« …comptes d'utilisateurs : d'ordinateurs… »).
+- Une affiche ne se répète plus que d'un épisode à l'autre ; plan « indices du message » non répétable ; scène « reconnaître » du phishing : 4 signes dessinés, étiquettes sans chevauchement.
+- Le texte « corrige la fuite » du tunnel de vente retrouve son plan ; les affiches non informatiques servent aussi de récapitulatif de leur sujet.
+
+## Phase D.1 (précédent) : leçons à partir d'une demande courte
 
 ### Ajouté
 - **Bibliothèque de fiches** (`Knowledge`, `TopicCard`, 4 niveaux) et **rédacteur de leçon** (`LessonWriter`, `Studio.ask`) : « Phishing » → leçon complète, sans jamais inventer un sujet absent. Fiche : phishing. Voir `docs/PHASE_D.md`.

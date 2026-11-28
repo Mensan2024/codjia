@@ -29,7 +29,7 @@ class ScenarioTest {
     )
 
     /** Phase C : une famille de situations (personnages, lieux) peut illustrer le même sujet que l'ancienne famille. */
-    private fun family(kind: String) = listOf(kind) + when (kind) { "phishing" -> listOf("sit-phishing"); "stress" -> listOf("sit-mental"); "water" -> listOf("sit-aid"); "funnel" -> listOf("sit-shop"); "clientserver", "topology", "firewall" -> listOf("sit-net"); else -> emptyList() }
+    private fun family(kind: String) = listOf(kind) + when (kind) { "phishing" -> listOf("sit-phishing"); "stress" -> listOf("sit-mental"); "water" -> listOf("sit-aid"); "funnel" -> listOf("sit-shop"); "clientserver", "topology" -> listOf("sit-net"); "firewall" -> listOf("sit-net", "net3d-fw"); else -> emptyList() }
 
     @Test fun chaqueSujetRecoitSaPropreFamilleDeScenes() {
         for ((f, kind) in subjects) {

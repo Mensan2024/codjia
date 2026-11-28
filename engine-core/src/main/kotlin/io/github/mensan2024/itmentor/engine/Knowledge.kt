@@ -40,7 +40,7 @@ class TopicCard(
 )
 
 object Knowledge {
-    val cards: List<TopicCard> by lazy { CardsSecurity.cards }
+    val cards: List<TopicCard> by lazy { CardsSecurity.cards + CardsNetwork.cards }
 
     fun byId(id: String): TopicCard? = cards.firstOrNull { it.id == id }
 }

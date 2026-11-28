@@ -37,13 +37,13 @@ internal object SitPhishing {
     private const val FAKE_FROM = "service@banque-verif.example"
     private const val FAKE_URL = "http://banque-verif.example/ok"
 
-    private fun mail(c: StageCtx, l: Float, t: Float, r: Float, b: Float, link: Float = 0f, showClock: Boolean = true) {
+    internal fun mail(c: StageCtx, l: Float, t: Float, r: Float, b: Float, link: Float = 0f, showClock: Boolean = true): FloatArray {
         val g = c.g; val th = c.th
         val body = Props.mailWindow(g, l, t, r, b, th, FAKE_FROM, "URGENT : compte suspendu", fromColor = th.bad)
         val x = body[0]
-        SK.text(g, "Cher client,", x, body[1] + 18f, 26f, th.muted, 600)
-        SK.text(g, "Votre compte sera suspendu sous 24 h.", x, body[1] + 58f, 26f, th.ink, 600)
-        SK.text(g, "Confirmez vos informations :", x, body[1] + 98f, 26f, th.ink, 600)
+        SK.text(g, "Cher client,", x, body[1] + 18f, 24f, th.muted, 600)
+        SK.text(g, "Votre compte sera suspendu sous 24 h.", x, body[1] + 58f, 24f, th.ink, 600)
+        SK.text(g, "Confirmez vos informations :", x, body[1] + 98f, 24f, th.ink, 600)
         val by = body[1] + 128f
         g.fillRoundRect(x, by, x + 350f, by + 62f, 14f, th.bad)
         if (link > 0.01f) g.strokeRoundRect(x - 6f, by - 6f, x + 356f, by + 68f, 18f, 4f, th.warn.withAlpha(link))
@@ -53,6 +53,7 @@ internal object SitPhishing {
             Props.clock(g, r - 60f, b - 62f, 30f, th, c.t)
             SK.text(g, "24 h", r - 60f, b - 10f, 20f, th.warn, center = true)
         }
+        return body
     }
 
     private val inbox = beat("inbox", "Une personne reçoit un courriel urgent", SitKit.BODY + setOf(Role.INTRO, Role.DEFINE, Role.MECHANISM), setOf(Goal.IDENTIFIER_MENACE, Goal.COMPRENDRE_MECANISME),
@@ -75,29 +76,32 @@ internal object SitPhishing {
         if (a.hr < 0f) return@beat
     }
 
-    private val clues = beat("clues", "Les indices qui trahissent le message", SitKit.BODY + setOf(Role.RECOGNIZE, Role.DEFINE, Role.MECHANISM), setOf(Goal.IDENTIFIER_MENACE),
-        cueSet(Thing.EMAIL, Thing.LIEN, Act.VERIFIER) + setOf("topic:sender", "topic:urgency", "topic:link", "topic:inbox"), minMs = 4000) { c ->
+    private val clues = beat("clues", "Les indices qui trahissent le message", setOf(Role.RECOGNIZE), setOf(Goal.IDENTIFIER_MENACE),
+        cueSet(Thing.EMAIL, Thing.LIEN, Act.VERIFIER) + setOf("topic:sender", "topic:urgency", "topic:link", "topic:inbox"), minMs = 4000, excludes = setOf("topic:phish-hover")) { c ->
         val g = c.g; val th = c.th; val t = c.t
         val floor = SitKit.office(c)
         SitKit.fiction(c)
-        mail(c, 60f, 90f, 560f, 570f, showClock = false)
-        // Trois repères s'allument l'un après l'autre : expéditeur, urgence, lien.
-        val marks = listOf(Triple(floatArrayOf(84f, 176f, 540f, 214f), "1  EXPEDITEUR", 1100f), Triple(floatArrayOf(84f, 296f, 540f, 338f), "2  URGENCE", 2300f), Triple(floatArrayOf(84f, 460f, 540f, 500f), "3  LIEN", 3500f))
+        val body = mail(c, 60f, 90f, 560f, 570f, showClock = false)
+        // Quatre repères s'allument l'un après l'autre : expéditeur, urgence, lien, formule générique (« Cher client »).
+        val marks = listOf(Triple(floatArrayOf(84f, 176f, 540f, 214f), "1  EXPEDITEUR", 1100f), Triple(floatArrayOf(84f, 312f, 540f, 350f), "2  URGENCE", 2300f), Triple(floatArrayOf(84f, 460f, 540f, 500f), "3  LIEN", 3500f),
+            Triple(floatArrayOf(body[0] - 8f, body[1] - 8f, 540f, body[1] + 24f), "4  GENERIQUE", 4700f))
+        val pillY = floatArrayOf(150f, 400f, 520f, 275f)
         for ((k, m) in marks.withIndex()) {
             val p = SK.ease(t, m.third, 450f)
             if (p <= 0.01f) continue
             val r = m.first
             g.strokeRoundRect(r[0], r[1], r[2], r[3], 12f, 4f, th.warn.withAlpha(p * (0.65f + 0.35f * sin(t / 240f))))
-            SK.arrow(g, 566f, (r[1] + r[3]) / 2f, 616f, 140f + k * 150f, 3f, th.warn.withAlpha(p), 12f)
-            SK.pill(g, m.second, 725f, 140f + k * 150f, th.warn, th.bgTop.withAlpha(0.85f), 24f, p)
+            val py = pillY[k] // les étiquettes suivent l'ordre vertical des repères : aucune flèche ne croise une autre
+            SK.arrow(g, 566f, (r[1] + r[3]) / 2f, 612f, py, 3f, th.warn.withAlpha(p), 12f)
+            SK.pill(g, m.second, 622f + (13.2f * m.second.length + 34f) / 2f, py, th.warn, th.bgTop.withAlpha(0.85f), 24f, p)
         }
         val look = Props.gaze(Face.mix(Face.FOCUSED, Face.SUSPICIOUS, SK.ease(t, 1000f, 600f)), 850f, 330f, 300f, 330f)
         Cast.draw(g, 880f, floor, 360f, Cast.persona(5), look, Poses.holdFront(t), t, 5, mirror = true)
-        Props.magnifier(g, 800f + 8f * sin(t / 600f), 410f + 6f * cos(t / 700f), 34f, th.accent)
+        Props.magnifier(g, 832f + 8f * sin(t / 600f), 410f + 6f * cos(t / 700f), 34f, th.accent)
     }
 
     private val hover = beat("hover", "Survoler le lien avant de cliquer", SitKit.BODY + setOf(Role.ADVICE, Role.PROCEDURE, Role.RECOGNIZE, Role.MECHANISM), setOf(Goal.APPRENDRE_REFLEXE, Goal.SUIVRE_PROCEDURE),
-        cueSet(Thing.LIEN, Act.VERIFIER, Act.CLIQUER, Thing.EMAIL) + setOf("topic:link", "topic:sender"), minMs = 4000, needs = setOf("topic:link")) { c ->
+        cueSet(Thing.LIEN, Act.VERIFIER, Act.CLIQUER, Thing.EMAIL) + setOf("topic:link", "topic:sender"), repeatable = true, minMs = 4000, needs = setOf("topic:phish-hover")) { c ->
         val g = c.g; val th = c.th; val t = c.t
         val floor = SitKit.office(c)
         SitKit.fiction(c)
@@ -125,7 +129,7 @@ internal object SitPhishing {
     }
 
     private val callback = beat("callback", "Appeler par le numéro officiel", SitKit.BODY + setOf(Role.ADVICE, Role.PROCEDURE), setOf(Goal.APPRENDRE_REFLEXE, Goal.SUIVRE_PROCEDURE),
-        cueSet(Act.NAVIGUER_DIRECT, Act.VERIFIER, Actor.BANQUE, Thing.COMPTE) + setOf("topic:callback", "topic:inbox"), minMs = 4000, needs = setOf("topic:callback")) { c ->
+        cueSet(Act.NAVIGUER_DIRECT, Act.VERIFIER, Actor.BANQUE, Thing.COMPTE) + setOf("topic:callback", "topic:inbox"), minMs = 4000, needs = setOf("topic:phish-callback")) { c ->
         val g = c.g; val th = c.th; val t = c.t
         val floor = SitKit.office(c)
         SitKit.fiction(c)
@@ -299,5 +303,5 @@ internal object SitPhishing {
         g.withPose(Pose(alpha = p, scale = 0.6f + 0.4f * p), 700f, 290f) { SK.glow(g, 700f, 290f, 280f, th.bad, 0.14f); SK.envelope(g, 700f, 290f, 330f, th.panelHi, th.warn); Props.notifBadge(g, 840f, 190f, 1, 1f, th.bad); SK.text(g, "?", 700f, 330f, 120f, th.bad, 800, center = true) }
     }
 
-    val kind = SceneKind("sit-phishing", "Hameçonnage en situation", setOf(Concept.PHISHING), listOf(inbox, clues, hover, callback, report, victim, chain, damage, poster), fallbackFor = setOf(Concept.MALWARE))
+    val kind = SceneKind("sit-phishing", "Hameçonnage en situation", setOf(Concept.PHISHING), listOf(inbox, clues, hover, callback, report, victim, chain, damage, poster) + SitPhishing2.beats)
 }

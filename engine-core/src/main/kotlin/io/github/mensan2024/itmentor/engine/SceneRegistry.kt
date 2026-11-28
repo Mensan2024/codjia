@@ -39,6 +39,14 @@ internal class Beat(
     val vh: Float = 700f,
     /** Indices OBLIGATOIRES : sans eux le plan est exclu (un téléphone et son SMS ne s'affichent pas pour un texte qui ne parle pas de SMS). */
     val needs: Set<String> = emptySet(),
+    /**
+     * Ce que le plan DESSINE, en indices (« topic:ospf-spf », « thing:SMS »…) : le plan n'est admis que si le texte de la scène en cite
+     * AU MOINS UN. Vide = les [cues] jouent ce rôle ; un plan sans aucun indice est « générique » (ouverture, définition, à retenir)
+     * et ne sert que ces rôles-là (voir [SemanticGuard]).
+     */
+    val shows: Set<String> = emptySet(),
+    /** Indices qui, s'ils sont dans le texte, appellent un plan plus complet : ce plan n'illustrerait qu'une partie du passage. */
+    val excludes: Set<String> = emptySet(),
 )
 
 internal class SceneKind(
@@ -52,8 +60,9 @@ internal class SceneKind(
     val domains: Set<Domain> = emptySet(),
 )
 
-internal fun beat(id: String, label: String, roles: Set<Role>, goals: Set<Goal>, cues: Set<String>, calm: Boolean = false, repeatable: Boolean = false, minMs: Int = 0, onlyFor: Set<Concept> = emptySet(), y0: Float = 0f, vh: Float = 700f, needs: Set<String> = emptySet(), draw: ((StageCtx) -> Unit)?) =
-    Beat(id, label, roles, goals, cues, calm, repeatable, draw, minMs, onlyFor, y0, vh, needs)
+internal fun beat(id: String, label: String, roles: Set<Role>, goals: Set<Goal>, cues: Set<String>, calm: Boolean = false, repeatable: Boolean = false, minMs: Int = 0, onlyFor: Set<Concept> = emptySet(), y0: Float = 0f, vh: Float = 700f, needs: Set<String> = emptySet(), shows: Set<String> = emptySet(), excludes: Set<String> = emptySet(), draw: ((StageCtx) -> Unit)?) =
+    // Un plan dédié à un mécanisme (topic:xxx-yyy obligatoire) peut revenir pour le MÊME mécanisme dans un autre épisode : mieux vaut le revoir qu'une affiche.
+    Beat(id, label, roles, goals, cues, calm, repeatable || needs.any { it.startsWith("topic:") && '-' in it }, draw, minMs, onlyFor, y0, vh, needs, shows, excludes)
 
 internal fun cueSet(vararg x: Any): Set<String> = cues(*x)
 
@@ -78,7 +87,7 @@ internal class ScenarioPlan(val intents: List<SceneIntent>, val picks: List<Pick
 
 internal object SceneRegistry {
     val kinds: List<SceneKind> by lazy {
-        listOf(SitPhishing.kind, SitMental.kind, SitAid.kind, SitShop.kind, SitNet.kind, PhishingScenes.kind, BruteForceScenes.kind, FirewallScenes.kind, TopologyScenes.kind, ClientServerScenes.kind,
+        listOf(SitPhishing.kind, SitMental.kind, SitAid.kind, SitShop.kind, SitNet.kind, Scenes3DNet.ospfKind, Scenes3DNet.fwKind, Scenes3DNet.adKind, Scenes3DNet.ransomKind, PhishingScenes.kind, BruteForceScenes.kind, FirewallScenes.kind, TopologyScenes.kind, ClientServerScenes.kind,
             GratitudeScenes.kind, StressScenes.kind, FunnelScenes.kind, MethodScenes.kind, WaterScenes.kind, Attack3DScenes.attackKind, Attack3DScenes.objectKind)
     }
 
@@ -95,6 +104,7 @@ internal object SceneRegistry {
     fun fit(i: SceneIntent, k: SceneKind, b: Beat): Float {
         if (k.domains.isNotEmpty() && i.domain !in k.domains) return 0f
         if (b.needs.isNotEmpty() && !i.cues.containsAll(b.needs)) return 0f
+        if (SemanticGuard.refusal(i, k, b) != null) return 0f
         if (b.onlyFor.isNotEmpty() && i.concept !in b.onlyFor && i.secondary.none { it in b.onlyFor }) return 0f
         val c = when {
             i.concept in k.concepts -> 1f
@@ -104,12 +114,59 @@ internal object SceneRegistry {
             else -> return 0f
         }
         val r = if (i.role in b.roles) 1f else 0.1f
-        val a = if (b.cues.isEmpty()) 0.5f else min(1f, b.cues.count { it in i.cues }.toFloat() / min(3f, b.cues.size.toFloat()))
+        val a = if (b.cues.isEmpty()) (if (b.needs.isNotEmpty()) 1f else 0.5f) else min(1f, b.cues.count { it in i.cues }.toFloat() / min(3f, b.cues.size.toFloat()))
         val g = if (i.goal in b.goals) 1f else 0.3f
         // Phase C : à notes égales, une situation incarnée (personnages, objets, lieu) passe avant un schéma abstrait.
         val situation = if (k.id.startsWith("sit-") && b.id != "poster") 0.07f else 0f
         return 0.25f * c + 0.35f * r + 0.30f * a + 0.10f * g + situation
     }
+}
+
+/**
+ * Garde sémantique (phase D.2) : un plan n'est pas choisi parce que son nom ressemble au texte, mais parce que ce qu'il DESSINE
+ * est ce que la scène EXPLIQUE.
+ *  1. Un plan qui montre des choses précises ([Beat.shows], à défaut [Beat.cues]) n'est admis que si le texte de la scène cite au
+ *     moins l'une d'elles. Les indices supposés par le concept (l'attaquant d'un hameçonnage) ne comptent pas : seul le texte compte.
+ *  2. Un plan « générique » (sans aucun indice) ne sert que l'ouverture, la définition et l'à-retenir, et seulement pour son propre sujet.
+ */
+internal object SemanticGuard {
+    /** Raison du refus, ou `null` si le plan peut illustrer cette scène. */
+    fun refusal(i: SceneIntent, k: SceneKind, b: Beat): String? {
+        b.excludes.firstOrNull { it in i.textCues }?.let { return "le passage parle aussi de ${label(it)} : un plan plus complet existe" }
+        // Sujet technique dédié (OSPF, AD, pare-feu, rançongiciel) : seuls les plans de ce sujet peuvent l'illustrer, jamais une ancienne simulation générique.
+        val subjects = i.textCues.mapNotNull { c -> if (c.startsWith("topic:")) SUBJECT_OF[c.removePrefix("topic:").substringBefore('-')] else null }.toSet()
+        if (subjects.isNotEmpty() && subjects.none { k.id in SUBJECT_KINDS.getValue(it) })
+            return "le passage parle de ${subjects.joinToString(", ")} : ce plan appartient à un autre sujet (${k.id})"
+        // Mécanisme précis cité (« les LSA », « le message de rançon ») : seul un plan DÉDIÉ de ce sujet peut l'illustrer, ni une affiche ni un schéma voisin.
+        val mech = if (i.role == Role.INTRO) emptyList() else i.textCues.filter { it.startsWith("topic:") && '-' in it && it in dedicated }
+        if (mech.isNotEmpty() && subjects.isNotEmpty() && k.id != SUBJECT_MAIN.getValue(subjects.first()))
+            return "le passage explique ${label(mech.first())} : un plan dédié existe, une illustration plus générale serait hors sujet"
+        val shown = shownBy(b)
+        // Un indice de sujet (« pare-feu », « OSPF ») ne dit pas CE QUE le plan montre : seul, il ne vaut que pour un plan générique.
+        if (shown.isNotEmpty() && !SUBJECT_ONLY.containsAll(shown)) {
+            if (shown.none { it in i.textCues }) return "le texte de la scène ne cite rien de ce que le plan dessine (${shown.joinToString(", ") { label(it) }})"
+            return null
+        }
+        if (shown.isNotEmpty() && shown.none { it in i.textCues }) return "le texte de la scène ne parle pas du sujet du plan (${shown.joinToString(", ") { label(it) }})"
+        if (mech.isNotEmpty()) return "le passage explique ${label(mech.first())} : une affiche ou un plan générique ne le montre pas"
+        if (i.role !in GENERIC_ROLES) return "plan générique réservé à l'ouverture, la définition et l'à-retenir (rôle de la scène : ${i.role.label})"
+        if (i.concept !in k.concepts) return "plan générique : le sujet de la scène n'est pas celui du plan"
+        return null
+    }
+
+    /** Ce que le plan dessine : ses indices explicites, à défaut ses indices obligatoires, à défaut ses indices souples. */
+    fun shownBy(b: Beat): Set<String> = b.shows.ifEmpty { b.needs.ifEmpty { b.cues } }
+
+    private val SUBJECT_ONLY = setOf("topic:ospf", "topic:ad", "topic:fw", "topic:ransom")
+
+    private val SUBJECT_MAIN = mapOf("ospf" to "net3d-ospf", "ad" to "net3d-ad", "fw" to "net3d-fw", "ransom" to "net3d-ransom", "phish" to "sit-phishing")
+    private val dedicated: Set<String> by lazy { SceneRegistry.kinds.flatMap { it.beats }.flatMap { it.needs + it.shows }.filter { it.startsWith("topic:") && '-' in it }.toSet() }
+    private val SUBJECT_OF = mapOf("ospf" to "ospf", "ad" to "ad", "fw" to "fw", "ransom" to "ransom", "phish" to "phish")
+    private val SUBJECT_KINDS = mapOf("ospf" to setOf("net3d-ospf"), "ad" to setOf("net3d-ad"), "fw" to setOf("net3d-fw", "firewall"), "ransom" to setOf("net3d-ransom"), "phish" to setOf("sit-phishing", "phishing"))
+
+    val GENERIC_ROLES = setOf(Role.INTRO, Role.DEFINE, Role.RECAP)
+
+    private fun label(cue: String) = cue.substringAfter(':')
 }
 
 internal object ScenarioPlanner {
@@ -143,7 +200,7 @@ internal object ScenarioPlanner {
             if (profile.sensitive && !b.calm) continue
             if (!b.repeatable && (k.id + "/" + b.id) in used) continue
             cands += Cand(k, b, 0)
-            if (b.repeatable) cands += Cand(k, b, 1)
+            if (b.repeatable) { cands += Cand(k, b, 1); if (b.needs.isNotEmpty()) cands += Cand(k, b, 2) }
         }
         val r = free.size
         val m = cands.size
@@ -154,14 +211,32 @@ internal object ScenarioPlanner {
                 val dur = sb.scenes[i].durationMs
                 for ((j, c) in cands.withIndex()) {
                     var f = if (dur < c.b.minMs) 0f else SceneRegistry.fit(intents[i], c.k, c.b)
-                    if (c.copy == 1) f -= 0.08f
+                    if (c.copy > 0) f -= 0.05f * c.copy
+                    // Une affiche ne se répète que d'un épisode à l'autre (identité de la série) : jamais comme illustration d'une scène ordinaire.
+                    if (c.copy > 0 && c.b.id == "poster" && !sb.scenes[i].isEpisodeOpener) f = 0f
                     // Carte d'ouverture d'épisode : de préférence l'affiche en situation du sujet (personnages, lieu), pas un schéma abstrait.
-                    if (f > 0f && sb.scenes[i].isEpisodeOpener && c.b.id == "poster" && c.k.id.startsWith("sit-")) f += 0.12f
+                    if (f > 0f && sb.scenes[i].isEpisodeOpener && c.b.id == "poster" && (c.k.id.startsWith("sit-") || c.k.id.startsWith("net3d-"))) f += 0.12f
                     w[row][j] = if (f >= SceneRegistry.MIN_FIT) f + SK.hash01(i * 131 + (c.k.id + c.b.id).hashCode() + c.copy, salt) * 0.02 else -1.0
                 }
                 for (d in 0 until r) w[row][m + d] = SceneRegistry.MIN_FIT.toDouble()
             }
-            val assign = Hungarian.maximize(w)
+            // Un plan répétable ne passe jamais deux scènes de suite : si l'affectation optimale le fait, on interdit ce plan à la scène la moins bien servie et on recalcule
+            // (plutôt que de retirer l'image après coup, ce qui laisserait une scène sans illustration alors qu'un autre plan convenait).
+            var assign = Hungarian.maximize(w)
+            for (round in 0 until 40) {
+                var conflict = -1
+                for (row in 1 until r) {
+                    val ja = assign[row - 1]; val jb = assign[row]
+                    if (ja !in 0 until m || jb !in 0 until m) continue
+                    if (free[row] != free[row - 1] + 1) continue
+                    val ca = cands[ja]; val cb = cands[jb]
+                    if (ca.k === cb.k && ca.b === cb.b) { conflict = if (w[row][jb] <= w[row - 1][ja]) row else row - 1; break }
+                }
+                if (conflict < 0) break
+                val cj = cands[assign[conflict]]
+                for ((j, c) in cands.withIndex()) if (c.k === cj.k && c.b === cj.b) w[conflict][j] = -1.0
+                assign = Hungarian.maximize(w)
+            }
             for ((row, i) in free.withIndex()) {
                 val j = assign[row]
                 if (j in 0 until m && w[row][j] >= SceneRegistry.MIN_FIT) {

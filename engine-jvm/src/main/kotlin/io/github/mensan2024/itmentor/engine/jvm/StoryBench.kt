@@ -79,6 +79,46 @@ fun storyMain(a: List<String>) {
             File(a[2]).writeText(out.toString())
             println("calage : ${out.lines().count { it.isNotBlank() }} scène(s)")
         }
+        "why" -> {
+            // why <plan.json> <épisode> <scène> : pourquoi chaque plan est admis, refusé ou écarté pour cette scène.
+            val plan = StoryPlan.fromJson(File(a[1]).readText())
+            plan.why(a[2].toInt(), a[3].toInt()).forEach { println(it) }
+        }
+        "audit" -> {
+            // audit <plan.json> <sortie.md> [dossier-images] : scène par scène, texte / narration / plan et ce qu'il dessine / verdict ; avec un dossier, 3 images par scène.
+            val plan = StoryPlan.fromJson(File(a[1]).readText())
+            val rows = plan.audit()
+            val sb = StringBuilder("# Audit de pertinence\n\n")
+            for (r in rows) {
+                sb.appendLine("## ${r.episode}.${r.index} `${r.id}` · ${r.layout} · ${"%.1f".format(r.durationMs / 1000.0)} s")
+                sb.appendLine("- AFFICHÉ : " + r.shownText.replace("\n", " ⏎ "))
+                sb.appendLine("- DIT : " + r.narration)
+                sb.appendLine("- sujet/rôle : ${r.concept} · ${r.role} ; indices du texte : ${r.textCues.joinToString(", ")}")
+                sb.appendLine("- PLAN : ${r.visualKey ?: "—"} (${r.visualLabel ?: "texte seul"}) note ${r.fit?.let { "%.2f".format(it) } ?: "—"} ; dessine : ${r.depicts.joinToString(", ").ifEmpty { "(générique)" }}")
+                sb.appendLine("- VERDICT : ${r.verdict}" + (r.repeat?.let { " ; $it" } ?: ""))
+                sb.appendLine()
+            }
+            File(a[2]).writeText(sb.toString())
+            println("audit : ${rows.size} scène(s), ${rows.count { it.verdict.startsWith("REFUSÉ") }} refusée(s), ${rows.count { it.visualKey == null }} sans image")
+            a.getOrNull(3)?.let { d ->
+                val dir = File(d).apply { mkdirs() }
+                val music = catalogTrack(plan, musicDir)
+                val tw = 360; val th = 640
+                for ((e, sbd) in plan.prepared(music).withIndex()) {
+                    val r = FrameRenderer(sbd, VideoFormat(tw, th, 30), plan.template)
+                    for ((i, sl) in r.timeline.slots.withIndex()) {
+                        val strip = BufferedImage(tw * 3, th, BufferedImage.TYPE_INT_RGB)
+                        val g2 = strip.createGraphics()
+                        for ((k, f) in listOf(0.25f, 0.6f, 0.95f).withIndex()) {
+                            val img = BufferedImage(tw, th, BufferedImage.TYPE_INT_RGB)
+                            r.render(Java2DGfx(img, fonts), sl.startMs + (sl.endMs - sl.startMs) * f)
+                            g2.drawImage(img, k * tw, 0, null)
+                        }
+                        ImageIO.write(strip, "png", File(dir, "${e + 1}_${i + 1}_${sl.scene.id}.png"))
+                    }
+                }
+            }
+        }
         "replace" -> {
             val plan = StoryPlan.fromJson(File(a[1]).readText())
             val next = plan.replaceVisual(a[2], if (a[3] == "none") Pins.TEXT_ONLY else a[3])
